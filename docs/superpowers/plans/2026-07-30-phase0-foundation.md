@@ -21,7 +21,14 @@
 - **Per-target catalog** flows via a job `parameters:` entry + each notebook task's `base_parameters: {catalog: ${var.catalog}}` + a `catalog` widget in every notebook.
 - **Everything is a DAB resource** — no click-ops for anything that must reproduce in the POC workspace.
 - **Verification model** (Databricks-appropriate, replaces pytest-TDD): each task ends with build → run → **assert** (row counts / schema / files land) → commit. Assertions are explicit SQL or CLI checks with expected output.
-- **Row-count parameter:** `row_count` (default 5_000_000 internal; override to ~50_000_000 in POC).
+- **Row-count parameter:** `row_count` (default 5_000_000 internal; override to ~50_000_000 in POC). NOTE: override at RUN time with `--params row_count=N` (job-level param), not `--var` (which only affects deploy-time resolution; the deployed task already has the value baked in).
+
+### Serverless / UC lessons (validated during dev execution)
+- **No local filesystem.** Serverless shared-UC blocks `dbutils.fs.cp` from `file:` paths (`LocalFilesystemAccessDeniedException`) and `/local_disk0` isn't writable. Write outputs DIRECTLY to the `/Volumes/...` FUSE path with native Spark writers.
+- **Native writers produce directories** of part-files (e.g. `students_csv/part-*`); native readers read the directory transparently. Fine and honest.
+- **Excel:** native *reader* is GA (DBR 17.1+, `spark.read.excel`) and is the SE-05 demo path. The native *writer* is NOT enabled here (`EXCEL_DATA_WRITER_NOT_ENABLED`) — so the .xlsx setup file is built in-memory via `openpyxl` (requires `%pip install openpyxl` + `dbutils.library.restartPython()`), the one isolated non-native exception.
+- **Notebook paths** need explicit `.py` extension in `notebook_task.notebook_path` for this CLI.
+- **Dev target uses `mode: production`** (not development) to avoid `dev_<user>_` auto-prefixing of schema/volume names; we isolate via catalog + schema_suffix instead.
 
 ---
 
