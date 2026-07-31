@@ -17,9 +17,9 @@ Precedence: databricks.yml default → per-target → `--var` → `BUNDLE_VAR_<n
 
 | Target | `--profile` | catalog (preset) | `storage_root` (URL) | `warehouse_id` (later phases) |
 |--------|-------------|------------------|----------------------|-------------------------------|
-| dev (internal) | dbx_shared_demo | `princeton_poc_dev` | _____ | _____ |
+| dev (internal) | dbx_shared_demo | `princeton_poc_dev` | `abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/` (set) | _____ |
 | qa | dbx_shared_demo | `princeton_poc_test` | _____ | _____ |
-| prod (Princeton POC) | _____ | `princeton_poc` | _____ | _____ |
+| prod (Princeton POC) | _____ | `princeton_poc` | _____ (customer supplies) | _____ |
 
 ## Secrets (NOT bundle variables — never commit)
 Credentials (SFTP password, OAuth client secret for the mock API) live in a UC secret

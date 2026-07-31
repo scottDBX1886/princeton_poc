@@ -23,7 +23,7 @@ targets:
       profile: dbx_shared_demo
     variables:
       catalog: "princeton_poc_dev"
-      storage_root: "<DEV_STORAGE_URL>"   # e.g. abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/princeton_poc_dev
+      storage_root: "abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/"   # internal test env (dbx_shared_demo)
   qa:
     mode: production
     workspace:
