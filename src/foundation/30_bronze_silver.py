@@ -8,35 +8,37 @@
 
 # COMMAND ----------
 dbutils.widgets.text("catalog", "princeton_poc")
+dbutils.widgets.text("schema_suffix", "")
 CATALOG = dbutils.widgets.get("catalog")
-BRONZE = f"{CATALOG}.bronze"
-BASE = f"/Volumes/{CATALOG}/landing/files"
+SUFFIX = dbutils.widgets.get("schema_suffix")
+BRONZE = f"{CATALOG}.bronze{SUFFIX}"
+BASE = f"/Volumes/{CATALOG}/landing{SUFFIX}/files"
 
 # COMMAND ----------
-# MAGIC %md ## students.csv -> bronze.students_raw
-# MAGIC multiLine + quote handling so the embedded comma in "Doe, John" does NOT split the row.
+# MAGIC %md ## students_csv -> bronze.students_raw
+# MAGIC Native CSV reader; header + quote handling so the embedded comma in "Doe, John"
+# MAGIC does NOT split the row. Reads the native-writer output directory transparently.
 # COMMAND ----------
 students_raw = (
     spark.read
     .option("header", True)
     .option("multiLine", True)
     .option("quote", '"')
-    .option("escape", '"')
-    .csv(f"{BASE}/students.csv")
+    .format("csv").load(f"{BASE}/students_csv")
 )
 students_raw.write.mode("overwrite").saveAsTable(f"{BRONZE}.students_raw")
 cnt = spark.table(f"{BRONZE}.students_raw").count()
 print("bronze.students_raw rows:", cnt, "(expect 2000; no row-split from embedded comma)")
 
 # COMMAND ----------
-# MAGIC %md ## enrollments.pipe.txt -> bronze.enrollments_raw (pipe delimiter)
+# MAGIC %md ## enrollments_pipe -> bronze.enrollments_raw (pipe delimiter)
 # COMMAND ----------
 enroll_raw = (
     spark.read
     .option("header", True)
     .option("sep", "|")
     .option("quote", '"')
-    .csv(f"{BASE}/enrollments.pipe.txt")
+    .format("csv").load(f"{BASE}/enrollments_pipe")
 )
 enroll_raw.write.mode("overwrite").saveAsTable(f"{BRONZE}.enrollments_raw")
 print("bronze.enrollments_raw rows:", spark.table(f"{BRONZE}.enrollments_raw").count())

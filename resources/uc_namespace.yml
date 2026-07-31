@@ -7,19 +7,19 @@ resources:
   schemas:
     bronze:
       catalog_name: ${var.catalog}
-      name: bronze
+      name: bronze${var.schema_suffix}
     silver:
       catalog_name: ${var.catalog}
-      name: silver
+      name: silver${var.schema_suffix}
     gold:
       catalog_name: ${var.catalog}
-      name: gold
+      name: gold${var.schema_suffix}
     landing:
       catalog_name: ${var.catalog}
-      name: landing
+      name: landing${var.schema_suffix}
   volumes:
     landing_files:
       catalog_name: ${var.catalog}
-      schema_name: landing
+      schema_name: landing${var.schema_suffix}
       name: files
       volume_type: MANAGED

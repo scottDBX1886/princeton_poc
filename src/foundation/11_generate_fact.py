@@ -11,11 +11,13 @@
 # COMMAND ----------
 dbutils.widgets.text("row_count", "5000000")
 dbutils.widgets.text("catalog", "princeton_poc")
+dbutils.widgets.text("schema_suffix", "")
 N = int(dbutils.widgets.get("row_count"))
 SEED = 42
 CATALOG = dbutils.widgets.get("catalog")
-SILVER = f"{CATALOG}.silver"
-GOLD = f"{CATALOG}.gold"
+SUFFIX = dbutils.widgets.get("schema_suffix")
+SILVER = f"{CATALOG}.silver{SUFFIX}"
+GOLD = f"{CATALOG}.gold{SUFFIX}"
 
 from pyspark.sql import functions as F
 

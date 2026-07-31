@@ -24,8 +24,10 @@ Faker.seed(SEED)
 random.seed(SEED)
 
 dbutils.widgets.text("catalog", "princeton_poc")
+dbutils.widgets.text("schema_suffix", "")
 CATALOG = dbutils.widgets.get("catalog")
-SILVER = f"{CATALOG}.silver"
+SUFFIX = dbutils.widgets.get("schema_suffix")
+SILVER = f"{CATALOG}.silver{SUFFIX}"
 
 # Domain constants
 DIVISIONS = ["Humanities", "Natural Sciences", "Engineering", "Social Sciences", "Arts"]

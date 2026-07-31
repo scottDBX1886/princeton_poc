@@ -5,6 +5,9 @@ variables:
   catalog:
     description: Target UC catalog
     default: princeton_poc
+  schema_suffix:
+    description: Environment suffix on layer schema names (dev=_dev, qa=_test, prod=empty). Threads to schemas, the landing volume path, and notebooks.
+    default: ""
   storage_root:
     description: Managed storage location URL for the catalog (external location or metastore-managed path). Operator sets per target.
     default: ""   # MUST be overridden per target with a real storage URL, or drop storage_root from the catalog resource to inherit metastore default
@@ -17,12 +20,17 @@ variables:
 
 targets:
   dev:
-    mode: development
+    # Production mode (not development) so resource names are NOT auto-prefixed with
+    # dev_<user>_. We already isolate environments by catalog + schema_suffix, so we want
+    # clean, predictable schema names (bronze_dev, silver_dev, ...) here too.
+    mode: production
     default: true
     workspace:
       profile: dbx_shared_demo
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_dev"
+      schema_suffix: "_dev"
       storage_root: "abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/"   # internal test env (dbx_shared_demo)
   qa:
     mode: production
@@ -31,6 +39,7 @@ targets:
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_test"
+      schema_suffix: "_test"
       storage_root: "<QA_STORAGE_URL>"
   prod:
     mode: production
@@ -39,6 +48,7 @@ targets:
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc"
+      schema_suffix: ""
       storage_root: "<PROD_STORAGE_URL>"
 
 include:

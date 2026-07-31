@@ -5,18 +5,21 @@ resources:
       # The UC namespace (catalog/schemas/volume) is created at `bundle deploy` via
       # resources/uc_namespace.yml — NOT as a job task. So generate_core is first.
       #
-      # catalog flows: target -> var.catalog -> each task's base_parameters -> notebook widget.
-      # This is how the per-target catalog name (princeton_poc_dev / _test / prod) reaches
-      # every saveAsTable in the notebooks.
+      # catalog + schema_suffix flow: target -> vars -> each task's base_parameters ->
+      # notebook widgets. This is how per-target names (princeton_poc_dev + _dev schemas)
+      # reach every saveAsTable in the notebooks.
       parameters:
         - name: catalog
           default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
       tasks:
         - task_key: generate_core
           notebook_task:
             notebook_path: ../src/foundation/10_generate_core.py
             base_parameters:
               catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
 
         - task_key: generate_fact
           depends_on:
@@ -25,6 +28,7 @@ resources:
             notebook_path: ../src/foundation/11_generate_fact.py
             base_parameters:
               catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
               row_count: "${var.row_count}"
 
         - task_key: write_files
@@ -34,6 +38,7 @@ resources:
             notebook_path: ../src/foundation/20_write_source_files.py
             base_parameters:
               catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
 
         - task_key: bronze_silver
           depends_on:
@@ -42,3 +47,4 @@ resources:
             notebook_path: ../src/foundation/30_bronze_silver.py
             base_parameters:
               catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
