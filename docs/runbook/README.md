@@ -79,3 +79,36 @@ _Appended as Phases 1–4 are built. Each entry:_
 - **Expected outcome** (from the RFP) + how to verify
 
 _(Phase 1 Engineer, Phase 2 Data Scientist, Phase 3 Business Analyst, Phase 4 Admin — TBD as built.)_
+
+---
+
+### SE-08 — REST API ingestion (authenticated + paginated)
+
+**What it proves:** the platform ingests from a paginated REST API using OAuth 2.0
+client-credentials, with token refresh handled automatically.
+
+**Setup (SA, done):** `princeton-mock-api` app deployed to dev; SP granted SELECT on
+`princeton_poc_dev.silver_dev.enrollment` via `src/apps/grant_app_sp.sh`.
+App URL: `https://princeton-mock-api-3438839487639471.11.azure.databricksapps.com`
+
+**The API (what the pipeline calls):**
+- `POST /oauth/token` — form: `grant_type=client_credentials`, `client_id=princeton_poc_client`,
+  `client_secret=poc_secret_change_me` → `{access_token, expires_in: 300}`
+- `GET /enrollments?page=N&page_size=100` — bearer in `X-API-Token` header →
+  `{page, page_size, total, next, data:[...]}`. `next` is null on the last page.
+
+**Code path (Assistant prompt for the DMIA team):** *"Write a Spark/Python ingestion that
+POSTs client_credentials to {url}/oauth/token, then pages through {url}/enrollments using
+the returned bearer in the X-API-Token header, following the `next` field until null,
+re-fetching a new token when a call returns 401 (token expiry), and writes all rows to a
+Delta table princeton_poc_dev.bronze_dev.api_enrollments."*
+
+**Expected outcome:** all 60,000 enrollment rows retrieved across pages; a token refresh
+occurs mid-run (300s TTL) with no manual intervention; row count matches
+`SELECT count(*) FROM princeton_poc_dev.silver_dev.enrollment`.
+
+**Pre-built fallback:** the app itself + `src/apps/mock_api/verify.py` (token → paginate → assert).
+
+**Note:** the mock bearer is carried in `X-API-Token` (not `Authorization`) because the
+Databricks Apps platform proxy uses `Authorization` for its own SSO. The client-credentials
+flow is otherwise a standard OAuth 2.0 demonstration.
