@@ -32,6 +32,7 @@ targets:
       catalog: "princeton_poc_dev"
       schema_suffix: "_dev"
       storage_root: "abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/"   # internal test env (dbx_shared_demo)
+      warehouse_id: "a94a22f8652d85c1"   # sled-demo-shared-endpoint (dbx_shared_demo)
   qa:
     mode: production
     workspace:

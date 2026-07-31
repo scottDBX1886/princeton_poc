@@ -1,0 +1,16 @@
+command:
+  - python
+  - app.py
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: SRC_CATALOG
+    value: "princeton_poc_dev"
+  - name: SRC_SCHEMA
+    value: "silver_dev"
+  - name: MOCK_CLIENT_ID
+    value: "princeton_poc_client"
+  - name: MOCK_CLIENT_SECRET
+    value: "poc_secret_change_me"
+  - name: TOKEN_TTL_SECONDS
+    value: "300"

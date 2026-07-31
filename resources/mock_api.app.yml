@@ -1,0 +1,11 @@
+resources:
+  apps:
+    mock_api:
+      name: princeton-mock-api
+      description: "Mock OAuth2 paginated enrollment API (SE-08)"
+      source_code_path: ../src/apps/mock_api
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
