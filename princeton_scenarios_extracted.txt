@@ -1,0 +1,483 @@
+Data Platform Modernization
+Proof of Concept — Test Scenario Catalogue
+Vendor Preparation Guide
+1. Purpose & Instructions for Vendors
+This document defines the Proof of Concept (POC) test scenarios Princeton’s Data Management, Integration, and Analytics (DMIA) team and Business Partners will use to evaluate candidate data platform solutions. Each scenario reflects a real operational requirement drawn from our current data engineering, analytics, and business user workflows.
+Vendors are asked to:
+Review every scenario in this catalogue and prepare a structured demonstration plan that maps each scenario to a specific capability or feature within your proposed solution stack.
+Indicate where your solution fully satisfies a scenario, partially satisfies it, or addresses it through a workaround or partner integration.
+Create a playbook and/or supply a technical resource that will guide members of the DMIA team in building and executing each demonstration during the scheduled POC sessions.
+Provide sample code, configuration screenshots, or pipeline artifacts in advance where possible so that sessions can focus on depth rather than setup.
+Note any scenario that cannot be demonstrated and explain why.
+If a scenario can be demonstrated with both a code and no-code/low-code options; have both available.
+The scenarios are grouped by four user personas that represent the full range of stakeholders who will interact with the new platform. Vendors must address all four persona groups.
+2. User Personas
+Persona 1 — Software / Data Engineer
+Current skills profile: Oracle SQL (including PL/SQL), enterprise ETL tool development, Python scripting, Linux bash scripting, REST API integration, SFTP automation. Responsible for building and maintaining data pipelines, orchestrating job schedules, and managing platform operations.
+Persona 2 — Data Scientist / Advanced Analyst
+Current skill profile: SQL, Python, R, statistical modelling, machine learning experimentation. Requires direct access to data in the platform, notebook-style development environments, and the ability to blend ingested data with their own analytical datasets.
+Persona 3 — Business Analyst
+Current skill profile: Limited or no SQL nor coding languages. Comfortable with Excel and standard reporting tools. Needs to independently access pre-loaded data, enrich it with spreadsheet uploads, perform light transformation, and produce flat-file or spreadsheet outputs for internal and external distribution.
+Persona 4 — Platform Administrator
+Current skill profile: Linux scripting for file manipulation and SFTP. Handles platform and software security access. Knowledge in installing applications in both Linux and Windows environments. Handles software package administrative duties applying security patches and installing fix packs. Uses SQL skills to create and maintain Oracle FGAC (Fine Grained Access Control)  policies and packages to enforce row and column level security.
+3. Persona 1 — Software / Data Engineer Test Scenarios
+3.1 Data Source Connectivity & Ingestion
+The platform must support connectivity to the breadth of source systems our pipelines currently consume. Demonstrate each of the following connection types within your proposed solution.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-01
+Relational database ingestion — full extract
+Connect to a relational database (e.g. Oracle or SQL Server), execute a full table extract using a generated SELECT *, and land results in the target layer.
+All rows ingested accurately; column names and data types preserved; execution log available.
+SE-02
+Relational database ingestion — custom SQL
+Execute a custom SQL statement that includes multi-table JOINs, aggregations, GROUP BY, HAVING, window functions (e.g. RANK / ROW_NUMBER), and a call to a stored procedure or function.
+Results match a reference query run directly against the source; procedure/function output is handled correctly.
+SE-03
+Incremental / CDC ingestion from a database source
+Demonstrate how the platform identifies new, changed, and deleted records between pipeline runs without requiring a full reload.
+Only delta records are processed; a record removed at source is flagged or propagated downstream.
+SE-04
+Flat-file ingestion — CSV and delimited text
+Ingest a structured CSV and a pipe-delimited text file, including handling of files with header rows, quoted fields, and embedded delimiters within field values.
+All rows parsed correctly; embedded delimiter within a quoted field does not cause row splitting.
+SE-05
+Excel workbook ingestion
+Read data from a multi-sheet Excel workbook, targeting a specific named sheet.
+Data from the targeted sheet ingested; data types inferred or explicitly cast.
+SE-06
+Semi-structured ingestion — JSON
+Ingest a nested JSON file or API response. Demonstrate parsing of nested objects and arrays into a relational structure.
+Nested elements flattened or expanded into columns/rows; array elements handled without data loss.
+SE-07
+Semi-structured ingestion — XML
+Ingest an XML document with repeating child elements. Demonstrate element-to-column mapping and handling of optional nodes.
+Repeating child elements expanded correctly; missing optional nodes result in null rather than row drop.
+SE-08
+REST API ingestion — authenticated endpoint
+Call a paginated REST API endpoint using an authentication mechanism (OAuth 2.0, API key, or bearer token). Handle pagination automatically or through configuration.
+All pages retrieved; authentication token refresh handled without manual intervention.
+SE-09
+SFTP file retrieval and ingestion
+Connect to an SFTP server, retrieve one or more files matching a pattern, land them in a staging area, and feed them into a pipeline — without a custom shell script.
+Files retrieved, staged, and processed through a native platform capability; no external script dependency required.
+SE-10
+Multi-source pipeline on a single canvas
+Build a single pipeline that reads from at least three different source types simultaneously (e.g. a database table, a CSV file, and an API response) and merges the results downstream.
+All sources active within one logical pipeline; data combined into a unified output dataset.
+3.2 Data Transformation
+Transformations are at the core of our development work. Demonstrate the following capabilities, ideally within a realistic pipeline rather than isolated examples.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-11
+Lookup / reference data enrichment
+During pipeline execution, look up a value from a reference dataset (in-memory or from a secondary source) and enrich each incoming row with the matched value. Demonstrate both matched and unmatched row handling.
+Matched rows enriched; unmatched rows either filtered, flagged with a null, or routed to a reject path as configured.
+SE-12
+Join — multiple dataset merge
+Join data from two or more datasets using inner, left outer, and full outer join logic.
+Row counts match expected join and any one to many outcomes accounted for
+SE-13
+String manipulation functions
+Apply substring extraction, concatenation, delimiter-based parsing (including handling multiple occurrences of the delimiter), trimming, and upper/lower case conversion within a transformation step.
+Output values match expected string transformation results.
+SE-14
+Null detection and conditional logic
+Demonstrate COALESCE / ISNULL replacement, IF/THEN/ELSE branching logic, and default value substitution for null fields.
+Null fields replaced correctly; conditional branches route rows as expected.
+SE-15
+Date and time handling
+Parse date strings in multiple formats, convert between time zones, extract date parts (year, month, day, day-of-week), and calculate date differences.
+All date conversions produce correct values; time zone offset applied accurately.
+SE-16
+Data type casting and validation
+Cast fields between types (string to numeric, string to date, numeric to string) with explicit handling of cast failures.
+Valid casts succeed; invalid values are captured in a reject path rather than aborting the pipeline.
+SE-17
+Aggregation and running totals
+Compute running totals and cumulative aggregates grouped by a composite key. Demonstrate control-break logic that resets accumulators when the key changes.
+Running totals reset correctly at each key boundary; final aggregates match reference calculations.
+SE-18
+Pivot — rows to columns and columns to rows
+Transpose a dataset from a long (rows) format to a wide (columns) format, and demonstrate the reverse operation.
+Output schema matches expected pivot structure; null cells appear where no source value exists.
+SE-19
+Last-record-in-group identification
+Within a sorted, grouped dataset, flag or isolate the final record within each group.
+Only the last record per group is flagged; all others are correctly marked or excluded.
+SE-20
+Record loop / iteration over grouped records
+Process multiple rows belonging to the same logical group as a set — accumulating values, detecting changes, or emitting a single summary row per group.
+Output contains one summary row per group with correctly accumulated values.
+3.3 Slowly Changing Dimensions & Change Capture
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-21
+Type 1 SCD — overwrite
+Process an incoming dataset against an existing dimension table. For changed attribute values, overwrite the existing record in place.
+Changed attributes updated; no new row created; history not preserved (by design).
+SE-22
+Type 2 SCD — history preservation
+For changed attribute values, expire the existing row (set an end date / active flag) and insert a new current row. New keys are assigned correctly.
+Prior row marked historical with correct end date; new row inserted with current values and surrogate key; unchanged rows not touched.
+SE-23
+Change capture — new, changed, deleted detection
+Between two pipeline runs, identify records that are new since the last run, records whose attributes have changed, and records that no longer exist in the source.
+Three distinct result sets produced (or flags applied): inserts, updates, deletes — with counts matching expected delta.
+3.4 Target Loading
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-24
+Insert, update, delete to a database target
+Demonstrate UPSERT (insert new / update existing) and hard-delete operations against a database target table.
+Rows inserted, updated, and deleted match intended operation; no unintended duplicates.
+SE-25
+Flat-file output — CSV / delimited text
+Write pipeline output to a CSV or delimited flat file, including control over delimiter character, file encoding, and whether a header row is written.
+Output file parseable with expected structure and encoding.
+SE-26
+Excel workbook output
+Write pipeline output to a formatted Excel workbook.
+File opens correctly in Excel; column headers present; data types preserved.
+SE-27
+JSON file output
+Write pipeline output to a structured JSON file.
+Valid JSON produced; nested structures rendered correctly if applicable.
+3.5 Orchestration & Job Management
+Orchestration capabilities are critical for our operational reliability. Demonstrate end-to-end job chaining and operational controls.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-28
+Sequential job chaining
+Chain three or more pipelines so that each starts only after the previous completes successfully. Pass a runtime variable (e.g. a run date or record count) from one job to the next.
+Each job triggered in order; variable value visible in downstream job logs; failure of job 2 prevents job 3 from starting.
+SE-29
+Parallel job execution
+Launch two or more independent pipelines in parallel within a single orchestration flow, then converge on a downstream step.
+Both pipelines run concurrently; downstream step waits for all branches; elapsed time shorter than sequential equivalent.
+SE-30
+Scheduled execution
+Define a recurring schedule (daily, weekly, and a custom cron expression) for a pipeline. Show how the schedule is managed and modified without redeployment.
+Schedule fires at the defined times; modification takes effect without pipeline rebuild.
+SE-31
+Bulk disable / pause of workloads
+Demonstrate how to suspend all scheduled pipelines simultaneously (e.g. for a maintenance window) and re-enable them afterward.
+All pipelines paused in a single operation; no jobs fire during the window; re-enable restores all schedules.
+SE-32
+Automated retry on failure
+Configure a pipeline to automatically retry a failed step up to N times with a configurable wait interval before alerting.
+Retries occur at the configured interval; after N attempts the job fails and an alert is raised.
+SE-33
+Failure and completion alerting
+Configure email or messaging notifications triggered by job failure, job success, and SLA breach.
+Notifications received at the appropriate event; notification content includes job name, run time, and failure message if applicable.
+SE-34
+Job monitoring dashboard
+Navigate the platform's operational monitoring view. Show daily schedule view, current run status, historical run history, and drill-down to step-level logs for a failed run.
+Dashboard shows all scheduled jobs; failed run log accessible with minimal clicks; log includes timestamps and error detail.
+SE-35
+Calling external processes
+From within an orchestration flow, trigger an external script or command (e.g. a Python script or shell command) and handle its success or failure return code.
+External process invoked; return code captured; downstream branching reflects pass/fail outcome.
+3.6 DevOps, CI/CD & Environment Promotion
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-36
+Source control integration
+Demonstrate how pipeline definitions are stored in or synced to a source control repository (Git or equivalent).
+Pipeline definition visible as a versioned artifact in source control; commit history traceable.
+SE-37
+Promotion across environments
+Promote a pipeline from a development environment to a quality environment, then to production, demonstrating how environment-specific connection strings and parameters are managed.
+Pipeline promoted without manual code edits; environment-specific values substituted automatically.
+SE-38
+CI/CD pipeline integration
+Show how an automated build/deploy pipeline (e.g. via a CI/CD platform) can trigger deployment of a data pipeline on a merge or tag event.
+Deployment triggered automatically; deployment log captures version, deployer, and timestamp.
+SE-39
+Rollback of a failed deployment
+Demonstrate how to revert to a prior version of a pipeline definition after a failed deployment.
+Prior version restored; rollback event logged with actor and timestamp.
+3.7 Data Observability & Governance
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+SE-40
+Data lineage — end-to-end tracing
+For a given target table or field, trace the lineage back through all transformations to the originating source.
+Full lineage path visible graphically or as a structured report; intermediate transformation steps included.
+SE-41
+Schema drift detection
+Introduce a structural change to a source (add a column, rename a column, change a data type) and demonstrate how the platform detects and surfaces the change.
+Drift detected and surfaced to the operator; pipeline either halts with a clear message or handles the change gracefully per configuration.
+SE-42
+Data drift / anomaly detection
+Demonstrate detection of unexpected changes in data distribution, row counts, or null rates between pipeline runs.
+Anomaly flagged with the metric that triggered it; historical trend visible for comparison.
+SE-43
+Automated documentation
+Show any self-documenting capabilities: auto-generated dataset descriptions, column-level metadata, sample data previews, or search across ingested assets.
+At least one dataset discoverable through a catalogue or metadata interface with field-level detail.
+4. Persona 2 — Data Scientist / Advanced Analyst Test Scenarios
+4.1 Data Access & Exploration
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+DS-01
+SQL-based data exploration
+Write and execute ad-hoc SQL queries against data already resident in the platform's target layer, including multi-table joins, window functions, and CTEs.
+Query executes and returns results within the platform; results exportable to a local file.
+DS-02
+Notebook environment — Python
+Open a notebook interface, connect to the platform's data layer, and execute a Python script that reads a dataset, performs a pandas transformation, and writes results back.
+Notebook executes end-to-end; data readable and writable from the notebook without external tooling.
+DS-03
+Notebook environment — R
+Open a notebook interface, connect to the platform's data layer, and execute an R script that reads a dataset and produces a summary statistical output.
+R kernel available; dataset readable; statistical output produced and visible in the notebook.
+DS-04
+Bring your own data — ad-hoc file upload
+Upload a local CSV or Excel file within the notebook or analyst environment, join it with an existing platform dataset, and produce a combined result.
+File uploaded and queryable without IT intervention; join with platform data succeeds.
+DS-05
+Large dataset handling
+Execute a query or script against a dataset of at least several million rows and observe query execution time, resource utilization, and any concurrency controls.
+Query completes; execution plan or profile available; no session timeout for a reasonable run time.
+DS-06
+Connectivity from local environment (laptop or personal computer)
+Show how a data scientist can connect from their laptop when on VPN can connect to the cloud data platform. This should inherit the role-based access permissions assigned to the user. Show for Python, R, SAS and SPSS
+Data scientists can successfully connect to the data platform and are able to run queries. The data scientist only sees objects that permissions are granted for.
+4.2 Advanced Analytics & Modelling
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+DS-06
+In-platform ML model training
+Demonstrate whether the platform supports training a machine learning model (classification or regression) using SQL, Python, or a visual interface without exporting data.
+Model trained and stored within the platform; basic performance metrics (accuracy, RMSE, etc.) visible.
+DS-07
+Scheduling and operationalizing a notebook or script
+Schedule a notebook or Python/R script to run on a recurring basis and write its output to a target table.
+Script runs on schedule; output lands in target; execution log accessible.
+DS-08
+Version control for analytical code
+Demonstrate how a data scientist's notebook or script can be versioned and shared with colleagues.
+Prior versions restorable; sharing mechanism available within or linked to a source control system.
+DS-09
+Visualization and charting within the platform
+Produce a chart or visualization from a query result set directly within the platform, without exporting to an external tool.
+Chart rendered within the platform; chart type selectable; axis labels configurable.
+5. Persona 3 — Business Analyst Test Scenarios
+5.1 Self-Service Data Access
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+BA-01
+No-code / low-code data browsing
+Without writing SQL, a business analyst browses available datasets, applies filters, and previews rows.
+Data browseable through a visual interface; row-level filter applied without SQL; result set previewable.
+BA-02
+Pre-built report or dataset subscription
+A business analyst subscribes to or schedules an existing report or dataset export to be delivered (email, shared folder) on a recurring basis.
+Report or file delivered at the scheduled time without analyst intervention on delivery day.
+BA-03
+Ad-hoc data extract to flat file or Excel
+A business analyst selects a dataset, optionally applies column and row filters, and exports it as a CSV or Excel file.
+File downloaded successfully; data matches filter criteria; file opens correctly in Excel.
+5.2 Self-Service Enrichment & Light Transformation
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+BA-04
+Upload and join a spreadsheet to platform data
+A business analyst uploads a local Excel or CSV file and joins it with an existing platform dataset using a visual or wizard-driven interface, without SQL.
+Join produces a combined dataset; analyst can see matched and unmatched rows; no scripting required.
+BA-05
+Light transformation — column rename, filter, derived field
+A business analyst renames a column, applies a row filter, and creates a simple derived field (e.g. concatenation of first and last name) using a visual interface.
+Transformations applied visually; transformed output previewable before export.
+BA-06
+Output to Excel workbook with formatting
+A business analyst exports a transformed dataset to an Excel workbook, with column headers and basic formatting intact.
+Excel file opens with headers; column widths reasonable; data types preserved.
+BA-07
+Output to flat file for external distribution
+A business analyst produces a pipe-delimited flat file from a platform dataset for delivery to an external party.
+File produced with correct delimiter; encoding and line endings suitable for external consumption.
+BA-08
+Reuse and save a self-service workflow
+A business analyst saves a configured extract/transform/export workflow so it can be re-run on demand without reconfiguring from scratch.
+Saved workflow reloadable; re-run produces consistent output; no developer involvement needed.
+6. Persona 4 — Platform Administrator Test Scenarios
+The Platform Administrator is responsible for the health, security, and cost efficiency of the data platform across all environments. The following scenarios validate that the platform provides adequate tooling for access governance, data security, compute management, and financial accountability.
+6.1 User & Group Access Management
+Demonstrate how the platform manages identity, roles, and permissions across environments and data assets.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+PA-01
+User provisioning and role assignment
+Create a new platform user, assign them to one or more predefined roles (e.g. read-only analyst, pipeline developer, admin), and demonstrate that access is immediately enforced.
+User can access permitted objects and is blocked from restricted ones; no manual permission grant required beyond role assignment.
+PA-02
+Group-based access control
+Create a user group, assign permissions to the group rather than to individuals, add and remove users from the group, and verify that permissions propagate automatically.
+Permissions reflect group membership in real time; removing a user from a group revokes access without additional steps.
+PA-03
+Environment-level access segregation
+Demonstrate that a developer granted access to a development environment cannot access production data or pipelines without explicit elevation of their permissions.
+Dev user cannot read, write, or trigger anything in the production environment; access boundary enforced at the platform level.
+PA-04
+Source and target object-level permissions
+Restrict a specific user or group to a subset of source connections or target datasets — e.g. grant read access to one database schema but not another.
+User can connect to permitted objects; connection attempt to a restricted object returns a permission error, not a data result.
+PA-05
+Permission audit trail
+Produce an audit report or log showing who was granted or revoked what access, by whom, and when.
+Audit log queryable or exportable; each entry contains actor, action, target object, and timestamp.
+PA-06
+Service account and API credential management
+Create and manage credentials for automated pipeline service accounts separately from human user accounts. Demonstrate credential rotation without pipeline downtime or notification of expiring credentials
+Service account credentials rotatable; pipelines continue running during and after rotation with no manual intervention or notification of manual key rotation required.
+6.2 Row-Level and Column-Level Security
+Data security must be enforceable at the field and record level without requiring separate physical copies of datasets.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+PA-07
+Column-level security — masking sensitive fields
+Configure a policy that masks sensitive columns (e.g. SSN, salary, date of birth) for restricted roles. Demonstrate that a permitted user sees the full value while a restricted user sees a masked or null result from the same query.
+Masked user receives redacted output; unmasked user receives full values; no separate table or view required.
+PA-08
+Column-level security — full column restriction
+Restrict a column entirely so it is absent from query results for a designated role — not masked, but not returned at all.
+Restricted column absent from query results for the restricted role; no error thrown, column simply excluded.
+PA-09
+Row-level security — attribute-based filtering
+Apply a row-level security policy so that a user or group sees only the rows relevant to them (e.g. a department user sees only their department’s records) without the query needing an explicit WHERE clause.
+User A and User B run the same query; each receives only the rows their policy permits; neither receives the other's data.
+PA-10
+Row-level security — dynamic policy based on user identity
+Implement a dynamic RLS policy where the filter condition is derived from the logged-in user's identity or group membership at query time, not a hard-coded value.
+Policy evaluates at runtime; adding a user to a group automatically applies the correct row filter without modifying the policy.
+PA-11
+Security policy testing and validation
+Demonstrate a method for an administrator to test that security policies behave as intended before rolling them out to production. Similar to Oracle’s “faux user”
+Administrator can impersonate or simulate a given role and verify the restricted view without exposing real data.
+PA-12
+Security policy audit and documentation
+Show how active row and column security policies are inventoried — which policies apply to which tables, and which roles are affected.
+All active policies visible in a central location; each policy linked to the tables and roles it governs.
+6.3 Compute & Capacity Management
+The platform must provide administrators with visibility and control over compute resources to manage performance, cost, and availability.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+PA-13
+Scaling compute up and down — manual
+Demonstrate how an administrator manually increases compute capacity to handle a heavy workload, then scales it back down afterward.
+Scale operation completes without interrupting active workloads; new capacity reflected in monitoring dashboard; scale-down reclaims resources.
+PA-14
+Auto-scaling configuration
+Configure the platform to automatically scale compute resources up when workload demand exceeds a threshold and scale down during idle periods.
+Auto-scale triggers under load; scale-down occurs after an idle period; scaling events logged with timestamps and trigger reasons.
+PA-15
+Compute isolation — workload separation
+Demonstrate how different workloads (e.g. production pipelines, ad-hoc analyst queries, data science notebooks) can be assigned to separate compute pools to prevent resource contention.
+Analyst query consuming heavy resources does not degrade production pipeline throughput; workload assignments visible in admin console.
+PA-16
+Pause and resume compute resources
+Pause a compute resource during a known idle window and resume it automatically or on demand before workloads begin.
+Compute resource paused and resumed without data loss or pipeline reconfiguration; pause/resume events visible in logs.
+PA-17
+Capacity dashboard and utilization monitoring
+Navigate a dashboard showing current compute utilization, historical usage trends, queue depth, and any throttling events.
+Dashboard displays real-time and historical metrics; administrator can identify peak usage periods and underutilized windows.
+PA-18
+Workload prioritization and queuing
+Configure priority levels for different job types or user groups so that high-priority workloads are not delayed by lower-priority activity during resource contention.
+High-priority job runs ahead of queued lower-priority jobs during a simulated contention scenario; no code change required.
+6.4 Cost Tracking & Chargeback
+The platform must support financial accountability — enabling the organization to track spend by team, project, or individual and to forecast and control costs proactively.
+#
+Test Scenario
+What to Demonstrate
+Expected Outcome
+PA-19
+Spend dashboard — overall platform cost
+Show a dashboard or report displaying total platform cost over a selected time period, broken down by major cost drivers (compute, storage, data transfer, etc.).
+Dashboard shows cost by category and time period; exportable for finance reporting.
+PA-20
+Cost distribution by user or department
+Demonstrate how compute and storage costs can be attributed to individual users, teams, or business partners through tagging, virtual warehouses, or an equivalent cost allocation mechanism.
+Each query or pipeline run attributable to a user or cost center; aggregated spend per team reportable for a given period.
+PA-21
+Cost distribution by pipeline or workload
+Tag or categorize individual pipelines or jobs so that their compute cost is tracked separately, enabling project-level or initiative-level cost accounting.
+Cost per pipeline visible and reportable; multi-pipeline projects can be grouped for an aggregate cost view.
+PA-22
+Budget alerts and spending limits
+Configure a budget threshold so that an alert fires when projected or actual spend approaches or exceeds a defined limit.
+Alert fires before the limit is breached; notification includes current spend, projected spend, and threshold value.
+PA-23
+Spend forecasting
+Demonstrate any forecasting capability that projects future platform costs based on current usage patterns.
+Forecast displayed with a time horizon of at least 30 days
+PA-24
+Query and job cost estimation
+Before executing a large query or pipeline run, show whether the platform can provide an estimated cost or resource consumption preview.
+Cost or resource estimate available prior to execution; estimate reasonably aligned with actual post-run cost.
+PA-25
+Cost optimization recommendations
+Show whether the platform provides automated recommendations for reducing spend — e.g. identifying unused resources, oversized compute, or redundant storage.
+At least one actionable recommendation surfaced with an estimated savings value if implemented.
+7. Vendor Response Format
+For each scenario listed above, vendors should provide a response structured as follows:
+Field
+Description
+Example Values
+Notes
+Field
+Description
+Example Values
+Notes
+Scenario ID
+Reference the scenario ID from this document
+SE-01, DS-03, BA-04, PA-07
+Coverage
+How fully the scenario is addressed
+Full / Partial / Workaround / Not Supported
+If partial or workaround, explain.
+Platform Component
+The specific product feature, module, or service used
+e.g. Native connector, Transformation layer, Notebook service
+Demo Planned
+How in the POC will this be demonstrated?
+DMIA team follows a playbook script, instructor led, demo, etc.
+Prerequisites
+Any data, credentials, or environment setup required from our side
+Free text
+Notes / Constraints
+Any limitations, version dependencies, or additional context
+Free text
+CONFIDENTIAL — For Vendor Use Only — Do Not Distribute

@@ -1,0 +1,25 @@
+resources:
+  catalogs:
+    princeton_poc:
+      name: ${var.catalog}
+      comment: "Princeton POC shared data foundation"
+      storage_root: ${var.storage_root}   # omit this line to inherit metastore default
+  schemas:
+    bronze:
+      catalog_name: ${var.catalog}
+      name: bronze
+    silver:
+      catalog_name: ${var.catalog}
+      name: silver
+    gold:
+      catalog_name: ${var.catalog}
+      name: gold
+    landing:
+      catalog_name: ${var.catalog}
+      name: landing
+  volumes:
+    landing_files:
+      catalog_name: ${var.catalog}
+      schema_name: landing
+      name: files
+      volume_type: MANAGED

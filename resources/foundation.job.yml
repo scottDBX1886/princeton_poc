@@ -1,0 +1,30 @@
+resources:
+  jobs:
+    foundation_build:
+      name: "[princeton_poc] Foundation build"
+      # The UC namespace (catalog/schemas/volume) is created at `bundle deploy` via
+      # resources/uc_namespace.yml — NOT as a job task. So generate_core is first.
+      tasks:
+        - task_key: generate_core
+          notebook_task:
+            notebook_path: ../src/foundation/10_generate_core.py
+
+        - task_key: generate_fact
+          depends_on:
+            - task_key: generate_core
+          notebook_task:
+            notebook_path: ../src/foundation/11_generate_fact.py
+            base_parameters:
+              row_count: "${var.row_count}"
+
+        - task_key: write_files
+          depends_on:
+            - task_key: generate_core
+          notebook_task:
+            notebook_path: ../src/foundation/20_write_source_files.py
+
+        - task_key: bronze_silver
+          depends_on:
+            - task_key: write_files
+          notebook_task:
+            notebook_path: ../src/foundation/30_bronze_silver.py

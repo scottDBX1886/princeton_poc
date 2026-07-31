@@ -1,0 +1,40 @@
+bundle:
+  name: princeton_poc
+
+variables:
+  catalog:
+    description: Target UC catalog
+    default: princeton_poc
+  storage_root:
+    description: Managed storage location URL for the catalog (external location or metastore-managed path). Operator sets per target.
+    default: ""   # MUST be overridden per target with a real storage URL, or drop storage_root from the catalog resource to inherit metastore default
+  warehouse_id:
+    description: SQL warehouse ID for SQL-backed tasks (added in later phases). Set per target when needed.
+    default: ""   # no Phase 0 resource uses a warehouse; supply an ID (e.g. from `databricks warehouses list`) when SQL tasks are added
+  row_count:
+    description: Rows in enrollment_history fact
+    default: 5000000
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      profile: dbx_shared_demo
+    variables:
+      storage_root: "<DEV_STORAGE_URL>"   # e.g. s3://.../princeton_poc or abfss://...
+  qa:
+    mode: production
+    workspace:
+      profile: dbx_shared_demo
+    variables:
+      storage_root: "<QA_STORAGE_URL>"
+  prod:
+    mode: production
+    workspace:
+      profile: dbx_shared_demo
+    variables:
+      storage_root: "<PROD_STORAGE_URL>"
+
+include:
+  - resources/*.yml
