@@ -23,7 +23,8 @@ fake = Faker()
 Faker.seed(SEED)
 random.seed(SEED)
 
-CATALOG = "princeton_poc"
+dbutils.widgets.text("catalog", "princeton_poc")
+CATALOG = dbutils.widgets.get("catalog")
 SILVER = f"{CATALOG}.silver"
 
 # Domain constants

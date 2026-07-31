@@ -14,6 +14,11 @@ Every scenario runs against this one dataset. Build it once per workspace.
 **Prerequisites:** `docs/CONFIG.md` values filled in (`storage_root`, `warehouse_id`);
 `--profile` chosen.
 
+**Catalog name is per-target** (shared-metastore naming): `dev` → `princeton_poc_dev`,
+`qa` → `princeton_poc_test`, `prod` → `princeton_poc`. The value flows automatically from
+the target into every job task, so the verify queries below use `<catalog>` — substitute
+the one for the target you built.
+
 **Build:**
 ```bash
 databricks bundle validate --strict -t dev --profile <PROFILE>
@@ -21,16 +26,16 @@ databricks bundle deploy  -t dev --profile <PROFILE>   # creates catalog/schemas
 databricks bundle run foundation_build -t dev --profile <PROFILE>   # generates all data + files
 ```
 
-**Verify (assert query):**
+**Verify (assert query — substitute `<catalog>` for the target):**
 ```sql
 SELECT
-  (SELECT count(*) FROM princeton_poc.silver.student)            AS students,       -- ~30000
-  (SELECT count(*) FROM princeton_poc.gold.enrollment_history)   AS fact_rows,      -- = row_count
-  (SELECT count(*) FROM princeton_poc.silver.financial_aid)      AS aid_rows;       -- ~50000
+  (SELECT count(*) FROM <catalog>.silver.student)            AS students,       -- ~30000
+  (SELECT count(*) FROM <catalog>.gold.enrollment_history)   AS fact_rows,      -- = row_count
+  (SELECT count(*) FROM <catalog>.silver.financial_aid)      AS aid_rows;       -- ~50000
 ```
 And confirm the five source files landed:
 ```bash
-databricks fs ls dbfs:/Volumes/princeton_poc/landing/files --profile <PROFILE>
+databricks fs ls dbfs:/Volumes/<catalog>/landing/files --profile <PROFILE>
 # expect: students.csv, enrollments.pipe.txt, financial_aid.xlsx, course_catalog.json, faculty.xml
 ```
 
@@ -43,7 +48,7 @@ session, then show the platform detecting exactly the planted changes.
 
 **Step 1 — note the current table version (the CDF floor):**
 ```sql
-DESCRIBE HISTORY princeton_poc.silver.student LIMIT 1;   -- note the version number
+DESCRIBE HISTORY <catalog>.silver.student LIMIT 1;   -- note the version number
 ```
 
 **Step 2 — apply the day-2 changes** (`src/foundation/40_day2_changes.sql`): run the
@@ -52,7 +57,7 @@ script. It plants **10 inserts, 20 updates, 5 deletes, and adds one column.**
 **Step 3 — show the platform detected them (CDF):**
 ```sql
 SELECT _change_type, count(*)
-FROM table_changes('princeton_poc.silver.student', <version_from_step_1>)
+FROM table_changes('<catalog>.silver.student', <version_from_step_1>)
 GROUP BY _change_type;
 -- Expect: insert=10, update_preimage=20, update_postimage=20, delete=5
 ```

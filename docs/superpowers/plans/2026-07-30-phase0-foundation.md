@@ -12,10 +12,13 @@
 
 - **Simpler is better** — POC proves capability, not production. Fewest honest artifacts.
 - **Deterministic** — every generator uses a fixed seed so internal and POC workspaces produce identical data.
-- **Catalog:** `princeton_poc`. **Schemas:** `bronze`, `silver`, `gold`, `landing` (volume schema).
-- **Volume:** `princeton_poc.landing.files` at `/Volumes/princeton_poc/landing/files/`.
+- **Catalog:** per-target (shared metastore) — dev=`princeton_poc_dev`, qa=`princeton_poc_test`, prod=`princeton_poc`. Value flows target → `var.catalog` → job parameter → notebook `catalog` widget → every `saveAsTable`. Notebooks must NOT hardcode the catalog; they read `dbutils.widgets.get("catalog")`.
+- **Schemas:** `bronze`, `silver`, `gold`, `landing` (volume schema).
+- **Volume:** `<catalog>.landing.files` at `/Volumes/<catalog>/landing/files/`.
 - **Profile:** NEVER auto-select. All CLI commands take `--profile <PROFILE>`; the operator chooses at execution. Placeholder `<PROFILE>` throughout.
 - **Serverless** compute for all notebooks/jobs unless a task states otherwise.
+- **Production-mode targets** (qa/prod) must set `workspace.root_path` (DAB requirement) — use `/Workspace/Shared/.bundle/${bundle.name}/${bundle.target}`, plus a bundle-level `permissions` grant (`CAN_MANAGE` for group `users`) to acknowledge the shared path. Dev (development mode) auto-isolates under the user's path.
+- **Per-target catalog** flows via a job `parameters:` entry + each notebook task's `base_parameters: {catalog: ${var.catalog}}` + a `catalog` widget in every notebook.
 - **Everything is a DAB resource** — no click-ops for anything that must reproduce in the POC workspace.
 - **Verification model** (Databricks-appropriate, replaces pytest-TDD): each task ends with build → run → **assert** (row counts / schema / files land) → commit. Assertions are explicit SQL or CLI checks with expected output.
 - **Row-count parameter:** `row_count` (default 5_000_000 internal; override to ~50_000_000 in POC).

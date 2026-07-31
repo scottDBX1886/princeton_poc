@@ -10,9 +10,10 @@
 
 # COMMAND ----------
 dbutils.widgets.text("row_count", "5000000")
+dbutils.widgets.text("catalog", "princeton_poc")
 N = int(dbutils.widgets.get("row_count"))
 SEED = 42
-CATALOG = "princeton_poc"
+CATALOG = dbutils.widgets.get("catalog")
 SILVER = f"{CATALOG}.silver"
 GOLD = f"{CATALOG}.gold"
 

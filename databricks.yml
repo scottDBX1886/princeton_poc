@@ -22,19 +22,30 @@ targets:
     workspace:
       profile: dbx_shared_demo
     variables:
-      storage_root: "<DEV_STORAGE_URL>"   # e.g. s3://.../princeton_poc or abfss://...
+      catalog: "princeton_poc_dev"
+      storage_root: "<DEV_STORAGE_URL>"   # e.g. abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/princeton_poc_dev
   qa:
     mode: production
     workspace:
       profile: dbx_shared_demo
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
+      catalog: "princeton_poc_test"
       storage_root: "<QA_STORAGE_URL>"
   prod:
     mode: production
     workspace:
       profile: dbx_shared_demo
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
+      catalog: "princeton_poc"
       storage_root: "<PROD_STORAGE_URL>"
 
 include:
   - resources/*.yml
+
+# Shared deployment path (prod/qa) is intentional for a POC handed to the customer team;
+# grant workspace users manage access to acknowledge the shared /Workspace/Shared path.
+permissions:
+  - level: CAN_MANAGE
+    group_name: users

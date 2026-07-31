@@ -23,7 +23,8 @@ import json
 import pandas as pd
 from xml.sax.saxutils import escape
 
-CATALOG = "princeton_poc"
+dbutils.widgets.text("catalog", "princeton_poc")
+CATALOG = dbutils.widgets.get("catalog")
 SILVER = f"{CATALOG}.silver"
 BASE = f"/Volumes/{CATALOG}/landing/files"
 

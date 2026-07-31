@@ -8,18 +8,18 @@ Precedence: databricks.yml default → per-target → `--var` → `BUNDLE_VAR_<n
 
 | Variable | Purpose | Default | You must set it? |
 |----------|---------|---------|------------------|
-| `catalog` | Target UC catalog name | `princeton_poc` | No — override only to avoid a name clash |
-| `storage_root` | Catalog managed storage location (external-location / object-store URL) | *(empty placeholder)* | **YES — before first deploy.** Set `<DEV/QA/PROD_STORAGE_URL>` per target. Drop the line to inherit metastore default. |
+| `catalog` | Target UC catalog name (per-target for shared metastore) | dev=`princeton_poc_dev`, qa=`princeton_poc_test`, prod=`princeton_poc` | No — already set per target in `databricks.yml`. Flows to every job task via a job parameter → notebook widget. |
+| `storage_root` | Catalog managed storage location — the **storage URL/path**, NOT the external-location name. UC resolves it to the governing external location automatically. | *(empty placeholder)* | **YES — before first deploy.** Set `<DEV/QA/PROD_STORAGE_URL>` per target, e.g. `abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/princeton_poc_dev`. Drop the line to inherit metastore default. |
 | `warehouse_id` | SQL warehouse for SQL tasks (by name lookup) | `"Serverless Starter Warehouse"` | **YES if that warehouse name doesn't exist** in the target workspace — change the lookup name. |
 | `row_count` | Rows in `enrollment_history` fact | `5000000` | No — override to ~`50000000` for the POC: `--var row_count=50000000` |
 
 ## Per-workspace values (fill in)
 
-| Target | `--profile` | `storage_root` | `warehouse_id` (name) |
-|--------|-------------|----------------|-----------------------|
-| dev (internal) | _____ | _____ | _____ |
-| qa | _____ | _____ | _____ |
-| prod (Princeton POC) | _____ | _____ | _____ |
+| Target | `--profile` | catalog (preset) | `storage_root` (URL) | `warehouse_id` (later phases) |
+|--------|-------------|------------------|----------------------|-------------------------------|
+| dev (internal) | dbx_shared_demo | `princeton_poc_dev` | _____ | _____ |
+| qa | dbx_shared_demo | `princeton_poc_test` | _____ | _____ |
+| prod (Princeton POC) | _____ | `princeton_poc` | _____ | _____ |
 
 ## Secrets (NOT bundle variables — never commit)
 Credentials (SFTP password, OAuth client secret for the mock API) live in a UC secret

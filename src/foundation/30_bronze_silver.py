@@ -7,7 +7,8 @@
 # MAGIC (SE-40) trace against.
 
 # COMMAND ----------
-CATALOG = "princeton_poc"
+dbutils.widgets.text("catalog", "princeton_poc")
+CATALOG = dbutils.widgets.get("catalog")
 BRONZE = f"{CATALOG}.bronze"
 BASE = f"/Volumes/{CATALOG}/landing/files"
 

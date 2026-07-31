@@ -1,13 +1,22 @@
 resources:
   jobs:
     foundation_build:
-      name: "[princeton_poc] Foundation build"
+      name: "[${var.catalog}] Foundation build"
       # The UC namespace (catalog/schemas/volume) is created at `bundle deploy` via
       # resources/uc_namespace.yml — NOT as a job task. So generate_core is first.
+      #
+      # catalog flows: target -> var.catalog -> each task's base_parameters -> notebook widget.
+      # This is how the per-target catalog name (princeton_poc_dev / _test / prod) reaches
+      # every saveAsTable in the notebooks.
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
       tasks:
         - task_key: generate_core
           notebook_task:
             notebook_path: ../src/foundation/10_generate_core.py
+            base_parameters:
+              catalog: ${var.catalog}
 
         - task_key: generate_fact
           depends_on:
@@ -15,6 +24,7 @@ resources:
           notebook_task:
             notebook_path: ../src/foundation/11_generate_fact.py
             base_parameters:
+              catalog: ${var.catalog}
               row_count: "${var.row_count}"
 
         - task_key: write_files
@@ -22,9 +32,13 @@ resources:
             - task_key: generate_core
           notebook_task:
             notebook_path: ../src/foundation/20_write_source_files.py
+            base_parameters:
+              catalog: ${var.catalog}
 
         - task_key: bronze_silver
           depends_on:
             - task_key: write_files
           notebook_task:
             notebook_path: ../src/foundation/30_bronze_silver.py
+            base_parameters:
+              catalog: ${var.catalog}
