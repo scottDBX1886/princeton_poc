@@ -1,0 +1,24 @@
+resources:
+  jobs:
+    sftp_ingest:
+      name: "[${var.catalog}] SFTP ingest (SE-09)"
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+      tasks:
+        - task_key: retrieve
+          notebook_task:
+            notebook_path: ../src/foundation/50_sftp_retrieve.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+        - task_key: ingest
+          depends_on:
+            - task_key: retrieve
+          notebook_task:
+            notebook_path: ../src/foundation/51_sftp_ingest.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}

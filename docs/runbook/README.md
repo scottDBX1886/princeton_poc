@@ -112,3 +112,36 @@ occurs mid-run (300s TTL) with no manual intervention; row count matches
 **Note:** the mock bearer is carried in `X-API-Token` (not `Authorization`) because the
 Databricks Apps platform proxy uses `Authorization` for its own SSO. The client-credentials
 flow is otherwise a standard OAuth 2.0 demonstration.
+
+---
+
+### SE-09 — SFTP file retrieval & ingestion (native, no shell script)
+
+**What it proves:** the platform retrieves pattern-matched files from an SFTP server,
+stages them in a UC Volume, and ingests them via Auto Loader — all as orchestrated,
+git-versioned Lakeflow tasks, with NO standalone shell/bash script.
+
+**Setup (SA, done):** job `[princeton_poc_dev] SFTP ingest (SE-09)` deployed to dev.
+
+**Run:**
+```bash
+databricks bundle run sftp_ingest -t dev --profile dbx_shared_demo
+```
+
+**What happens:** task `retrieve` (`50_sftp_retrieve.py`) runs an in-process paramiko SFTP
+server, connects a paramiko client over it, pattern-matches `financial_aid_*.csv`, and pulls
+3 dated files to `/Volumes/princeton_poc_dev/landing_dev/files/sftp/`. Task `ingest`
+(`51_sftp_ingest.py`) runs Auto Loader → `princeton_poc_dev.bronze_dev.sftp_financial_aid`.
+
+**Expected outcome:** 3 files land on the Volume (`financial_aid_20260728/29/30.csv`);
+Bronze table = 600 rows (3 × 200). No shell script anywhere — retrieval is Python paramiko
+in a governed, scheduled Lakeflow task.
+
+**Pre-built fallback:** the `sftp_ingest` job itself (both notebooks).
+
+**Notes:** (1) The SFTP server + client run over an in-process `socket.socketpair()` because
+the serverless sandbox blocks TCP loopback listeners — still a real SFTP protocol exchange.
+Production points the client at a real SFTP host with credentials from a UC secret scope;
+the pull logic is identical. (2) **Parked upgrade path:** if the customer obtains the
+Lakeflow Connect SFTP connector (Public Preview), it replaces the paramiko retrieval task
+with a fully managed connector — the marquee no-code answer.

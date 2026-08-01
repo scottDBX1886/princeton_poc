@@ -257,3 +257,16 @@ git add resources/sftp.job.yml && git commit -m "feat(sftp): sftp_ingest job (re
 **Type consistency:** `start_sftp_server`/`seed_dated_files` signatures match between Task 1 and Task 2. `catalog`/`schema_suffix` widget names consistent with Phase 0. Volume path `landing${suffix}/sftp` consistent across Tasks 2,3,4.
 
 **Open risks (flagged):** (1) serverless outbound-socket/threading for an in-process SFTP server is the main uncertainty — if the serverless sandbox blocks `socket.listen`, fall back to the paramiko client reading the served dir directly, or reframe per the earlier option C (land on Volume + Auto Loader, note SFTP is the same task). (2) `%pip install paramiko` adds startup time. Both confirmed at execution (Task 4 run).
+
+## BUILD OUTCOME (2026-07-31, dev — VERIFIED)
+Built and run green. Three fixes vs. the drafted plan:
+1. **TCP loopback IS sandboxed on serverless** — `socket.bind/listen` on 127.0.0.1:2222 → the
+   client got `[Errno 111] Connection refused`. The flagged risk materialized. FIX: run the
+   paramiko server+client over `socket.socketpair()` (two pre-connected in-process sockets) —
+   NO bind/listen/port. Still a genuine SFTP protocol handshake + listdir + get. Better than
+   falling back to Volume-only.
+2. **UC Volume dirs**: `os.makedirs` fails on the FUSE path (`Errno 95`); use `dbutils.fs.mkdirs`.
+3. **Volume path**: land under the EXISTING `files` volume in an `sftp` SUBFOLDER
+   (`/Volumes/{cat}/landing{suf}/files/sftp/`) — `sftp` is not its own volume (a new volume
+   needs a UC resource). Checkpoint under `files/_chk/`.
+Verified: 3 pattern-matched dated files pulled via SFTP → Volume; 600 Bronze rows via Auto Loader.
