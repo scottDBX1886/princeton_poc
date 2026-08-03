@@ -4,6 +4,13 @@ Every individual RFP scenario ID, fanned out (not consolidated), so nothing is m
 The build *consolidates* many of these into one object (the "Covered by" column), but this
 list is the full checklist.
 
+> **Two trackers, two grains — this one is authoritative for _coverage_.**
+> - **This file** tracks all 85 RFP **scenario IDs** — what Princeton grades us on (RFP §7).
+> - **The [GitHub project board](https://github.com/users/scottDBX1886/projects/2)** tracks
+>   the ~33 **build objects** (E1–E11, DS-A…H, BA-A…E, PA-A…F + foundation/apps/#34) — what
+>   we actually work on. The "Covered by" column here is the bridge between the two.
+> Update both when a build lands: flip the object's board status AND the scenario IDs here.
+
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-03
 

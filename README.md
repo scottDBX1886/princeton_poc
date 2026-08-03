@@ -6,7 +6,9 @@ on one shared higher-ed data foundation.
 
 ## Documents
 - **Design spec:** `docs/superpowers/specs/2026-07-30-princeton-poc-build-design.md` — what & why
-- **Phase 0 plan:** `docs/superpowers/plans/2026-07-30-phase0-foundation.md` — foundation build, step by step
+- **Phase plans:** `docs/superpowers/plans/` — step-by-step build (phase 0, plan 2/3, phase 1–4)
+- **Scenario tracker:** `docs/SCENARIO_TRACKER.md` — all 85 RFP scenario IDs + status (coverage source of truth)
+- **Project board:** https://github.com/users/scottDBX1886/projects/2 — ~33 build objects (work-item tracking)
 - **Deploy config:** `docs/CONFIG.md` — variables to fill in before deploy
 - **Runbook:** `docs/runbook/README.md` — hand to the DMIA team to run each scenario live
 
