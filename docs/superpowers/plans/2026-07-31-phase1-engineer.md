@@ -10,6 +10,12 @@
 
 ## Global Constraints
 
+- **⚠️ MULTI-USER ISOLATION (overrides every task's output path).** ~20+ participants run these runbooks concurrently in one session, per-person. Therefore: (1) the foundation (`silver_dev`/`gold_dev` + landing files) is **READ-ONLY** — no task writes to it; (2) every task that creates/writes an object targets a **per-person schema** `${catalog}.wksp_${user}` where `user = regexp_replace(current_user(),'[^a-zA-Z0-9]','_')`, created via `CREATE SCHEMA IF NOT EXISTS`; (3) Auto Loader checkpoints & file outputs go under a per-user path (`…/files/wksp_${user}/…`). Where a task below shows a shared output like `bronze_dev.e5_*`, substitute `wksp_${user}.e5_*`. Add this helper to each notebook:
+  ```python
+  user = spark.sql("SELECT current_user()").first()[0]
+  USER_SCHEMA = "wksp_" + __import__("re").sub(r"[^a-zA-Z0-9]", "_", user)
+  spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CAT}.{USER_SCHEMA}")
+  ```
 - **Catalog-per-target via bundle var** — `dev=princeton_poc_dev`, `qa=princeton_poc_test`, `prod=princeton_poc`. Schemas suffixed: `bronze_dev`, `silver_dev`, `gold_dev`, `landing_dev` (or no suffix in prod). Notebooks read `dbutils.widgets.get("catalog")` and `get("schema_suffix")` — **never hardcode.**
 - **Scenario-scoped outputs:** Each Engineer object writes to scenario namespaces (e.g., `bronze_dev.e1_students_raw`, `silver_dev.e1_students_conformed`) so it does not overwrite canonical foundation tables. An exception: orchestration (E8) runs the real foundation pipelines end-to-end, producing the canonical Silver/Gold.
 - **Profile:** `--profile dbx_shared_demo` (or operator-chosen dev). Never auto-select.

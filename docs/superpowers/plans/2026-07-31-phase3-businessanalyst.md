@@ -10,6 +10,7 @@
 
 ## Global Constraints
 
+- **⚠️ MULTI-USER ISOLATION.** ~20+ participants run these runbooks concurrently in one session, per-person. The foundation is READ-ONLY (BA browse/filter/export is naturally read-only — safe as-is for concurrency). For the two objects that *write* (BA-D upload+join, BA-E saved workflow), the created table/pipeline output goes to a **per-person schema** `${catalog}.wksp_${user}` and uploaded files land under a per-user volume path — so 20 analysts' uploads/joins don't collide. Shared Genie space and AI-BI dashboards are read-only and fine. Saved workflows (BA-E) are saved per-user (each analyst saves their own).
 - **No SQL, no code written by the analyst** — the BA's primary path is UI clicks and NL questions. Pre-built objects provide the "how"; the analyst provides the "what" (filter criteria, export format, column selection).
 - **Catalog:** `princeton_poc_dev` (shared with Phase 0). BA demo works against dev data.
 - **Schemas:** BA reads from `silver_dev` (dims: department, faculty, course, student, financial_aid) and `gold_dev` (fact: enrollment_history). Bronze layer is hidden from BA UX.

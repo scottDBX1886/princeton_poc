@@ -68,6 +68,25 @@ is the drift event — show it surfaced in Catalog Explorer / the pipeline's sch
 
 ---
 
+## ⚠️ Running this with a group (multi-user sessions)
+
+These runbooks are run by **~20+ participants concurrently, per-person**. To avoid
+collisions:
+- The **foundation is read-only** — nobody writes to `silver_dev` / `gold_dev` or the
+  landing source files. Browse/query/Genie/AI-BI/REST are all safe to run concurrently.
+- **Scenarios that create objects write to your own per-person schema**
+  `princeton_poc_dev.wksp_<your_user>` (notebooks derive it automatically from
+  `current_user()`), so your outputs never clash with anyone else's.
+- **Admin (PA) scenarios are performed by one designated person for the whole group**,
+  against a dedicated `admin_demo` schema (copies of the sensitive tables) — so masking/
+  RLS demos don't change what everyone else sees.
+- **Compute:** the session uses an autoscaling SQL warehouse (or serverless) sized for
+  concurrency; heavy scenarios (DS-05, PA-13…18) route through it.
+
+> Note on the two already-built ingestion scenarios (SE-08, SE-09): their pre-built
+> assets currently write to shared targets and will be updated to the per-person
+> `wksp_<user>` pattern before a group session. For a solo walkthrough they work as-is.
+
 ## Persona scenario entries
 
 _Appended as Phases 1–4 are built. Each entry:_

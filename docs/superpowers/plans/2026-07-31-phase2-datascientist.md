@@ -10,6 +10,13 @@
 
 ## Global Constraints
 
+- **⚠️ MULTI-USER ISOLATION (overrides every task's output path).** ~20+ participants run these runbooks concurrently in one session, per-person. Therefore: (1) the foundation (`silver_dev`/`gold_dev` + landing files) is **READ-ONLY** — no task writes to it; (2) every task that creates/writes an object (ML models, output tables, write-back) targets a **per-person schema** `${catalog}.wksp_${user}` where `user = regexp_replace(current_user(),'[^a-zA-Z0-9]','_')`, created via `CREATE SCHEMA IF NOT EXISTS`; MLflow models register under a per-user UC path. Where a task shows a shared output like `gold_dev.ds_*`, substitute `wksp_${user}.ds_*`. Helper:
+  ```python
+  user = spark.sql("SELECT current_user()").first()[0]
+  USER_SCHEMA = "wksp_" + __import__("re").sub(r"[^a-zA-Z0-9]", "_", user)
+  spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CAT}.{USER_SCHEMA}")
+  ```
+  A shared Genie space / AI-BI dashboard is fine (read-only). BYO-file upload lands in the per-user schema.
 - **Simpler is better** — POC proves capability, not production. Fewest honest artifacts.
 - **Catalog:** dev=`princeton_poc_dev`, schemas `silver_dev`, `gold_dev`, `landing_dev`.
 - **Notebooks:** stored in Git folders (repo: `github.com/scottDBX1886/princeton_poc`), tied to the Phase 0 bundle.

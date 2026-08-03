@@ -32,6 +32,11 @@ production platform. Fewest artifacts that let each scenario be demonstrated hon
    scenario IDs (with a read-out write-up), but each object is built, run, and
    verified green before the next.
 6. **Build internally, deploy to the customer POC workspace** via a DAB + Git repo.
+7. **Concurrent multi-user execution** — the DMIA team (~20+ people, per the persona/
+   department roster) runs the runbooks together in ONE big session, at **per-person**
+   grain. Each participant must be able to run any scenario without colliding with
+   others. Admin (PA) scenarios are performed by **one person on behalf of the group**.
+   See §3.1 Concurrency & isolation model.
 
 ---
 
@@ -100,6 +105,39 @@ flowchart TB
   promotion via dev/qa/prod targets), SE-38 (CI/CD), SE-39 (rollback).
 - Deterministic data generation (fixed seed) → identical data in our internal
   workspace and the customer POC workspace. Reproducible demos.
+
+### 3.1 Concurrency & isolation model (multi-user runbook execution)
+
+~20+ DMIA participants run the runbooks **concurrently in one session, per-person**.
+The foundation is shared and read-only; each participant's *writes* are isolated.
+
+**Rules (govern every scenario — override individual task output paths):**
+
+1. **Shared, read-only foundation.** `silver_dev` / `gold_dev` dimensions & facts and
+   the landing source files are READ by all participants; **no scenario writes to
+   them.** (Foundation build remains an SA one-time setup, not a participant action.)
+2. **Per-person output schema.** Every scenario that creates/writes an object targets a
+   private, identity-derived schema:
+   `${catalog}.wksp_${user}` where `user` = `regexp_replace(current_user(), '[^a-zA-Z0-9]', '_')`.
+   Notebooks derive it automatically (a `_user_schema()` helper + `CREATE SCHEMA IF NOT
+   EXISTS`), so 20 people running the same scenario never collide. No manual parameter.
+3. **Per-person checkpoints/volumes.** Auto Loader checkpoints and any file outputs go
+   under a per-user path (`…/files/wksp_${user}/…`), never a shared one.
+4. **Admin (PA) scenarios run once, by one person, in a dedicated `admin_demo` schema**
+   holding COPIES of the sensitive tables (student, financial_aid, faculty). Masking
+   (PA-07/08) and RLS (PA-09/10) mutate the *table object*, so they must NOT touch the
+   shared foundation (that would change what all 20 readers see). The admin demonstrates
+   on `admin_demo` copies while participants observe; participants' own reads are
+   unaffected. (Alternative considered — admin acts on the live foundation — rejected as
+   too disruptive for a shared session.)
+5. **Compute.** One warehouse cannot serve ~20 concurrent heavy users; provision a
+   small **autoscaling SQL warehouse (or serverless SQL)** for the session, and steer
+   the heavy compute scenarios (DS-05, PA-13…18) through it. Config, not code.
+6. **Genie / AI-BI / REST API / read-only browse** need no isolation — concurrent reads
+   are safe as-is.
+
+This is a Global Constraint in every phase plan: "all scenario writes go to
+`${catalog}.wksp_${user}.*`; foundation is read-only; PA scenarios use `admin_demo`."
 
 ---
 

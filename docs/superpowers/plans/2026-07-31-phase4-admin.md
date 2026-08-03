@@ -10,6 +10,7 @@
 
 ## Global Constraints
 
+- **⚠️ MULTI-USER MODEL — Admin runs ONCE, by ONE person, for the whole group.** Unlike the other personas (per-person isolation), the ~20+ session participants do NOT each perform PA scenarios; a single designated admin demonstrates while everyone observes. **Critical:** masking (PA-07/08) and RLS (PA-09/10) mutate the table object itself via `ALTER TABLE ... SET MASK / SET ROW FILTER` — running these on the shared foundation would change what all 20 participants see when they read `student`/`financial_aid`/`faculty`. Therefore **all PA masking/RLS scenarios operate on a dedicated `${catalog}.admin_demo` schema holding COPIES** of the sensitive tables, NOT on `silver_dev`. Task 0 of this plan must `CREATE SCHEMA admin_demo` and `CREATE TABLE admin_demo.student AS SELECT * FROM silver_dev.student` (+ financial_aid, faculty). Grants/compute/cost scenarios (PA-A, PA-E, PA-F) act at workspace/account scope and are inherently single-admin — no copy needed, but note they affect the shared workspace so run them deliberately.
 - **Catalog:** per-target (dev=`princeton_poc_dev`, qa=`princeton_poc_test`, prod=`princeton_poc`). All policy SQL scripts must parameterize the catalog name; no hardcoding.
 - **Schemas:** bronze_dev/silver_dev/gold_dev, landing_dev (corresponding to foundation Phase 0).
 - **Profile:** `dbx_shared_demo` for dev. Pass `--profile dbx_shared_demo` on all CLI commands.
