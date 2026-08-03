@@ -83,9 +83,15 @@ collisions:
 - **Compute:** the session uses an autoscaling SQL warehouse (or serverless) sized for
   concurrency; heavy scenarios (DS-05, PA-13…18) route through it.
 
-> Note on the two already-built ingestion scenarios (SE-08, SE-09): their pre-built
-> assets currently write to shared targets and will be updated to the per-person
-> `wksp_<user>` pattern before a group session. For a solo walkthrough they work as-is.
+> Note on the two already-built items:
+> - **SE-09 (SFTP ingestion)** is a fully-built scenario end-to-end; its pre-built job
+>   currently writes a shared `bronze_dev.sftp_financial_aid` table + shared Volume
+>   subfolder, so it needs the per-person `wksp_<user>` retrofit before a group session.
+> - **SE-08** is only the **data source** so far — the mock REST API *app* that serves
+>   paginated OAuth data is deployed (read-only, safe for concurrency), but the
+>   *ingestion pipeline* that pulls from it into a table is scenario **E3**, still to be
+>   built. The isolation pattern applies to E3 when built, not to the shared app.
+> Both work as-is for a solo walkthrough.
 
 ## Persona scenario entries
 
