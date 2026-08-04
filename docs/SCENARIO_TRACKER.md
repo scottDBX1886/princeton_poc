@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-04
 
-**Summary (RFP scenario IDs):** 5 ✅ built-and-verified (SE-04/05/06/07 via E1, SE-09) · 2 🟡 partial (SE-08 source, SE-36) · 79 ⬜ planned.
+**Summary (RFP scenario IDs):** 6 ✅ built-and-verified (SE-04/05/06/07 via E1, SE-08 via E3, SE-09) · 1 🟡 partial (SE-36) · 78 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -36,7 +36,7 @@ list is the full checklist.
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified |
 | SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified |
 | SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified |
-| SE-08 | REST API ingestion — authenticated + paginated | E3 | 🟡 mock API source ✅ deployed; ingestion pipeline ⬜ |
+| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ⬜ |
 

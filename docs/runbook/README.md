@@ -107,6 +107,41 @@ _(Phase 2 Data Scientist, Phase 3 Business Analyst, Phase 4 Admin — TBD as bui
 
 ## Phase 1 — Software / Data Engineer
 
+### E3 — REST API ingestion (SE-08): OAuth 2.0 + pagination + token refresh
+
+**What it proves:** the platform ingests from a paginated REST API using OAuth 2.0
+client-credentials, following pagination automatically and refreshing the token on expiry
+— with no manual intervention.
+
+**Setup (SA, done):** mock API app `princeton-mock-api` deployed + running; a service
+principal `princeton-poc-e3-ingest` (client_id `aa5bc098-…`) with **CAN_USE** on the app;
+its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
+`client_secret`). Pre-built notebook: `/Workspace/Shared/Princeton POC/1 - Engineer/E3 - REST API ingestion`.
+
+**Two auth layers (this is the faithful "internal API behind a gateway" pattern):**
+1. **Apps SSO proxy** — the notebook authenticates as the service principal via OAuth
+   **M2M**: client-credentials grant at `{host}/oidc/v1/token` (`scope=all-apis`), token
+   in `Authorization`. This is what lets an *unattended* notebook reach the app.
+2. **The API's own OAuth (SE-08 proper)** — `POST /oauth/token` client-credentials →
+   bearer in `X-API-Token` → page `GET /enrollments` until `next` is null → re-issue on 401.
+
+**Code path (Databricks Assistant):** *"Write a notebook that gets an SP OAuth M2M token
+from {host}/oidc/v1/token (creds from secret scope princeton_poc_e3), uses it to reach the
+app, then does the app's own client-credentials OAuth and pages through /enrollments,
+refreshing on 401, writing all rows to my schema."*
+
+**Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**.
+
+**Expected outcome:** 60,000 rows in `wksp_<you>.e3_enrollments_from_api`; ~600 pages;
+a token refresh occurs mid-run (300s TTL) with no manual step; final count == API `total`.
+
+**Notes:** (1) The SP + `CAN_USE` + secret-scope setup is a **workspace-admin** one-time
+task — this is also the answer to *"how does an in-workspace pipeline call a
+gateway-protected internal API,"* and doubles as PA-06 (service account + credential
+management) evidence. (2) SE-08's actual requirement (the API's OAuth + pagination) is
+independent of the proxy; the SP layer is Databricks-Apps plumbing to reach the app
+unattended. (3) SP credentials live only in the UC secret scope, never in notebook code.
+
 ### E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
 **What it proves:** the platform natively ingests five file formats with real-world
