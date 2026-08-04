@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-04
 
-**Summary (RFP scenario IDs):** 6 ✅ built-and-verified (SE-04/05/06/07 via E1, SE-08 via E3, SE-09) · 1 🟡 partial (SE-36) · 78 ⬜ planned.
+**Summary (RFP scenario IDs):** 16 ✅ built-and-verified (E1: SE-04/05/06/07 · E3: SE-08 · E5: SE-11–20 · SE-09) · 1 🟡 partial (SE-36) · 68 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -43,16 +43,16 @@ list is the full checklist.
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| SE-11 | Lookup / reference data enrichment | E5 | ⬜ |
-| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ⬜ |
-| SE-13 | String manipulation functions | E5 | ⬜ |
-| SE-14 | Null detection & conditional logic | E5 | ⬜ |
-| SE-15 | Date & time handling | E5 | ⬜ |
-| SE-16 | Data type casting & validation (reject path) | E5 | ⬜ |
-| SE-17 | Aggregation & running totals (control-break) | E5 | ⬜ |
-| SE-18 | Pivot — rows↔columns | E5 | ⬜ |
-| SE-19 | Last-record-in-group identification | E5 | ⬜ |
-| SE-20 | Record loop / iteration over grouped records | E5 | ⬜ |
+| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified |
+| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified |
+| SE-13 | String manipulation functions | E5 | ✅ built & verified |
+| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified |
+| SE-15 | Date & time handling | E5 | ✅ built & verified |
+| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified |
+| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified |
+| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified |
+| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified |
+| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified |
 
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status |

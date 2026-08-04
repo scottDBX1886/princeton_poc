@@ -142,6 +142,39 @@ management) evidence. (2) SE-08's actual requirement (the API's OAuth + paginati
 independent of the proxy; the SP layer is Databricks-Apps plumbing to reach the app
 unattended. (3) SP credentials live only in the UC secret scope, never in notebook code.
 
+### E5 — "Kitchen-sink" transformation pipeline (SE-11 … SE-20)
+
+**What it proves:** ten transformation capabilities in one pipeline — the platform's
+breadth for real ETL work. One notebook section per scenario.
+
+**Setup (SA, done):** pre-built notebook `/Workspace/Shared/Princeton POC/1 - Engineer/E5 - Transformation kitchen-sink`.
+
+**Scenario map (each a labeled section):** SE-11 lookup enrichment (matched/unmatched) ·
+SE-12 inner/left/full joins · SE-13 string ops (substring/concat/split/case) · SE-14
+null + conditional (coalesce/if-then-else) · SE-15 mixed-format date parsing · SE-16 cast
+validation with reject path · SE-17 running totals with control-break · SE-18 pivot +
+unpivot · SE-19 last-record-in-group · SE-20 grouped iteration → one summary row.
+
+**Code path (Databricks Assistant):** *"Write a transformation notebook over the
+foundation Silver tables demonstrating: reference lookup with unmatched handling, the
+three join types, string manipulation, null/conditional logic, parsing mixed-format
+dates, casting with a reject path for bad values, running totals per group, a pivot,
+last-record-per-group, and a one-row-per-student summary. Write outputs to my schema."*
+
+**Pre-built fallback:** run the deployed notebook **E5 - Transformation kitchen-sink**.
+
+**Expected outcome (in `wksp_<you>`):** `e5_running_totals` (960 = 40 depts × 24 terms),
+`e5_grade_pivot` (40 depts), `e5_last_enrollment` / `e5_student_summary` (~26k students
+with enrollments), `e5_cast_rejects` (**12** — the injected bad values, proving SE-16's
+reject path caught them without aborting).
+
+**Notes (real platform behaviors worth showing the customer):** (1) **`to_date` throws in
+ANSI mode** on a format mismatch — use **`try_to_date`** (returns null) so you can coalesce
+over multiple formats (SE-15) or route failures to a reject path (SE-16). Same for
+`try_cast` vs `cast`. (2) For inject-then-split logic (SE-16), **materialize the
+intermediate** (write to a staging table) before splitting valid/reject — a lazy Spark
+chain can otherwise re-derive injected values inconsistently.
+
 ### E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
 **What it proves:** the platform natively ingests five file formats with real-world
