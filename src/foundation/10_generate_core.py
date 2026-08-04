@@ -32,12 +32,19 @@ SILVER = f"{CATALOG}.silver{SUFFIX}"
 # Domain constants
 DIVISIONS = ["Humanities", "Natural Sciences", "Engineering", "Social Sciences", "Arts"]
 STATUSES = ["active", "leave", "graduated", "withdrawn"]
+# Realistic skew (not uniform) so Genie/ML/dashboard demos don't look synthetic:
+# ~60% active / 20% graduated / 15% withdrawn / 5% leave.
+STATUS_WEIGHTS = [60, 5, 20, 15]  # aligns to STATUSES order: active, leave, graduated, withdrawn
 RANKS = ["Assistant Professor", "Associate Professor", "Professor", "Lecturer"]
 AID_TYPES = ["Grant", "Scholarship", "Work-Study", "Loan", "Fellowship"]
 SEASONS = ["Fall", "Spring", "Summer"]
 GRADES = ["A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "W"]
+# Grade inflation typical of universities: ~35% A/A-, ~40% B, ~20% C, ~5% D/F, small W.
+GRADE_WEIGHTS = [20, 15, 16, 15, 9, 8, 7, 3, 2, 5]  # aligns to GRADES order
 GRADE_POINTS = {"A": 4.0, "A-": 3.7, "B+": 3.3, "B": 3.0, "B-": 2.7,
                 "C+": 2.3, "C": 2.0, "D": 1.0, "F": 0.0, "W": None}
+# Department size skew: a few large departments, a long tail of small ones.
+# Weights assigned per dept_id below so sizes vary (~200–1500) instead of ~750 each.
 
 # Volume knobs (small dims; fact is separate)
 N_DEPT, N_FACULTY, N_COURSE, N_STUDENT, N_AID, N_ENROLL = 40, 2000, 5000, 30000, 50000, 60000
@@ -111,6 +118,9 @@ course_ids = [c[0] for c in courses]
 # MAGIC mixed formats for the date-parsing scenario (SE-15).
 
 # COMMAND ----------
+# Per-department weights so student counts vary (~200–1500) instead of ~750 each.
+# Deterministic (seeded): a skewed weight per dept_id.
+dept_weights = [random.choice([1, 1, 2, 2, 3, 5, 7]) for _ in dept_ids]
 students = []
 for i in range(1, N_STUDENT + 1):
     dob = fake.date_of_birth(minimum_age=17, maximum_age=30)
@@ -123,7 +133,9 @@ for i in range(1, N_STUDENT + 1):
     email = None if i % 50 == 0 else fake.email()  # ~2% null (SE-14)
     students.append((
         i, fake.first_name(), last, fake.ssn(), dob_str,
-        random.choice(dept_ids), random.choice(STATUSES), email,
+        random.choices(dept_ids, weights=dept_weights, k=1)[0],   # varied dept sizes
+        random.choices(STATUSES, weights=STATUS_WEIGHTS, k=1)[0],  # ~60/20/15/5 skew
+        email,
     ))
 student_df = spark.createDataFrame(
     students, ["student_id", "first_name", "last_name", "ssn", "dob",
@@ -152,7 +164,7 @@ aid_df.write.mode("overwrite").saveAsTable(f"{SILVER}.financial_aid")
 # COMMAND ----------
 enroll = []
 for i in range(1, N_ENROLL + 1):
-    g = random.choice(GRADES)
+    g = random.choices(GRADES, weights=GRADE_WEIGHTS, k=1)[0]  # grade-inflation skew
     enroll.append((
         i, random.choice(student_ids), random.choice(course_ids),
         random.choice(term_ids), g, GRADE_POINTS[g],

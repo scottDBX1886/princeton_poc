@@ -30,18 +30,33 @@ n_terms = spark.table(f"{SILVER}.term").count()
 print(f"students={n_students} courses={n_courses} terms={n_terms} target_rows={N}")
 
 grades = ["A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "W"]
+# Grade-inflation skew (matches 10_generate_core GRADE_WEIGHTS): ~35% A/A-, ~40% B, ~20% C, ~5% D/F.
+grade_weights = [20, 15, 16, 15, 9, 8, 7, 3, 2, 5]
+_tot = sum(grade_weights)
+_cum, _acc = [], 0
+for w in grade_weights:
+    _acc += w
+    _cum.append(_acc / _tot)  # cumulative probability thresholds
 
 # COMMAND ----------
 # MAGIC %md ## Build N rows via seeded sampling, then resolve dept_id from student
 # COMMAND ----------
+# Map a uniform draw through cumulative buckets -> weighted grade (Spark-side).
+# IMPORTANT: materialize rand() into a NAMED column first. rand() is nondeterministic;
+# referencing F.rand(...) directly in each when() branch re-rolls it per branch per row
+# and breaks the cumulative partition. F.col("grade_rand") reads one stored value per row.
+_grade_col = F.lit(grades[-1])
+for g, thresh in reversed(list(zip(grades, _cum))):
+    _grade_col = F.when(F.col("grade_rand") < F.lit(thresh), F.lit(g)).otherwise(_grade_col)
+
 base = (
     spark.range(N)
     .withColumn("student_id", (F.rand(SEED) * n_students).cast("int") + 1)
     .withColumn("course_id", (F.rand(SEED + 1) * n_courses).cast("int") + 1)
     .withColumn("term_id", (F.rand(SEED + 2) * n_terms).cast("int") + 1)
-    .withColumn("grade_idx", (F.rand(SEED + 3) * len(grades)).cast("int"))
-    .withColumn("grade", F.element_at(F.array(*[F.lit(g) for g in grades]),
-                                      F.col("grade_idx") + 1))
+    .withColumn("grade_rand", F.rand(SEED + 3))
+    .withColumn("grade", _grade_col)
+    .drop("grade_rand")
     .withColumn("gpa_points",
                 F.when(F.col("grade") == "A", 4.0).when(F.col("grade") == "A-", 3.7)
                  .when(F.col("grade") == "B+", 3.3).when(F.col("grade") == "B", 3.0)
