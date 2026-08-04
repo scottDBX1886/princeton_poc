@@ -103,7 +103,43 @@ _Appended as Phases 1–4 are built. Each entry:_
 - **Pre-built fallback** (object to run if a prompt drifts)
 - **Expected outcome** (from the RFP) + how to verify
 
-_(Phase 1 Engineer, Phase 2 Data Scientist, Phase 3 Business Analyst, Phase 4 Admin — TBD as built.)_
+_(Phase 2 Data Scientist, Phase 3 Business Analyst, Phase 4 Admin — TBD as built.)_
+
+## Phase 1 — Software / Data Engineer
+
+### E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
+
+**What it proves:** the platform natively ingests five file formats with real-world
+"gotchas": CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel
+(targeting a *named* sheet), nested JSON, and XML with optional nodes.
+
+**Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
+notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
+
+**No-code / low-code path (Lakeflow Designer):** *"Create a pipeline that reads the five
+files under `/Volumes/princeton_poc_dev/landing_dev/files/` — students_csv (CSV, keep
+quoted embedded commas), enrollments_pipe (pipe-delimited), financial_aid.xlsx (sheet
+AidDetail), course_catalog_json (nested), faculty_xml (rowTag faculty) — and writes each
+to a bronze table."*
+
+**Code path (Databricks Assistant):** *"Write a PySpark notebook that reads each of the
+five formats from the landing Volume with native readers (csv, excel with
+dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
+row counts and verify the embedded-comma value stays in one field."*
+
+**Pre-built fallback:** run the deployed notebook **E1 - Multi-format file ingestion**
+(or `src/engineer/e1_file_ingestion.py`).
+
+**Expected outcome:** five tables in your per-person `wksp_<you>` schema —
+`e1_students_raw` (2000), `e1_enrollments_raw` (2000), `e1_financial_aid_raw` (1000, from
+the AidDetail sheet only), `e1_course_catalog_raw` (10 depts), `e1_faculty_raw` (200).
+The row `"Doe, John"` proves the embedded comma didn't split (SE-04); ~66/134
+tenure-present/null split proves the optional XML node became null, not a dropped row (SE-07).
+
+**Notes:** (1) Native Excel **read** works (DBR 17.1+) via `.option("dataAddress", "AidDetail")`
+— a bare sheet name, not the `'Sheet'!A1` quoting from the old spark-excel library.
+(2) Outputs go to a **per-person schema** (`wksp_<current_user>`) so ~20 people run it
+concurrently without colliding; the foundation stays read-only.
 
 ---
 

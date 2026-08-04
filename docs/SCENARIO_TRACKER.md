@@ -12,9 +12,9 @@ list is the full checklist.
 > Update both when a build lands: flip the object's board status AND the scenario IDs here.
 
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
-**Last updated:** 2026-08-03
+**Last updated:** 2026-08-04
 
-**Summary (RFP scenario IDs):** 1 ✅ built-and-verified (SE-09) · 2 🟡 partial (SE-08 source, SE-36) · 83 ⬜ planned.
+**Summary (RFP scenario IDs):** 5 ✅ built-and-verified (SE-04/05/06/07 via E1, SE-09) · 2 🟡 partial (SE-08 source, SE-36) · 79 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -32,10 +32,10 @@ list is the full checklist.
 | SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) |
 | SE-03 | Incremental / CDC ingestion from a DB source | E6 | ⬜ |
-| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ⬜ (source files ✅ staged) |
-| SE-05 | Excel workbook ingestion (named sheet) | E1 | ⬜ (source file ✅ staged) |
-| SE-06 | Semi-structured — JSON (nested) | E1 | ⬜ (source file ✅ staged) |
-| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ⬜ (source file ✅ staged) |
+| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified |
+| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified |
+| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified |
+| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | 🟡 mock API source ✅ deployed; ingestion pipeline ⬜ |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ⬜ |
