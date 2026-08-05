@@ -22,7 +22,12 @@ on one shared higher-ed data foundation.
    ```
 
 ## Structure
-- `databricks.yml` — bundle root + dev/qa/prod targets
-- `resources/` — DAB resource definitions (UC namespace, jobs)
-- `src/foundation/` — data generators, source-file writer, day-2 change script
-- `docs/` — spec, plan, config, runbook
+One DAB bundle, organized by **persona** so multiple contributors work without collisions.
+Each persona folder owns its own `resources/` (DAB definitions) + `src/` (code); the
+`databricks.yml` include glob (`*/resources/*.yml`) auto-discovers new persona folders, so
+adding a persona needs **no edit to `databricks.yml`**.
+- `databricks.yml` — bundle root + dev/qa/prod targets + shared variables (catalog, schema_suffix, storage_root, warehouse_id)
+- `foundation/` — **shared** dataset all personas depend on: `resources/` (UC namespace + build job), `src/` (data generators, source-file writer, day-2 change script)
+- `engineer/` — Software/Data Engineer scenarios: `resources/` (SDP pipelines, SFTP job, mock-API app), `src/` (notebooks, `sdp/`, `sftp/`, `apps/`)
+- `datascientist/`, `businessanalyst/`, `admin/` — added by their owners following the same `resources/` + `src/` shape
+- `docs/` — spec, plans, config, runbook, scenario tracker

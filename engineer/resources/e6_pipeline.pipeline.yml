@@ -1,12 +1,12 @@
 resources:
   pipelines:
-    e5_transformations:
-      name: "[${var.catalog}] E5 transformations (SDP)"
+    e6_cdc_scd:
+      name: "[${var.catalog}] E6 CDC + SCD (SDP)"
       serverless: true
       catalog: ${var.catalog}
       schema: wksp_scott_johnson_databricks_com   # per-person target (SA test value)
       libraries:
         - file:
-            path: ../src/engineer/sdp/e5_transformations_sdp.py
+            path: ../src/sdp/e6_cdc_scd_sdp.py
       configuration:
-        silver_schema: ${var.catalog}.silver${var.schema_suffix}
+        wksp_schema: ${var.catalog}.wksp_scott_johnson_databricks_com

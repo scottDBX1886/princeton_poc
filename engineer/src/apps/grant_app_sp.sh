@@ -6,9 +6,9 @@
 # then issues the UC grants via the SQL API. Reusable for every app (REST, SFTP, ...).
 #
 # Usage:
-#   src/apps/grant_app_sp.sh <app_name> <profile> <warehouse_id> <catalog> <schema> [table]
+#   engineer/src/apps/grant_app_sp.sh <app_name> <profile> <warehouse_id> <catalog> <schema> [table]
 # Example:
-#   src/apps/grant_app_sp.sh princeton-mock-api dbx_shared_demo a94a22f8652d85c1 \
+#   engineer/src/apps/grant_app_sp.sh princeton-mock-api dbx_shared_demo a94a22f8652d85c1 \
 #       princeton_poc_dev silver_dev enrollment
 set -euo pipefail
 

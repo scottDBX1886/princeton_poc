@@ -6,7 +6,7 @@ Mimics what an ingestion pipeline does: obtain a client-credentials token, page 
 Run locally against the deployed app:
     APP_URL=https://princeton-mock-api-...azure.databricksapps.com \
     PROFILE=dbx_shared_demo \
-    python src/apps/mock_api/verify.py
+    python engineer/src/apps/mock_api/verify.py
 """
 import os
 import requests

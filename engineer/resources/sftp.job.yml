@@ -10,7 +10,7 @@ resources:
       tasks:
         - task_key: retrieve
           notebook_task:
-            notebook_path: ../src/foundation/50_sftp_retrieve.py
+            notebook_path: ../src/sftp/50_sftp_retrieve.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
@@ -18,7 +18,7 @@ resources:
           depends_on:
             - task_key: retrieve
           notebook_task:
-            notebook_path: ../src/foundation/51_sftp_ingest.py
+            notebook_path: ../src/sftp/51_sftp_ingest.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}

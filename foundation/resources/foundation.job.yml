@@ -16,7 +16,7 @@ resources:
       tasks:
         - task_key: generate_core
           notebook_task:
-            notebook_path: ../src/foundation/10_generate_core.py
+            notebook_path: ../src/10_generate_core.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
@@ -25,7 +25,7 @@ resources:
           depends_on:
             - task_key: generate_core
           notebook_task:
-            notebook_path: ../src/foundation/11_generate_fact.py
+            notebook_path: ../src/11_generate_fact.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
@@ -35,7 +35,7 @@ resources:
           depends_on:
             - task_key: generate_core
           notebook_task:
-            notebook_path: ../src/foundation/20_write_source_files.py
+            notebook_path: ../src/20_write_source_files.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
@@ -44,7 +44,7 @@ resources:
           depends_on:
             - task_key: write_files
           notebook_task:
-            notebook_path: ../src/foundation/30_bronze_silver.py
+            notebook_path: ../src/30_bronze_silver.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}

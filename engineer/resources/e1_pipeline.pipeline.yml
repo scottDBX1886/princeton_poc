@@ -10,6 +10,6 @@ resources:
       schema: wksp_scott_johnson_databricks_com
       libraries:
         - file:
-            path: ../src/engineer/sdp/e1_file_ingestion_sdp.py
+            path: ../src/sdp/e1_file_ingestion_sdp.py
       configuration:
         landing_path: /Volumes/${var.catalog}/landing${var.schema_suffix}/files

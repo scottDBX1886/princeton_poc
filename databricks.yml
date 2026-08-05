@@ -53,7 +53,11 @@ targets:
       storage_root: "<PROD_STORAGE_URL>"
 
 include:
-  - resources/*.yml
+  # Persona-scoped resources. Each persona owns a top-level folder with its own
+  # resources/ + src/ (foundation/ = the shared dataset all personas depend on).
+  # This glob auto-discovers new persona folders (e.g. datascientist/) — a new
+  # contributor adds <persona>/resources/*.yml with NO edit to this file.
+  - "*/resources/*.yml"
 
 # Shared deployment path (prod/qa) is intentional for a POC handed to the customer team;
 # grant workspace users manage access to acknowledge the shared /Workspace/Shared path.

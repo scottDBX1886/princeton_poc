@@ -84,7 +84,7 @@ session, then show the platform detecting exactly the planted changes.
 DESCRIBE HISTORY <catalog>.silver.student LIMIT 1;   -- note the version number
 ```
 
-**Step 2 — apply the day-2 changes** (`src/foundation/40_day2_changes.sql`): run the
+**Step 2 — apply the day-2 changes** (`foundation/src/40_day2_changes.sql`): run the
 script. It plants **10 inserts, 20 updates, 5 deletes, and adds one column.**
 
 **Step 3 — show the platform detected them (CDF):**
@@ -205,8 +205,8 @@ value "Doe, John" stays in one field.
 ```
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
-`resources/e1_pipeline.pipeline.yml` (`src/engineer/sdp/e1_file_ingestion_sdp.py`) — 5 bronze
-streaming tables via Auto Loader. The notebook `src/engineer/e1_file_ingestion.py` remains
+`engineer/resources/e1_pipeline.pipeline.yml` (`engineer/src/sdp/e1_file_ingestion_sdp.py`) — 5 bronze
+streaming tables via Auto Loader. The notebook `engineer/src/e1_file_ingestion.py` remains
 as an imperative alternative.
 
 > **SDP note:** streaming Excel via Auto Loader requires `cloudFiles.schemaEvolutionMode=none`.
@@ -257,7 +257,7 @@ e3_enrollments_from_api. Never hardcode credentials.
 ```
 
 **Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**
-(local reference client: `src/apps/mock_api/verify.py`).
+(local reference client: `engineer/src/apps/mock_api/verify.py`).
 
 **Expected outcome:** 60,000 rows in `wksp_<you>.e3_enrollments_from_api`; ~600 pages;
 a token refresh occurs mid-run (300s TTL) with no manual step; final count == API `total`.
@@ -301,8 +301,8 @@ demonstrates:
 ```
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
-`resources/e5_pipeline.pipeline.yml` (`src/engineer/sdp/e5_transformations_sdp.py`) — 8
-materialized views. (The imperative notebook `src/engineer/e5_transformation_kitchen_sink.py`
+`engineer/resources/e5_pipeline.pipeline.yml` (`engineer/src/sdp/e5_transformations_sdp.py`) — 8
+materialized views. (The imperative notebook `engineer/src/e5_transformation_kitchen_sink.py`
 remains as an alternative.)
 
 **Expected outcome (materialized views in `wksp_<you>`):** `e5_student_enriched` (30000),
@@ -337,7 +337,7 @@ Tag each output row with a source_system column showing which sources it matched
 (e.g. "file+db+api" vs "api"), so matched vs unmatched reconciliation is visible.
 ```
 
-**Pre-built fallback:** `resources/e4_pipeline.pipeline.yml` (`src/engineer/sdp/e4_multisource_merge_sdp.py`).
+**Pre-built fallback:** `engineer/resources/e4_pipeline.pipeline.yml` (`engineer/src/sdp/e4_multisource_merge_sdp.py`).
 
 **Expected outcome:** `e4_enrollment_reconciled` — rows tagged `file+db+api` where the
 student is in the file sample, `api` otherwise (matched vs unmatched reconciliation is
@@ -363,7 +363,7 @@ as version 2, then None. keys = student_id. Build both:
 Write to catalog princeton_poc_dev, schema wksp_<my_user>.
 ```
 
-**Pre-built fallback:** `resources/e6_pipeline.pipeline.yml` (`src/engineer/sdp/e6_cdc_scd_sdp.py`)
+**Pre-built fallback:** `engineer/resources/e6_pipeline.pipeline.yml` (`engineer/src/sdp/e6_cdc_scd_sdp.py`)
 + the snapshot-setup notebook.
 
 **Expected outcome:** `e6_student_scd1` = 1005 (1000 − 5 deletes + 10 inserts), 10 inserted
@@ -395,7 +395,7 @@ Use native writers for CSV/pipe/JSON; write Excel with openpyxl in-memory.
 ```
 
 **Pre-built fallback:** run the deployed notebook **E7 - Target loading**
-(`src/engineer/e7_target_loading.py`).
+(`engineer/src/e7_target_loading.py`).
 
 **Expected outcome:** `e7_student_target` after UPSERT+delete (0 alumni remain); four export
 artifacts under `…/files/e7_exports/wksp_<you>/` (student_target_csv, _pipe, _json, .xlsx);
