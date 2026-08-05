@@ -12,7 +12,7 @@ list is the full checklist.
 > Update both when a build lands: flip the object's board status AND the scenario IDs here.
 
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
-**Last updated:** 2026-08-04
+**Last updated:** 2026-08-05
 
 **Summary (RFP scenario IDs):** 25 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · SE-09) · 1 🟡 partial (SE-36) · 59 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
@@ -184,7 +184,7 @@ list is the full checklist.
 | Mock REST API app (SE-08 source) | 🟡 deployed (currently UNAVAILABLE — needs restart) |
 | SFTP server + retrieval (SE-09) | ✅ built & verified |
 | Multi-user isolation (issue #34) | 🟡 designed; code retrofit pending |
-| Demonstration runbook | 🟡 in progress (Phase 0, SE-08, SE-09 entries done) |
+| Demonstration runbook | 🟡 in progress — Engineer persona fully testable (Phase 0 + E1/E3/E4/E5/E6/E7/SE-09 entries done, copy-paste prompts + coverage map); DS/BA/PA entries pending |
 
 ---
 

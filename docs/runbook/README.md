@@ -7,6 +7,39 @@ pre-built fallback object, and the expected outcome.
 
 ---
 
+## Build-item → scenario coverage map
+
+Each runbook entry (build object) covers several RFP scenario IDs. This is the bridge from
+"what you run" to "what Princeton grades" (RFP §7). The authoritative per-ID checklist lives
+in [`docs/SCENARIO_TRACKER.md`](../SCENARIO_TRACKER.md); this table is the runbook-facing
+summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ planned.
+
+| Build item | RFP scenario IDs | Capability | Status |
+|-----------|------------------|-----------|--------|
+| **Foundation** | — (shared dataset) | Higher-ed data across bronze/silver/gold + 5 source files | ✅ |
+| **E1** — Multi-format file ingestion | SE-04, SE-05, SE-06, SE-07 | CSV/delimited, Excel (named sheet), nested JSON, XML | ✅ |
+| **E3** — REST API ingestion | SE-08 | OAuth 2.0 + pagination + token refresh | ✅ |
+| **E4** — Multi-source merge | SE-10 | Reconcile file + API + DB on one key | ✅ |
+| **E5** — Transformation kitchen-sink | SE-11 … SE-20 | Lookup, joins, strings, nulls, dates, cast/reject, running totals, pivot, last-in-group, iteration | ✅ |
+| **E6** — CDC + SCD | SE-03, SE-21, SE-22, SE-23 | Change capture + SCD Type 1 & Type 2 (snapshot diff) | ✅ |
+| **E7** — Target loading | SE-24, SE-25, SE-26, SE-27 | UPSERT + hard-delete; CSV/pipe/JSON/Excel export | ✅ |
+| **SE-09** — SFTP retrieval & ingestion | SE-09 | Pattern-matched SFTP pull → Volume → Auto Loader (no shell script) | ✅ |
+| **E2** — Relational DB ingestion | SE-01, SE-02 | Full extract + custom SQL (BYO-DB) | ⬜ parked |
+| **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ⬜ |
+| **E9** — Job monitoring | SE-34 | Job monitoring dashboard | ⬜ |
+| **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | 🟡 repo/bundle exists |
+| **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ⬜ |
+| **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
+| **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
+| **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
+
+**Coverage so far: 25 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
+transformation, CDC/SCD, and target-loading scenarios). Remaining work is Engineer
+orchestration/DevOps/governance (E8–E11) plus the Data Scientist, Business Analyst, and
+Admin personas.
+
+---
+
 ## Phase 0 — Stand up the shared data foundation
 
 Every scenario runs against this one dataset. Build it once per workspace.
@@ -98,6 +131,47 @@ pipeline) · pre-built fallback · expected outcome. **Engineer scenarios use Ge
 generate the SDP pipeline code (parameterized to the engineer's own schema). **Lakeflow
 Designer** (visual no-code) is the Business Analyst / Data Scientist path, built later._
 
+## SA pre-flight — how to test these prompts
+
+Run each engineer prompt yourself once before handing this to the DMIA team, to confirm it
+produces the expected object. The loop is the same for every entry:
+
+1. **Open the surface named in the entry.** For a *Genie-generated SDP* prompt: create a new
+   Lakeflow pipeline, open its editor, and use the **Assistant** (sparkle) panel — or use the
+   Databricks Assistant in a notebook attached to the pipeline. For a *Databricks Assistant —
+   notebook* prompt (E3, E7): open a new notebook and use the Assistant panel.
+2. **Paste the prompt** from the entry's fenced code-path block. Each is self-contained —
+   catalog, schema, and paths are spelled out.
+3. **Substitute your schema.** Replace every `wksp_<my_user>` with your own per-person schema:
+   `wksp_` + your login email with each non-alphanumeric char turned into `_`.
+   - Testing as Scott → `wksp_scott_johnson_databricks_com`.
+   - For E3, also replace `<workspace-host>` with your workspace URL (e.g. `https://<...>.azuredatabricks.net`).
+4. **For SDP prompts:** put the generated code in the pipeline source, set the pipeline's
+   **default catalog = `princeton_poc_dev`** and **default schema = your `wksp_<you>`**, then
+   run the pipeline. **For notebook prompts:** just run the notebook.
+5. **Check against the entry's "Expected outcome."** That's the pass signal.
+
+**Prereqs for a clean run** (build order matters — several prompts read prior outputs):
+- Foundation job has run (Phase 0) — provides `silver_dev` + the landing files.
+- `princeton-mock-api` app is **running** and the `princeton_poc_e3` secret scope exists (E3).
+- Run order into your wksp: **E1 → E3 → E5 → E4 → E6-setup → E6 → E7.** (E4 reads E1+E3;
+  E7 reads E5; E6 needs its snapshot-setup notebook first.)
+- You have `CREATE SCHEMA` on `princeton_poc_dev` (the SDP auto-creates your wksp on first run).
+
+**Prompt test checklist:**
+
+| Entry | Surface | Pass signal (from Expected outcome) |
+|-------|---------|-------------------------------------|
+| E1 | Assistant → SDP | 5 bronze tables (2000/2000/1000/10/200); `"Doe, John"` stays one field |
+| E3 | Assistant → notebook | 60,000 rows; a token refresh occurs mid-run |
+| E5 | Assistant → SDP | 8 MVs; `e5_gpa_valid`=59988 / `e5_gpa_rejects`=12 |
+| E4 | Assistant → SDP | `e4_enrollment_reconciled`; ~3,939 file+db+api |
+| E6 | Assistant → SDP | scd1=1005; scd2=1005 current + ~21 end-dated |
+| E7 | Assistant → notebook | target has 0 alumni; 4 export artifacts |
+
+> If a prompt's generated code drifts from the expected outcome, the committed pre-built
+> object in each entry is the source of truth — diff against it, then tighten the prompt.
+
 ## E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
 **What it proves:** the platform natively ingests five file formats with real-world
@@ -107,17 +181,28 @@ Designer** (visual no-code) is the Business Analyst / Data Scientist path, built
 **Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
 notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
 
-**Code path (Genie — generate the SDP pipeline):** *"Generate a Lakeflow Spark Declarative
-Pipeline that reads the five files under `/Volumes/princeton_poc_dev/landing_dev/files/` —
-students_csv (CSV, keep quoted embedded commas), enrollments_pipe (pipe-delimited),
-financial_aid.xlsx (sheet AidDetail), course_catalog_json (nested), faculty_xml (rowTag
-faculty) — creating one bronze streaming table each. Target catalog `princeton_poc_dev`,
-schema `wksp_<my_user>`."* (Fill in your own schema, then deploy + run the generated pipeline.)
+**Code path (Genie — generate the SDP pipeline):**
+```text
+Generate a Lakeflow Spark Declarative Pipeline that reads the five files under
+/Volumes/princeton_poc_dev/landing_dev/files/ and creates one bronze streaming table each,
+using Auto Loader:
+  - students.csv           -> CSV, keep quoted embedded commas as one field
+  - enrollments.pipe.txt   -> pipe-delimited
+  - financial_aid.xlsx     -> Excel, read only the sheet named AidDetail
+  - course_catalog.json    -> nested JSON
+  - faculty.xml            -> XML, rowTag faculty
+Target catalog princeton_poc_dev, schema wksp_<my_user>. Note that streaming Excel via
+Auto Loader requires cloudFiles.schemaEvolutionMode=none.
+```
 
-**Notebook alternative (for the imperative-code angle):** *"Write a PySpark notebook that
-reads each of the five formats from the landing Volume with native readers (csv, excel with
-dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
-row counts and verify the embedded-comma value stays in one field."*
+**Notebook alternative (for the imperative-code angle):**
+```text
+Write a PySpark notebook that reads each of the five files under
+/Volumes/princeton_poc_dev/landing_dev/files/ with native readers (csv; excel with
+dataAddress='AidDetail'; json; xml rowTag=faculty), writing each to catalog
+princeton_poc_dev, schema wksp_<my_user>. Show row counts and verify the embedded-comma
+value "Doe, John" stays in one field.
+```
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
 `resources/e1_pipeline.pipeline.yml` (`src/engineer/sdp/e1_file_ingestion_sdp.py`) — 5 bronze
@@ -157,10 +242,19 @@ its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
 2. **The API's own OAuth (SE-08 proper)** — `POST /oauth/token` client-credentials →
    bearer in `X-API-Token` → page `GET /enrollments` until `next` is null → re-issue on 401.
 
-**Code path (Databricks Assistant):** *"Write a notebook that gets an SP OAuth M2M token
-from {host}/oidc/v1/token (creds from secret scope princeton_poc_e3), uses it to reach the
-app, then does the app's own client-credentials OAuth and pages through /enrollments,
-refreshing on 401, writing all rows to my schema."*
+**Code path (Databricks Assistant — notebook):**
+```text
+Write a notebook that ingests a paginated REST API behind the Databricks Apps SSO proxy:
+  1. Get a service-principal OAuth M2M token from <workspace-host>/oidc/v1/token with
+     scope=all-apis (client_id/client_secret from secret scope princeton_poc_e3); put it in
+     the Authorization header to clear the Apps proxy.
+  2. Then do the app's own client-credentials OAuth (POST /oauth/token) and put that bearer
+     in the X-API-Token header.
+  3. Page through GET /enrollments following the "next" cursor until it is null, refreshing
+     the X-API-Token on any 401.
+Write all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table
+e3_enrollments_from_api. Never hardcode credentials.
+```
 
 **Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**
 (local reference client: `src/apps/mock_api/verify.py`).
@@ -188,12 +282,23 @@ null + conditional (coalesce/if-then-else) · SE-15 mixed-format date parsing ·
 validation with reject path · SE-17 running totals with control-break · SE-18 pivot +
 unpivot · SE-19 last-record-in-group · SE-20 grouped iteration → one summary row.
 
-**Code path (Genie — generate the SDP pipeline):** *"Generate a Lakeflow Spark Declarative
-Pipeline over `princeton_poc_dev.silver_dev` demonstrating: reference lookup with unmatched
-handling, the three join types, string manipulation, null/conditional logic, parsing
-mixed-format dates, casting with a reject path (use an expectation to drop bad casts and a
-separate view to capture them), running totals per group, a pivot, last-record-per-group,
-and a one-row-per-student summary — as materialized views in my schema `wksp_<my_user>`."*
+**Code path (Genie — generate the SDP pipeline):**
+```text
+Generate a Lakeflow Spark Declarative Pipeline reading from princeton_poc_dev.silver_dev,
+writing materialized views to catalog princeton_poc_dev, schema wksp_<my_user>, that
+demonstrates:
+  - reference lookup enrichment with matched/unmatched handling
+  - inner, left, and full outer joins
+  - string manipulation (substring, concat, split, case)
+  - null + conditional logic (coalesce, if/then/else)
+  - parsing mixed-format date strings (use try_to_date / try_cast so bad values don't throw)
+  - casting with a reject path: use an expectation (expect_or_drop) to drop bad casts into
+    the valid MV, and a separate MV that captures the rejected rows
+  - running totals per group (control-break)
+  - a pivot
+  - last-record-per-group
+  - a one-row-per-student summary
+```
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
 `resources/e5_pipeline.pipeline.yml` (`src/engineer/sdp/e5_transformations_sdp.py`) — 8
@@ -221,9 +326,16 @@ file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table
 **Setup (SA, done):** requires E1 + E3 to have run into the same wksp schema (their Bronze
 outputs are the inputs — the correct medallion pattern; ingestion auth stays in E3).
 
-**Code path (Genie — generate the SDP):** *"Generate an SDP materialized view that joins my
-`e1_students_raw` (file), `e3_enrollments_from_api` (API), and `silver_dev.student` (DB) on
-student_id, tags each row's `source_system`, and writes `e4_enrollment_reconciled` to my schema."*
+**Code path (Genie — generate the SDP):**
+```text
+Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog
+princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:
+  - wksp_<my_user>.e1_students_raw            (file-sourced)
+  - wksp_<my_user>.e3_enrollments_from_api    (API-sourced)
+  - princeton_poc_dev.silver_dev.student      (DB-sourced)
+Tag each output row with a source_system column showing which sources it matched
+(e.g. "file+db+api" vs "api"), so matched vs unmatched reconciliation is visible.
+```
 
 **Pre-built fallback:** `resources/e4_pipeline.pipeline.yml` (`src/engineer/sdp/e4_multisource_merge_sdp.py`).
 
@@ -240,9 +352,16 @@ dimension types, inferred automatically by diffing two snapshots — no hand-wri
 (baseline) and `student_snapshot_v2` (baseline + planted **10 inserts / 20 updates / 5 deletes**)
 in your wksp schema. Then run the E6 pipeline.
 
-**Code path (Genie — generate the SDP):** *"Generate an SDP that uses
-apply_changes_from_snapshot over my student_snapshot_v1 then v2 (keys=student_id) to build
-both an SCD Type 1 table (latest) and an SCD Type 2 table (history) in my schema."*
+**Code path (Genie — generate the SDP):**
+```text
+Generate a Lakeflow SDP (Python) that uses apply_changes_from_snapshot to compare two
+student snapshots and infer inserts/updates/deletes. Feed the snapshots via a callable that
+returns wksp_<my_user>.student_snapshot_v1 as version 1, then wksp_<my_user>.student_snapshot_v2
+as version 2, then None. keys = student_id. Build both:
+  - e6_student_scd1 : SCD Type 1 (latest state / overwrite)
+  - e6_student_scd2 : SCD Type 2 (full history with __START_AT / __END_AT)
+Write to catalog princeton_poc_dev, schema wksp_<my_user>.
+```
 
 **Pre-built fallback:** `resources/e6_pipeline.pipeline.yml` (`src/engineer/sdp/e6_cdc_scd_sdp.py`)
 + the snapshot-setup notebook.
@@ -263,9 +382,17 @@ CSV / pipe / Excel / JSON.
 **Setup (SA, done):** requires E5's `e5_student_enriched` MV in your wksp schema. Pre-built
 notebook `/Workspace/Shared/Princeton POC/1 - Engineer/E7 - Target loading`.
 
-**Code path (Databricks Assistant — notebook):** *"Write a notebook that MERGEs
-e5_student_enriched into a target table (update matched / insert unmatched), then hard-deletes
-alumni rows, then exports the target to CSV, pipe-delimited, JSON, and Excel in my volume folder."*
+**Code path (Databricks Assistant — notebook):**
+```text
+Write a notebook that, using catalog princeton_poc_dev and schema wksp_<my_user>:
+  1. Seeds a target table e7_student_target from a 500-row subset of e5_student_enriched.
+  2. MERGEs the full e5_student_enriched into e7_student_target on student_id
+     (update matched, insert unmatched) — an UPSERT.
+  3. Hard-deletes alumni rows (standing = 'Alumnus') from the target.
+  4. Exports the target to CSV, pipe-delimited, JSON, and Excel under
+     /Volumes/princeton_poc_dev/landing_dev/files/e7_exports/wksp_<my_user>/.
+Use native writers for CSV/pipe/JSON; write Excel with openpyxl in-memory.
+```
 
 **Pre-built fallback:** run the deployed notebook **E7 - Target loading**
 (`src/engineer/e7_target_loading.py`).
@@ -274,16 +401,21 @@ alumni rows, then exports the target to CSV, pipe-delimited, JSON, and Excel in 
 artifacts under `…/files/e7_exports/wksp_<you>/` (student_target_csv, _pipe, _json, .xlsx);
 JSON reads back at 1000 rows.
 
-**Why a notebook (not SDP / not a pipeline sink):** we evaluated LDP **sinks** and they don't
-fit E7: sink formats are `delta` / `kafka` / Event Hubs / custom-Python only — there is **no
-CSV/JSON/Excel sink**, so SE-25/26/27 flat-file outputs still need a notebook. And sinks are
-**streaming, append-only** (`create_auto_cdc_flow` can't target a sink), so they can't do
-SE-24's **UPSERT + hard-delete** — that needs `MERGE`. A Delta sink to a Volume path writes
-*Delta*, not flat files, and only appends. So the imperative notebook is the honest fit here;
-E6 already covered the declarative CDC/SCD upsert. Excel write uses openpyxl in-memory (native
-Excel *writer* not enabled; reader is). _(If a future need is "stream pipeline output to an
-external Delta/Kafka target," that's where `dp.create_sink` would come in — not for E7's
-file-export + MERGE requirements.)_
+**Why a notebook (not SDP / not a pipeline sink):** we evaluated both LDP **sinks** and a
+**custom Python data source** as sinks. Neither fits E7, for one load-bearing reason:
+pipeline sinks are fed by a **streaming, append-only** flow, so they can't do SE-24's
+**UPSERT + hard-delete** — that needs a batch `MERGE` + `DELETE` (E6 already covers the
+*declarative* CDC/SCD upsert). Built-in sink formats (`delta`/`kafka`/Event Hubs) also have
+**no CSV/JSON/Excel** option. A custom Python data source *can* write flat files from its
+`streamWriter.commit(...)`, so it technically answers the file-format gap — but it's still
+append-only/streaming and is ~60–80 lines of `DataSource`/`DataSourceStreamWriter`
+boilerplate (+ checkpoint, + openpyxl on every executor) to replace a three-line native
+`df.write.format("csv")`. More moving parts and a worse demo than the notebook. So the
+imperative notebook is the honest fit; Excel write uses openpyxl in-memory (native Excel
+*writer* not enabled; reader is). _(Where a custom data source **does** earn a place in this
+RFP: the **reader** side — the clean answer to E2's bring-your-own-DB and a platform-openness
+showcase. And `dp.create_sink` is the answer if a future need is "stream pipeline output to an
+external Delta/Kafka target" — not E7's file-export + MERGE requirements.)_
 
 ## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
 
