@@ -181,7 +181,7 @@ list is the full checklist.
 | Item | Status |
 |------|--------|
 | Shared data foundation (all layers + source files) | ✅ built & verified |
-| Mock REST API app (SE-08 source) | 🟡 deployed (currently UNAVAILABLE — needs restart) |
+| Mock REST API app (SE-08 source) | ✅ deployed & running (E3 verified against it, 60k rows) |
 | SFTP server + retrieval (SE-09) | ✅ built & verified |
 | Multi-user isolation (issue #34) | 🟡 designed; code retrofit pending |
 | Demonstration runbook | 🟡 in progress — Engineer persona fully testable (Phase 0 + E1/E3/E4/E5/E6/E7/SE-09 entries done, copy-paste prompts + coverage map); DS/BA/PA entries pending |
@@ -191,11 +191,11 @@ list is the full checklist.
 ## Tally by persona
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
-| Engineer (SE) | 43 | 1 (SE-09) | 2 (SE-08, SE-36) | 40 |
+| Engineer (SE) | 43 | 25 (SE-03/04/05/06/07/08/09/10, SE-11–27) | 1 (SE-36) | 17 |
 | Data Scientist (DS) | 10* | 0 | 0 | 10 |
 | Business Analyst (BA) | 8 | 0 | 0 | 8 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **1** | **2** | **83** |
+| **Total** | **86** | **25** | **1** | **60** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).
