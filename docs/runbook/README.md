@@ -93,10 +93,10 @@ collisions:
 
 # Persona 1 — Software / Data Engineer
 
-_Scenario entries below. Each gives: what it proves · no-code path (Designer/Genie prompt) ·
-code path (Assistant prompt) · pre-built fallback · expected outcome. Engineer scenarios use
-**Lakeflow Designer** for the no-code path; **Genie** natural-language prompts appear in the
-Business Analyst / Data Scientist sections (built later)._
+_Scenario entries below. Each gives: what it proves · code path (Genie-generated SDP
+pipeline) · pre-built fallback · expected outcome. **Engineer scenarios use Genie code** to
+generate the SDP pipeline code (parameterized to the engineer's own schema). **Lakeflow
+Designer** (visual no-code) is the Business Analyst / Data Scientist path, built later._
 
 ## E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
@@ -107,19 +107,22 @@ Business Analyst / Data Scientist sections (built later)._
 **Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
 notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
 
-**No-code path (Lakeflow Designer):** *"Create a pipeline that reads the five
-files under `/Volumes/princeton_poc_dev/landing_dev/files/` — students_csv (CSV, keep
-quoted embedded commas), enrollments_pipe (pipe-delimited), financial_aid.xlsx (sheet
-AidDetail), course_catalog_json (nested), faculty_xml (rowTag faculty) — and writes each
-to a bronze table."*
+**Code path (Genie — generate the SDP pipeline):** *"Generate a Lakeflow Spark Declarative
+Pipeline that reads the five files under `/Volumes/princeton_poc_dev/landing_dev/files/` —
+students_csv (CSV, keep quoted embedded commas), enrollments_pipe (pipe-delimited),
+financial_aid.xlsx (sheet AidDetail), course_catalog_json (nested), faculty_xml (rowTag
+faculty) — creating one bronze streaming table each. Target catalog `princeton_poc_dev`,
+schema `wksp_<my_user>`."* (Fill in your own schema, then deploy + run the generated pipeline.)
 
-**Code path (Databricks Assistant):** *"Write a PySpark notebook that reads each of the
-five formats from the landing Volume with native readers (csv, excel with
+**Notebook alternative (for the imperative-code angle):** *"Write a PySpark notebook that
+reads each of the five formats from the landing Volume with native readers (csv, excel with
 dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
 row counts and verify the embedded-comma value stays in one field."*
 
 **Pre-built fallback:** run the deployed notebook **E1 - Multi-format file ingestion**
 (or `src/engineer/e1_file_ingestion.py`).
+> _🔧 To rebuild as SDP (planned): the pre-built fallback becomes a committed Lakeflow SDP
+> pipeline (streaming tables + Auto Loader); the notebook stays as the imperative alternative._
 
 **Expected outcome:** five tables in your per-person `wksp_<you>` schema —
 `e1_students_raw` (2000), `e1_enrollments_raw` (2000), `e1_financial_aid_raw` (1000, from
