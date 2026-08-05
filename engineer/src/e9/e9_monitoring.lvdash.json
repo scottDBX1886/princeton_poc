@@ -2,49 +2,144 @@
   "datasets": [
     {
       "name": "kpi",
-      "displayName": "KPI summary (30d)",
+      "displayName": "KPI summary (all workloads, 30d)",
       "queryLines": [
         "WITH jn AS (\n",
         "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
         "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "job_runs AS (\n",
+        "  SELECT 'Job' AS workload_type, jn.name AS name, r.run_id,\n",
+        "         MIN(r.period_start_time) AS start_time, MAX(r.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN r.result_state IS NOT NULL THEN r.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.job_run_timeline r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
+        "  WHERE jn.name LIKE '%princeton_poc%' GROUP BY jn.name, r.run_id),\n",
+        "pn AS (\n",
+        "  SELECT pipeline_id, name, ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.pipelines WHERE delete_time IS NULL),\n",
+        "pipe_runs AS (\n",
+        "  SELECT 'Pipeline' AS workload_type, pn.name AS name, u.update_id AS run_id,\n",
+        "         MIN(u.period_start_time) AS start_time, MAX(u.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN u.result_state IS NOT NULL THEN u.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.pipeline_update_timeline u JOIN pn ON u.pipeline_id=pn.pipeline_id AND pn.rn=1\n",
+        "  WHERE pn.name LIKE '%princeton_poc%' GROUP BY pn.name, u.update_id),\n",
+        "nb_runs AS (\n",
+        "  SELECT 'Notebook' AS workload_type,\n",
+        "         concat('Notebook: ', substr(regexp_replace(statement_text, '\\\\s+', ' '), 1, 40)) AS name,\n",
+        "         statement_id AS run_id, start_time, end_time, execution_status AS raw_state\n",
+        "  FROM system.query.history\n",
+        "  WHERE query_source.notebook_id IS NOT NULL AND compute.warehouse_id = 'a94a22f8652d85c1'\n",
+        "    AND start_time >= date_sub(current_date(), 30)),\n",
+        "unioned AS (\n",
+        "  SELECT * FROM job_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM pipe_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM nb_runs),\n",
         "runs AS (\n",
-        "  SELECT job_id, run_id, MIN(period_start_time) run_start,\n",
-        "         MAX(CASE WHEN result_state IS NOT NULL THEN result_state END) result_state\n",
-        "  FROM system.lakeflow.job_run_timeline GROUP BY job_id, run_id)\n",
+        "  SELECT workload_type, name, run_id, start_time, end_time,\n",
+        "    CASE WHEN raw_state IN ('SUCCEEDED','FINISHED','COMPLETED') THEN 'Succeeded'\n",
+        "         WHEN raw_state IN ('ERROR','FAILED','TIMEDOUT') THEN 'Failed'\n",
+        "         WHEN raw_state IN ('CANCELED','CANCELLED') THEN 'Canceled'\n",
+        "         ELSE 'Other' END AS status, raw_state,\n",
+        "    round((unix_timestamp(end_time)-unix_timestamp(start_time))/60.0, 2) AS duration_min\n",
+        "  FROM unioned)\n",
         "SELECT count(*) AS total_runs,\n",
-        "  sum(CASE WHEN result_state='SUCCEEDED' THEN 1 ELSE 0 END) AS succeeded,\n",
-        "  sum(CASE WHEN result_state IN ('ERROR','FAILED','TIMEDOUT') THEN 1 ELSE 0 END) AS failed,\n",
-        "  round(100.0*sum(CASE WHEN result_state='SUCCEEDED' THEN 1 ELSE 0 END)/count(*), 1) AS success_pct\n",
-        "FROM runs r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
-        "WHERE jn.name LIKE '%princeton_poc%' AND result_state IS NOT NULL\n",
-        "  AND run_start >= date_sub(current_date(), 30)\n"
+        "  sum(CASE WHEN status='Succeeded' THEN 1 ELSE 0 END) AS succeeded,\n",
+        "  sum(CASE WHEN status='Failed' THEN 1 ELSE 0 END) AS failed,\n",
+        "  round(100.0*sum(CASE WHEN status='Succeeded' THEN 1 ELSE 0 END)/count(*), 1) AS success_pct\n",
+        "FROM runs\n"
+      ]
+    },
+    {
+      "name": "by_type",
+      "displayName": "Runs by workload type & status",
+      "queryLines": [
+        "WITH jn AS (\n",
+        "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "job_runs AS (\n",
+        "  SELECT 'Job' AS workload_type, jn.name AS name, r.run_id,\n",
+        "         MIN(r.period_start_time) AS start_time, MAX(r.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN r.result_state IS NOT NULL THEN r.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.job_run_timeline r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
+        "  WHERE jn.name LIKE '%princeton_poc%' GROUP BY jn.name, r.run_id),\n",
+        "pn AS (\n",
+        "  SELECT pipeline_id, name, ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.pipelines WHERE delete_time IS NULL),\n",
+        "pipe_runs AS (\n",
+        "  SELECT 'Pipeline' AS workload_type, pn.name AS name, u.update_id AS run_id,\n",
+        "         MIN(u.period_start_time) AS start_time, MAX(u.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN u.result_state IS NOT NULL THEN u.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.pipeline_update_timeline u JOIN pn ON u.pipeline_id=pn.pipeline_id AND pn.rn=1\n",
+        "  WHERE pn.name LIKE '%princeton_poc%' GROUP BY pn.name, u.update_id),\n",
+        "nb_runs AS (\n",
+        "  SELECT 'Notebook' AS workload_type,\n",
+        "         concat('Notebook: ', substr(regexp_replace(statement_text, '\\\\s+', ' '), 1, 40)) AS name,\n",
+        "         statement_id AS run_id, start_time, end_time, execution_status AS raw_state\n",
+        "  FROM system.query.history\n",
+        "  WHERE query_source.notebook_id IS NOT NULL AND compute.warehouse_id = 'a94a22f8652d85c1'\n",
+        "    AND start_time >= date_sub(current_date(), 30)),\n",
+        "unioned AS (\n",
+        "  SELECT * FROM job_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM pipe_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM nb_runs),\n",
+        "runs AS (\n",
+        "  SELECT workload_type, name, run_id, start_time, end_time,\n",
+        "    CASE WHEN raw_state IN ('SUCCEEDED','FINISHED','COMPLETED') THEN 'Succeeded'\n",
+        "         WHEN raw_state IN ('ERROR','FAILED','TIMEDOUT') THEN 'Failed'\n",
+        "         WHEN raw_state IN ('CANCELED','CANCELLED') THEN 'Canceled'\n",
+        "         ELSE 'Other' END AS status, raw_state,\n",
+        "    round((unix_timestamp(end_time)-unix_timestamp(start_time))/60.0, 2) AS duration_min\n",
+        "  FROM unioned)\n",
+        "SELECT workload_type, status, count(*) AS n FROM runs GROUP BY workload_type, status\n"
       ]
     },
     {
       "name": "runs",
-      "displayName": "Job run history (30d)",
+      "displayName": "Run history (all workloads, 30d)",
       "queryLines": [
         "WITH jn AS (\n",
         "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
         "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "job_runs AS (\n",
+        "  SELECT 'Job' AS workload_type, jn.name AS name, r.run_id,\n",
+        "         MIN(r.period_start_time) AS start_time, MAX(r.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN r.result_state IS NOT NULL THEN r.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.job_run_timeline r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
+        "  WHERE jn.name LIKE '%princeton_poc%' GROUP BY jn.name, r.run_id),\n",
+        "pn AS (\n",
+        "  SELECT pipeline_id, name, ROW_NUMBER() OVER (PARTITION BY pipeline_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.pipelines WHERE delete_time IS NULL),\n",
+        "pipe_runs AS (\n",
+        "  SELECT 'Pipeline' AS workload_type, pn.name AS name, u.update_id AS run_id,\n",
+        "         MIN(u.period_start_time) AS start_time, MAX(u.period_end_time) AS end_time,\n",
+        "         MAX(CASE WHEN u.result_state IS NOT NULL THEN u.result_state END) AS raw_state\n",
+        "  FROM system.lakeflow.pipeline_update_timeline u JOIN pn ON u.pipeline_id=pn.pipeline_id AND pn.rn=1\n",
+        "  WHERE pn.name LIKE '%princeton_poc%' GROUP BY pn.name, u.update_id),\n",
+        "nb_runs AS (\n",
+        "  SELECT 'Notebook' AS workload_type,\n",
+        "         concat('Notebook: ', substr(regexp_replace(statement_text, '\\\\s+', ' '), 1, 40)) AS name,\n",
+        "         statement_id AS run_id, start_time, end_time, execution_status AS raw_state\n",
+        "  FROM system.query.history\n",
+        "  WHERE query_source.notebook_id IS NOT NULL AND compute.warehouse_id = 'a94a22f8652d85c1'\n",
+        "    AND start_time >= date_sub(current_date(), 30)),\n",
+        "unioned AS (\n",
+        "  SELECT * FROM job_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM pipe_runs WHERE raw_state IS NOT NULL\n",
+        "  UNION ALL SELECT * FROM nb_runs),\n",
         "runs AS (\n",
-        "  SELECT job_id, run_id, MIN(period_start_time) run_start, MAX(period_end_time) run_end,\n",
-        "         MAX(CASE WHEN result_state IS NOT NULL THEN result_state END) result_state\n",
-        "  FROM system.lakeflow.job_run_timeline GROUP BY job_id, run_id)\n",
-        "SELECT jn.name AS job_name, r.run_id, r.run_start, r.result_state,\n",
-        "  CASE WHEN r.result_state='SUCCEEDED' THEN 'Succeeded'\n",
-        "       WHEN r.result_state IN ('ERROR','FAILED','TIMEDOUT') THEN 'Failed'\n",
-        "       ELSE 'Other' END AS status,\n",
-        "  round((unix_timestamp(r.run_end)-unix_timestamp(r.run_start))/60.0, 2) AS duration_min\n",
-        "FROM runs r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
-        "WHERE jn.name LIKE '%princeton_poc%' AND r.result_state IS NOT NULL\n",
-        "  AND r.run_start >= date_sub(current_date(), 30)\n",
-        "ORDER BY r.run_start DESC\n"
+        "  SELECT workload_type, name, run_id, start_time, end_time,\n",
+        "    CASE WHEN raw_state IN ('SUCCEEDED','FINISHED','COMPLETED') THEN 'Succeeded'\n",
+        "         WHEN raw_state IN ('ERROR','FAILED','TIMEDOUT') THEN 'Failed'\n",
+        "         WHEN raw_state IN ('CANCELED','CANCELLED') THEN 'Canceled'\n",
+        "         ELSE 'Other' END AS status, raw_state,\n",
+        "    round((unix_timestamp(end_time)-unix_timestamp(start_time))/60.0, 2) AS duration_min\n",
+        "  FROM unioned)\n",
+        "SELECT workload_type, name, run_id, start_time, status, raw_state, duration_min\n",
+        "FROM runs ORDER BY start_time DESC LIMIT 500\n"
       ]
     },
     {
       "name": "tasks",
-      "displayName": "Task run detail (30d)",
+      "displayName": "Job task detail (30d)",
       "queryLines": [
         "WITH jn AS (\n",
         "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
@@ -67,7 +162,7 @@
   "pages": [
     {
       "name": "monitoring",
-      "displayName": "Job Monitoring",
+      "displayName": "Workload Monitoring",
       "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
@@ -75,7 +170,7 @@
             "name": "title",
             "multilineTextboxSpec": {
               "lines": [
-                "## Princeton POC \u2014 Job Monitoring (SE-34)"
+                "## Princeton POC \u2014 Workload Monitoring (SE-34)"
               ]
             }
           },
@@ -91,7 +186,7 @@
             "name": "subtitle",
             "multilineTextboxSpec": {
               "lines": [
-                "Run history, success rate, durations & retries \u2014 sourced live from `system.lakeflow` (no custom ingestion). Scoped to `%princeton_poc%` jobs, last 30 days."
+                "Jobs, pipelines & notebook runs \u2014 sourced live from `system.lakeflow` and `system.query.history` (no custom ingestion). Last 30 days."
               ]
             }
           },
@@ -126,11 +221,11 @@
               "encodings": {
                 "value": {
                   "fieldName": "total_runs",
-                  "displayName": "Total runs (30d)"
+                  "displayName": "Total runs"
                 }
               },
               "frame": {
-                "title": "Total runs (30d)",
+                "title": "Total runs",
                 "showTitle": true
               }
             }
@@ -144,7 +239,7 @@
         },
         {
           "widget": {
-            "name": "kpi-succeeded",
+            "name": "kpi-failed",
             "queries": [
               {
                 "name": "main_query",
@@ -152,8 +247,8 @@
                   "datasetName": "kpi",
                   "fields": [
                     {
-                      "name": "succeeded",
-                      "expression": "`succeeded`"
+                      "name": "failed",
+                      "expression": "`failed`"
                     }
                   ],
                   "disaggregated": true
@@ -165,12 +260,12 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "succeeded",
-                  "displayName": "Succeeded"
+                  "fieldName": "failed",
+                  "displayName": "Failed"
                 }
               },
               "frame": {
-                "title": "Succeeded",
+                "title": "Failed",
                 "showTitle": true
               }
             }
@@ -224,24 +319,24 @@
         },
         {
           "widget": {
-            "name": "runs-over-time",
+            "name": "runs-by-type",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "runs",
+                  "datasetName": "by_type",
                   "fields": [
                     {
-                      "name": "daily(run_start)",
-                      "expression": "DATE_TRUNC(\"DAY\", `run_start`)"
-                    },
-                    {
-                      "name": "count(run_id)",
-                      "expression": "COUNT(`run_id`)"
+                      "name": "workload_type",
+                      "expression": "`workload_type`"
                     },
                     {
                       "name": "status",
                       "expression": "`status`"
+                    },
+                    {
+                      "name": "sum(n)",
+                      "expression": "SUM(`n`)"
                     }
                   ],
                   "disaggregated": false
@@ -253,14 +348,14 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "daily(run_start)",
+                  "fieldName": "workload_type",
                   "scale": {
-                    "type": "temporal"
+                    "type": "categorical"
                   },
-                  "displayName": "Day"
+                  "displayName": "Workload type"
                 },
                 "y": {
-                  "fieldName": "count(run_id)",
+                  "fieldName": "sum(n)",
                   "scale": {
                     "type": "quantitative"
                   },
@@ -275,7 +370,7 @@
                 }
               },
               "frame": {
-                "title": "Runs per day by status",
+                "title": "Runs by workload type & status",
                 "showTitle": true
               }
             }
@@ -329,7 +424,7 @@
                 }
               },
               "frame": {
-                "title": "Avg task duration (min)",
+                "title": "Avg job-task duration (min)",
                 "showTitle": true
               }
             }
@@ -346,7 +441,7 @@
             "name": "runs-header",
             "multilineTextboxSpec": {
               "lines": [
-                "### Recent job runs"
+                "### Recent runs \u2014 jobs, pipelines & notebooks"
               ]
             }
           },
@@ -367,20 +462,24 @@
                   "datasetName": "runs",
                   "fields": [
                     {
-                      "name": "job_name",
-                      "expression": "`job_name`"
+                      "name": "workload_type",
+                      "expression": "`workload_type`"
                     },
                     {
-                      "name": "run_start",
-                      "expression": "`run_start`"
+                      "name": "name",
+                      "expression": "`name`"
+                    },
+                    {
+                      "name": "start_time",
+                      "expression": "`start_time`"
                     },
                     {
                       "name": "status",
                       "expression": "`status`"
                     },
                     {
-                      "name": "result_state",
-                      "expression": "`result_state`"
+                      "name": "raw_state",
+                      "expression": "`raw_state`"
                     },
                     {
                       "name": "duration_min",
@@ -397,11 +496,15 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "job_name",
-                    "displayName": "Job"
+                    "fieldName": "workload_type",
+                    "displayName": "Type"
                   },
                   {
-                    "fieldName": "run_start",
+                    "fieldName": "name",
+                    "displayName": "Name"
+                  },
+                  {
+                    "fieldName": "start_time",
                     "displayName": "Started"
                   },
                   {
@@ -409,8 +512,8 @@
                     "displayName": "Status"
                   },
                   {
-                    "fieldName": "result_state",
-                    "displayName": "Result state"
+                    "fieldName": "raw_state",
+                    "displayName": "Raw state"
                   },
                   {
                     "fieldName": "duration_min",
@@ -419,7 +522,7 @@
                 ]
               },
               "frame": {
-                "title": "Run history (last 30 days)",
+                "title": "Run history \u2014 all workloads (last 30 days)",
                 "showTitle": true
               }
             }
@@ -428,7 +531,7 @@
             "x": 0,
             "y": 11,
             "width": 6,
-            "height": 6
+            "height": 7
           }
         }
       ]

@@ -1,13 +1,19 @@
-# E9 — Job monitoring dashboard (SE-34)
+# E9 — Workload monitoring dashboard (SE-34)
 #
-# AI/BI (Lakeview) dashboard over Databricks system tables (system.lakeflow.*). Proves the
-# platform's native job-observability surface: run history, success rate, per-task durations,
-# and retry visibility — with NO custom ingestion (the platform captures job telemetry itself).
-# Queries were verified against system.lakeflow on the dev warehouse before the JSON was built.
+# AI/BI (Lakeview) dashboard over Databricks system tables. Proves the platform's native
+# observability surface across ALL THREE workload types — jobs, pipelines, and notebook runs —
+# with NO custom ingestion (the platform captures telemetry itself):
+#   Jobs      -> system.lakeflow.job_run_timeline
+#   Pipelines -> system.lakeflow.pipeline_update_timeline
+#   Notebooks -> system.query.history (query_source.notebook_id, scoped to the POC warehouse)
+# Every query was verified against the live system tables on the dev warehouse before the JSON
+# was built. NOTE: notebook scoping uses the POC SQL warehouse id, baked into the .lvdash.json
+# at generation time (dashboards have no runtime vars) — regenerate per target with:
+#   python engineer/src/e9/build_dashboard.py --warehouse <warehouse_id>
 resources:
   dashboards:
     e9_monitoring:
-      display_name: "[${var.catalog}] Job Monitoring (E9 · SE-34)"
+      display_name: "[${var.catalog}] Workload Monitoring (E9 · SE-34)"
       file_path: ../src/e9/e9_monitoring.lvdash.json
       warehouse_id: ${var.warehouse_id}
       parent_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}/dashboards
