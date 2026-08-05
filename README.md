@@ -29,5 +29,5 @@ adding a persona needs **no edit to `databricks.yml`**.
 - `databricks.yml` — bundle root + dev/qa/prod targets + shared variables (catalog, schema_suffix, storage_root, warehouse_id)
 - `foundation/` — **shared** dataset all personas depend on: `resources/` (UC namespace + build job), `src/` (data generators, source-file writer, day-2 change script)
 - `engineer/` — Software/Data Engineer scenarios: `resources/` (SDP pipelines, SFTP job, mock-API app), `src/` (notebooks, `sdp/`, `sftp/`, `apps/`)
-- `datascientist/`, `businessanalyst/`, `admin/` — added by their owners following the same `resources/` + `src/` shape
+- `datascientist/` (DS-01…09), `businessanalyst/` (BA-01…08), `admin/` (PA-01…25) — stubbed with the same `resources/` + `src/` shape and a per-persona README; owners drop files in without touching shared config
 - `docs/` — spec, plans, config, runbook, scenario tracker
