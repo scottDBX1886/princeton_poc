@@ -274,10 +274,16 @@ alumni rows, then exports the target to CSV, pipe-delimited, JSON, and Excel in 
 artifacts under `…/files/e7_exports/wksp_<you>/` (student_target_csv, _pipe, _json, .xlsx);
 JSON reads back at 1000 rows.
 
-**Why a notebook (not SDP):** `MERGE` upsert/delete and writing external CSV/Excel/JSON files
-are imperative operations — SDP publishes governed tables, not external files. E6 already
-showed the *declarative* CDC/SCD upsert; E7 is the imperative target-loading complement.
-Excel write uses openpyxl in-memory (native Excel *writer* not enabled; reader is).
+**Why a notebook (not SDP / not a pipeline sink):** we evaluated LDP **sinks** and they don't
+fit E7: sink formats are `delta` / `kafka` / Event Hubs / custom-Python only — there is **no
+CSV/JSON/Excel sink**, so SE-25/26/27 flat-file outputs still need a notebook. And sinks are
+**streaming, append-only** (`create_auto_cdc_flow` can't target a sink), so they can't do
+SE-24's **UPSERT + hard-delete** — that needs `MERGE`. A Delta sink to a Volume path writes
+*Delta*, not flat files, and only appends. So the imperative notebook is the honest fit here;
+E6 already covered the declarative CDC/SCD upsert. Excel write uses openpyxl in-memory (native
+Excel *writer* not enabled; reader is). _(If a future need is "stream pipeline output to an
+external Delta/Kafka target," that's where `dp.create_sink` would come in — not for E7's
+file-export + MERGE requirements.)_
 
 ## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
 
