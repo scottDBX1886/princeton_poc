@@ -119,10 +119,14 @@ reads each of the five formats from the landing Volume with native readers (csv,
 dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
 row counts and verify the embedded-comma value stays in one field."*
 
-**Pre-built fallback:** run the deployed notebook **E1 - Multi-format file ingestion**
-(or `src/engineer/e1_file_ingestion.py`).
-> _🔧 To rebuild as SDP (planned): the pre-built fallback becomes a committed Lakeflow SDP
-> pipeline (streaming tables + Auto Loader); the notebook stays as the imperative alternative._
+**Pre-built fallback:** deploy + run the committed **SDP pipeline**
+`resources/e1_pipeline.pipeline.yml` (`src/engineer/sdp/e1_file_ingestion_sdp.py`) — 5 bronze
+streaming tables via Auto Loader. The notebook `src/engineer/e1_file_ingestion.py` remains
+as an imperative alternative.
+
+> **SDP note:** streaming Excel via Auto Loader requires `cloudFiles.schemaEvolutionMode=none`.
+> The pipeline's target schema (its per-person `wksp_<user>`) is set in the pipeline config
+> and is **auto-created on run** — verified by dropping the schema and re-running.
 
 **Expected outcome:** five tables in your per-person `wksp_<you>` schema —
 `e1_students_raw` (2000), `e1_enrollments_raw` (2000), `e1_financial_aid_raw` (1000, from
@@ -184,25 +188,30 @@ null + conditional (coalesce/if-then-else) · SE-15 mixed-format date parsing ·
 validation with reject path · SE-17 running totals with control-break · SE-18 pivot +
 unpivot · SE-19 last-record-in-group · SE-20 grouped iteration → one summary row.
 
-**Code path (Databricks Assistant):** *"Write a transformation notebook over the
-foundation Silver tables demonstrating: reference lookup with unmatched handling, the
-three join types, string manipulation, null/conditional logic, parsing mixed-format
-dates, casting with a reject path for bad values, running totals per group, a pivot,
-last-record-per-group, and a one-row-per-student summary. Write outputs to my schema."*
+**Code path (Genie — generate the SDP pipeline):** *"Generate a Lakeflow Spark Declarative
+Pipeline over `princeton_poc_dev.silver_dev` demonstrating: reference lookup with unmatched
+handling, the three join types, string manipulation, null/conditional logic, parsing
+mixed-format dates, casting with a reject path (use an expectation to drop bad casts and a
+separate view to capture them), running totals per group, a pivot, last-record-per-group,
+and a one-row-per-student summary — as materialized views in my schema `wksp_<my_user>`."*
 
-**Pre-built fallback:** run the deployed notebook **E5 - Transformation kitchen-sink**.
+**Pre-built fallback:** deploy + run the committed **SDP pipeline**
+`resources/e5_pipeline.pipeline.yml` (`src/engineer/sdp/e5_transformations_sdp.py`) — 8
+materialized views. (The imperative notebook `src/engineer/e5_transformation_kitchen_sink.py`
+remains as an alternative.)
 
-**Expected outcome (in `wksp_<you>`):** `e5_running_totals` (960 = 40 depts × 24 terms),
-`e5_grade_pivot` (40 depts), `e5_last_enrollment` / `e5_student_summary` (~26k students
-with enrollments), `e5_cast_rejects` (**12** — the injected bad values, proving SE-16's
-reject path caught them without aborting).
+**Expected outcome (materialized views in `wksp_<you>`):** `e5_student_enriched` (30000),
+`e5_student_dates` (30000), `e5_gpa_valid` (**59988** — bad casts dropped by the expectation),
+`e5_gpa_rejects` (**12** — the same bad rows captured, proving SE-16's reject path),
+`e5_running_totals` (960 = 40 depts × 24 terms), `e5_grade_pivot` (40),
+`e5_last_enrollment` / `e5_student_summary` (~26k students with enrollments).
 
-**Notes (real platform behaviors worth showing the customer):** (1) **`to_date` throws in
-ANSI mode** on a format mismatch — use **`try_to_date`** (returns null) so you can coalesce
-over multiple formats (SE-15) or route failures to a reject path (SE-16). Same for
-`try_cast` vs `cast`. (2) For inject-then-split logic (SE-16), **materialize the
-intermediate** (write to a staging table) before splitting valid/reject — a lazy Spark
-chain can otherwise re-derive injected values inconsistently.
+**Notes (real platform behaviors worth showing the customer):** (1) SE-16's reject path is a
+declarative **Expectation** (`@dp.expect_or_drop`) — valid rows flow to `e5_gpa_valid` with
+drop-metrics tracked automatically; a sibling MV captures the rejects. Cleaner than a manual
+staging split. (2) **`try_to_date` / `try_cast`** (not `to_date`/`cast`, which throw in ANSI
+mode) parse the mixed-format dates and tolerate bad casts. (3) All 8 MVs run in one managed
+update with automatic dependency resolution + lineage — no orchestration code.
 
 ## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
 
