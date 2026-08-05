@@ -1,0 +1,15 @@
+resources:
+  pipelines:
+    e1_file_ingestion:
+      name: "[${var.catalog}] E1 file ingestion (SDP)"
+      serverless: true
+      catalog: ${var.catalog}
+      # Target schema = the per-person schema. For the multi-user model each engineer sets
+      # this to their own wksp_<user>; here it's set for the SA test. The pipeline creates
+      # this schema if it doesn't exist (validating the "pipeline creates the schema" flow).
+      schema: wksp_scott_johnson_databricks_com
+      libraries:
+        - file:
+            path: ../src/engineer/sdp/e1_file_ingestion_sdp.py
+      configuration:
+        landing_path: /Volumes/${var.catalog}/landing${var.schema_suffix}/files
