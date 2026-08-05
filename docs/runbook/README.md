@@ -83,31 +83,56 @@ collisions:
 - **Compute:** the session uses an autoscaling SQL warehouse (or serverless) sized for
   concurrency; heavy scenarios (DS-05, PA-13…18) route through it.
 
-> Note on the two already-built items:
-> - **SE-09 (SFTP ingestion)** is a fully-built scenario end-to-end; its pre-built job
->   currently writes a shared `bronze_dev.sftp_financial_aid` table + shared Volume
->   subfolder, so it needs the per-person `wksp_<user>` retrofit before a group session.
-> - **SE-08** is only the **data source** so far — the mock REST API *app* that serves
->   paginated OAuth data is deployed (read-only, safe for concurrency), but the
->   *ingestion pipeline* that pulls from it into a table is scenario **E3**, still to be
->   built. The isolation pattern applies to E3 when built, not to the shared app.
-> Both work as-is for a solo walkthrough.
+> **Status of already-built items** (safe for a group session unless noted): E1, E3, E5,
+> and SE-09 are all built and write to per-person `wksp_<user>` schemas — except the SE-09
+> job, which currently writes a shared `bronze_dev.sftp_financial_aid` table and will get
+> the `wksp_<user>` retrofit before a concurrent group session (fine as-is for a solo/paired
+> walkthrough).
 
-## Persona scenario entries
+---
 
-_Appended as Phases 1–4 are built. Each entry:_
-- **Scenario ID(s) + title**
-- **What it proves**
-- **No-code path** (Lakeflow Designer / Genie prompt to paste)
-- **Code path** (Databricks Assistant prompt to paste)
-- **Pre-built fallback** (object to run if a prompt drifts)
-- **Expected outcome** (from the RFP) + how to verify
+# Persona 1 — Software / Data Engineer
 
-_(Phase 2 Data Scientist, Phase 3 Business Analyst, Phase 4 Admin — TBD as built.)_
+_Scenario entries below. Each gives: what it proves · no-code path (Designer/Genie prompt) ·
+code path (Assistant prompt) · pre-built fallback · expected outcome. Engineer scenarios use
+**Lakeflow Designer** for the no-code path; **Genie** natural-language prompts appear in the
+Business Analyst / Data Scientist sections (built later)._
 
-## Phase 1 — Software / Data Engineer
+## E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
-### E3 — REST API ingestion (SE-08): OAuth 2.0 + pagination + token refresh
+**What it proves:** the platform natively ingests five file formats with real-world
+"gotchas": CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel
+(targeting a *named* sheet), nested JSON, and XML with optional nodes.
+
+**Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
+notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
+
+**No-code path (Lakeflow Designer):** *"Create a pipeline that reads the five
+files under `/Volumes/princeton_poc_dev/landing_dev/files/` — students_csv (CSV, keep
+quoted embedded commas), enrollments_pipe (pipe-delimited), financial_aid.xlsx (sheet
+AidDetail), course_catalog_json (nested), faculty_xml (rowTag faculty) — and writes each
+to a bronze table."*
+
+**Code path (Databricks Assistant):** *"Write a PySpark notebook that reads each of the
+five formats from the landing Volume with native readers (csv, excel with
+dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
+row counts and verify the embedded-comma value stays in one field."*
+
+**Pre-built fallback:** run the deployed notebook **E1 - Multi-format file ingestion**
+(or `src/engineer/e1_file_ingestion.py`).
+
+**Expected outcome:** five tables in your per-person `wksp_<you>` schema —
+`e1_students_raw` (2000), `e1_enrollments_raw` (2000), `e1_financial_aid_raw` (1000, from
+the AidDetail sheet only), `e1_course_catalog_raw` (10 depts), `e1_faculty_raw` (200).
+The row `"Doe, John"` proves the embedded comma didn't split (SE-04); ~66/134
+tenure-present/null split proves the optional XML node became null, not a dropped row (SE-07).
+
+**Notes:** (1) Native Excel **read** works (DBR 17.1+) via `.option("dataAddress", "AidDetail")`
+— a bare sheet name, not the `'Sheet'!A1` quoting from the old spark-excel library.
+(2) Outputs go to a **per-person schema** (`wksp_<current_user>`) so ~20 people run it
+concurrently without colliding; the foundation stays read-only.
+
+## E3 — REST API ingestion (SE-08): OAuth 2.0 + pagination + token refresh
 
 **What it proves:** the platform ingests from a paginated REST API using OAuth 2.0
 client-credentials, following pagination automatically and refreshing the token on expiry
@@ -118,7 +143,7 @@ principal `princeton-poc-e3-ingest` (client_id `aa5bc098-…`) with **CAN_USE** 
 its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
 `client_secret`). Pre-built notebook: `/Workspace/Shared/Princeton POC/1 - Engineer/E3 - REST API ingestion`.
 
-**Two auth layers (this is the faithful "internal API behind a gateway" pattern):**
+**Two auth layers (the faithful "internal API behind a gateway" pattern):**
 1. **Apps SSO proxy** — the notebook authenticates as the service principal via OAuth
    **M2M**: client-credentials grant at `{host}/oidc/v1/token` (`scope=all-apis`), token
    in `Authorization`. This is what lets an *unattended* notebook reach the app.
@@ -130,7 +155,8 @@ from {host}/oidc/v1/token (creds from secret scope princeton_poc_e3), uses it to
 app, then does the app's own client-credentials OAuth and pages through /enrollments,
 refreshing on 401, writing all rows to my schema."*
 
-**Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**.
+**Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**
+(local reference client: `src/apps/mock_api/verify.py`).
 
 **Expected outcome:** 60,000 rows in `wksp_<you>.e3_enrollments_from_api`; ~600 pages;
 a token refresh occurs mid-run (300s TTL) with no manual step; final count == API `total`.
@@ -142,7 +168,7 @@ management) evidence. (2) SE-08's actual requirement (the API's OAuth + paginati
 independent of the proxy; the SP layer is Databricks-Apps plumbing to reach the app
 unattended. (3) SP credentials live only in the UC secret scope, never in notebook code.
 
-### E5 — "Kitchen-sink" transformation pipeline (SE-11 … SE-20)
+## E5 — "Kitchen-sink" transformation pipeline (SE-11 … SE-20)
 
 **What it proves:** ten transformation capabilities in one pipeline — the platform's
 breadth for real ETL work. One notebook section per scenario.
@@ -175,76 +201,7 @@ over multiple formats (SE-15) or route failures to a reject path (SE-16). Same f
 intermediate** (write to a staging table) before splitting valid/reject — a lazy Spark
 chain can otherwise re-derive injected values inconsistently.
 
-### E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
-
-**What it proves:** the platform natively ingests five file formats with real-world
-"gotchas": CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel
-(targeting a *named* sheet), nested JSON, and XML with optional nodes.
-
-**Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
-notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
-
-**No-code / low-code path (Lakeflow Designer):** *"Create a pipeline that reads the five
-files under `/Volumes/princeton_poc_dev/landing_dev/files/` — students_csv (CSV, keep
-quoted embedded commas), enrollments_pipe (pipe-delimited), financial_aid.xlsx (sheet
-AidDetail), course_catalog_json (nested), faculty_xml (rowTag faculty) — and writes each
-to a bronze table."*
-
-**Code path (Databricks Assistant):** *"Write a PySpark notebook that reads each of the
-five formats from the landing Volume with native readers (csv, excel with
-dataAddress='AidDetail', json, xml rowTag=faculty), writing each to my own schema. Show
-row counts and verify the embedded-comma value stays in one field."*
-
-**Pre-built fallback:** run the deployed notebook **E1 - Multi-format file ingestion**
-(or `src/engineer/e1_file_ingestion.py`).
-
-**Expected outcome:** five tables in your per-person `wksp_<you>` schema —
-`e1_students_raw` (2000), `e1_enrollments_raw` (2000), `e1_financial_aid_raw` (1000, from
-the AidDetail sheet only), `e1_course_catalog_raw` (10 depts), `e1_faculty_raw` (200).
-The row `"Doe, John"` proves the embedded comma didn't split (SE-04); ~66/134
-tenure-present/null split proves the optional XML node became null, not a dropped row (SE-07).
-
-**Notes:** (1) Native Excel **read** works (DBR 17.1+) via `.option("dataAddress", "AidDetail")`
-— a bare sheet name, not the `'Sheet'!A1` quoting from the old spark-excel library.
-(2) Outputs go to a **per-person schema** (`wksp_<current_user>`) so ~20 people run it
-concurrently without colliding; the foundation stays read-only.
-
----
-
-### SE-08 — REST API ingestion (authenticated + paginated)
-
-**What it proves:** the platform ingests from a paginated REST API using OAuth 2.0
-client-credentials, with token refresh handled automatically.
-
-**Setup (SA, done):** `princeton-mock-api` app deployed to dev; SP granted SELECT on
-`princeton_poc_dev.silver_dev.enrollment` via `src/apps/grant_app_sp.sh`.
-App URL: `https://princeton-mock-api-3438839487639471.11.azure.databricksapps.com`
-
-**The API (what the pipeline calls):**
-- `POST /oauth/token` — form: `grant_type=client_credentials`, `client_id=princeton_poc_client`,
-  `client_secret=poc_secret_change_me` → `{access_token, expires_in: 300}`
-- `GET /enrollments?page=N&page_size=100` — bearer in `X-API-Token` header →
-  `{page, page_size, total, next, data:[...]}`. `next` is null on the last page.
-
-**Code path (Assistant prompt for the DMIA team):** *"Write a Spark/Python ingestion that
-POSTs client_credentials to {url}/oauth/token, then pages through {url}/enrollments using
-the returned bearer in the X-API-Token header, following the `next` field until null,
-re-fetching a new token when a call returns 401 (token expiry), and writes all rows to a
-Delta table princeton_poc_dev.bronze_dev.api_enrollments."*
-
-**Expected outcome:** all 60,000 enrollment rows retrieved across pages; a token refresh
-occurs mid-run (300s TTL) with no manual intervention; row count matches
-`SELECT count(*) FROM princeton_poc_dev.silver_dev.enrollment`.
-
-**Pre-built fallback:** the app itself + `src/apps/mock_api/verify.py` (token → paginate → assert).
-
-**Note:** the mock bearer is carried in `X-API-Token` (not `Authorization`) because the
-Databricks Apps platform proxy uses `Authorization` for its own SSO. The client-credentials
-flow is otherwise a standard OAuth 2.0 demonstration.
-
----
-
-### SE-09 — SFTP file retrieval & ingestion (native, no shell script)
+## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
 
 **What it proves:** the platform retrieves pattern-matched files from an SFTP server,
 stages them in a UC Volume, and ingests them via Auto Loader — all as orchestrated,
@@ -274,3 +231,19 @@ Production points the client at a real SFTP host with credentials from a UC secr
 the pull logic is identical. (2) **Parked upgrade path:** if the customer obtains the
 Lakeflow Connect SFTP connector (Public Preview), it replaces the paramiko retrieval task
 with a fully managed connector — the marquee no-code answer.
+
+---
+
+# Persona 2 — Data Scientist
+
+_TBD as built (DS-A…DS-H). Genie natural-language exploration (DS-01) and notebook/ML
+scenarios land here._
+
+# Persona 3 — Business Analyst
+
+_TBD as built (BA-A…BA-E). No-code Genie + AI/BI + Lakeflow Designer scenarios land here._
+
+# Persona 4 — Platform Administrator
+
+_TBD as built (PA-A…PA-F). Runs once, by one designated admin, on the `admin_demo` schema
+for masking/RLS scenarios._
