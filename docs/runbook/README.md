@@ -25,7 +25,7 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E7** — Target loading | SE-24, SE-25, SE-26, SE-27 | UPSERT + hard-delete; CSV/pipe/JSON/Excel export | ✅ |
 | **SE-09** — SFTP retrieval & ingestion | SE-09 | Pattern-matched SFTP pull → Volume → Auto Loader (no shell script) | ✅ |
 | **E2** — Relational DB ingestion | SE-01, SE-02 | Full extract + custom SQL (BYO-DB) | ⬜ parked |
-| **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ⬜ |
+| **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ✅ |
 | **E9** — Job monitoring | SE-34 | Job monitoring dashboard | ⬜ |
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | 🟡 repo/bundle exists |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ⬜ |
@@ -33,10 +33,10 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
-**Coverage so far: 25 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
-transformation, CDC/SCD, and target-loading scenarios). Remaining work is Engineer
-orchestration/DevOps/governance (E8–E11) plus the Data Scientist, Business Analyst, and
-Admin personas.
+**Coverage so far: 32 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
+transformation, CDC/SCD, target-loading, and orchestration scenarios). Remaining work is
+Engineer monitoring/DevOps/governance (E9–E11) plus the Data Scientist, Business Analyst,
+and Admin personas.
 
 ---
 
@@ -447,6 +447,59 @@ Production points the client at a real SFTP host with credentials from a UC secr
 the pull logic is identical. (2) **Parked upgrade path:** if the customer obtains the
 Lakeflow Connect SFTP connector (Public Preview), it replaces the paramiko retrieval task
 with a fully managed connector — the marquee no-code answer.
+
+## E8 — Orchestration (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
+
+**What it proves:** the platform's job orchestration surface — task chaining, parallel
+execution, automated retry on failure, scheduling, external-command calls, and
+notifications — all in one **Lakeflow Job** (the tool for orchestration, distinct from SDP
+pipelines and standalone notebooks).
+
+**Setup (SA, done):** job `[princeton_poc_dev] Orchestration Demo (E8)` deployed to dev. It is
+**isolation-safe** — reads the shared foundation read-only and stages/writes only to your
+per-person `wksp_<user>` schema, so ~20 people can run it concurrently.
+
+**Task DAG (7 tasks):**
+```
+stage ──┬── leg_a ──┐
+        └── leg_b ──┴── merge ── external_call ── retry_demo ── notify
+```
+
+**Run:**
+```bash
+databricks bundle run orchestration_demo -t dev --profile dbx_shared_demo
+```
+
+**Code path (Databricks Assistant — the job is a DAB resource):** *"Generate a Databricks
+Asset Bundle job with 7 tasks: a stage task, two parallel legs that both depend only on
+stage, a merge that depends on both legs, an external-command task, a retry-enabled task
+(max_retries) that simulates a transient failure, and a notification task — plus a paused
+daily cron schedule and job-level email notifications."*
+
+**Pre-built fallback:** the `orchestration_demo` job itself
+(`engineer/resources/e8_orchestration.job.yml` + the 7 driver notebooks under
+`engineer/src/e8/`).
+
+**Expected outcome (verified 2026-08-05):** job **TERMINATED SUCCESS**. Per-task proof of
+each scenario:
+- **SE-28 chaining** — tasks run in dependency order (`stage → legs → merge → external → retry → notify`).
+- **SE-29 parallel** — `leg_a` and `leg_b` start and finish in the *same* window (genuine overlap, not serialized).
+- **SE-30 retry** — `retry_demo` **attempt 0 FAILED, attempt 1 SUCCESS** (a run-scoped marker on the
+  Volume makes it fail once then recover, so the retry policy is exercised and the job still ends green).
+- **SE-31 notification** — job-level `email_notifications` fire on success/failure; the `notify` task emits a completion payload.
+- **SE-32 external command** — `external_call` runs a subprocess and branches on its output.
+- **SE-33 schedule / SE-35 bulk pause** — a daily cron (`0 0 2 * * ?`) is attached but **PAUSED**;
+  unpause/pause from the Jobs UI (kept paused so concurrent POC users don't get surprise 2am runs).
+
+Outputs in `wksp_<you>`: `e8_students_stage`, `e8_by_dept`, `e8_by_status`, `e8_summary`.
+
+**Notes:** (1) The retry demo is an **honest** transient-failure simulation — it really fails
+and really recovers on retry, rather than a task hard-coded to pass; the marker is keyed to
+`{{job.run_id}}` so every fresh run repeats the fail-once-then-succeed cycle. (2) On serverless
+there's no shell task type, so SE-32's "external command" runs via a Python `subprocess` — the
+same call-an-external-process-and-act-on-its-output pattern, minus a dedicated shell task.
+(3) A Slack/Teams webhook post is stubbed (commented) in `e8_notify.py`; wire a UC secret scope
+to enable it for the customer POC.
 
 ---
 

@@ -1,0 +1,109 @@
+# E8 — Orchestration job (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
+#
+# One job that demonstrates the whole orchestration surface an Oracle/Informatica engineer
+# expects, isolation-safe for concurrent group runs (reads the shared foundation, writes only
+# to the caller's wksp_<user>):
+#   SE-28 task chaining        -> the depends_on DAG (stage -> legs -> merge -> external -> retry -> notify)
+#   SE-29 parallel execution   -> leg_a / leg_b both depend only on stage, so they overlap
+#   SE-30 automated retry       -> retry_demo: max_retries fails-once-then-succeeds (run_id marker)
+#   SE-31 alerting/notification -> job-level email_notifications + the notify task
+#   SE-32 external command      -> external_call runs a subprocess and branches on its output
+#   SE-33 scheduling            -> trigger.pause_status PAUSED daily cron (unpause to activate)
+#   SE-35 bulk pause            -> the job is paused by default; pause/resume from the Jobs UI
+resources:
+  jobs:
+    orchestration_demo:
+      name: "[${var.catalog}] Orchestration Demo (E8)"
+
+      # SE-31 — job-level notifications (no code; fires on state changes). Recipient is the
+      # deploying user's principal; swap/extend for the customer POC.
+      email_notifications:
+        on_success:
+          - ${workspace.current_user.userName}
+        on_failure:
+          - ${workspace.current_user.userName}
+
+      # SE-33 — scheduled execution. PAUSED so ~20 concurrent runbook users don't get
+      # surprise 2am runs during the POC; unpausing in the Jobs UI activates the schedule.
+      schedule:
+        quartz_cron_expression: "0 0 2 * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+
+      tasks:
+        # --- SE-28 chain root ---
+        - task_key: stage
+          notebook_task:
+            notebook_path: ../src/e8/e8_stage.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+          timeout_seconds: 600
+
+        # --- SE-29 parallel legs: both depend only on stage, so they run concurrently ---
+        - task_key: leg_a
+          depends_on:
+            - task_key: stage
+          notebook_task:
+            notebook_path: ../src/e8/e8_leg_a.py
+            base_parameters:
+              catalog: ${var.catalog}
+          timeout_seconds: 600
+
+        - task_key: leg_b
+          depends_on:
+            - task_key: stage
+          notebook_task:
+            notebook_path: ../src/e8/e8_leg_b.py
+            base_parameters:
+              catalog: ${var.catalog}
+          timeout_seconds: 600
+
+        # --- SE-28 fan-in: waits for BOTH parallel legs ---
+        - task_key: merge
+          depends_on:
+            - task_key: leg_a
+            - task_key: leg_b
+          notebook_task:
+            notebook_path: ../src/e8/e8_merge.py
+            base_parameters:
+              catalog: ${var.catalog}
+          timeout_seconds: 600
+
+        # --- SE-32 external process call ---
+        - task_key: external_call
+          depends_on:
+            - task_key: merge
+          notebook_task:
+            notebook_path: ../src/e8/e8_external_call.py
+          timeout_seconds: 300
+
+        # --- SE-30 automated retry (fails attempt 1, succeeds on retry) ---
+        - task_key: retry_demo
+          depends_on:
+            - task_key: external_call
+          notebook_task:
+            notebook_path: ../src/e8/e8_retry_demo.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+              run_id: "{{job.run_id}}"
+          max_retries: 2
+          min_retry_interval_millis: 5000
+          timeout_seconds: 300
+
+        # --- SE-31 completion notification (final DAG node) ---
+        - task_key: notify
+          depends_on:
+            - task_key: retry_demo
+          notebook_task:
+            notebook_path: ../src/e8/e8_notify.py
+            base_parameters:
+              catalog: ${var.catalog}
+          timeout_seconds: 300
