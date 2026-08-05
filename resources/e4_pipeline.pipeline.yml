@@ -1,0 +1,13 @@
+resources:
+  pipelines:
+    e4_multisource_merge:
+      name: "[${var.catalog}] E4 multi-source merge (SDP)"
+      serverless: true
+      catalog: ${var.catalog}
+      schema: wksp_scott_johnson_databricks_com   # per-person target (SA test value)
+      libraries:
+        - file:
+            path: ../src/engineer/sdp/e4_multisource_merge_sdp.py
+      configuration:
+        wksp_schema: ${var.catalog}.wksp_scott_johnson_databricks_com
+        silver_schema: ${var.catalog}.silver${var.schema_suffix}
