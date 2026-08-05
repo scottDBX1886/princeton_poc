@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-04
 
-**Summary (RFP scenario IDs):** 16 ✅ built-and-verified (E1: SE-04/05/06/07 · E3: SE-08 · E5: SE-11–20 · SE-09) · 1 🟡 partial (SE-36) · 68 ⬜ planned.
+**Summary (RFP scenario IDs):** 25 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · SE-09) · 1 🟡 partial (SE-36) · 59 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -31,14 +31,14 @@ list is the full checklist.
 |----|----------|-----------|--------|
 | SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) |
-| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ⬜ |
+| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified |
 | SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified |
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified |
 | SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified |
 | SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) |
-| SE-10 | Multi-source pipeline on a single canvas | E4 | ⬜ |
+| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified |
 
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status |
@@ -57,17 +57,17 @@ list is the full checklist.
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| SE-21 | Type 1 SCD — overwrite | E6 | ⬜ |
-| SE-22 | Type 2 SCD — history preservation | E6 | ⬜ |
-| SE-23 | Change capture — new/changed/deleted detection | E6 | ⬜ |
+| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified |
+| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified |
+| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified |
 
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ⬜ |
-| SE-25 | Flat-file output — CSV / delimited | E7 | ⬜ |
-| SE-26 | Excel workbook output | E7 | ⬜ (note: native Excel WRITE not enabled) |
-| SE-27 | JSON file output | E7 | ⬜ |
+| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ✅ built & verified |
+| SE-25 | Flat-file output — CSV / delimited | E7 | ✅ built & verified |
+| SE-26 | Excel workbook output | E7 | ✅ built & verified |
+| SE-27 | JSON file output | E7 | ✅ built & verified |
 
 ### 3.5 Orchestration & Job Management
 | ID | Scenario | Covered by | Status |

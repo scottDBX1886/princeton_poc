@@ -213,6 +213,72 @@ staging split. (2) **`try_to_date` / `try_cast`** (not `to_date`/`cast`, which t
 mode) parse the mixed-format dates and tolerate bad casts. (3) All 8 MVs run in one managed
 update with automatic dependency resolution + lineage — no orchestration code.
 
+## E4 — Multi-source merge (SE-10)
+
+**What it proves:** one pipeline reconciles three different source *types* on a common key —
+file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).
+
+**Setup (SA, done):** requires E1 + E3 to have run into the same wksp schema (their Bronze
+outputs are the inputs — the correct medallion pattern; ingestion auth stays in E3).
+
+**Code path (Genie — generate the SDP):** *"Generate an SDP materialized view that joins my
+`e1_students_raw` (file), `e3_enrollments_from_api` (API), and `silver_dev.student` (DB) on
+student_id, tags each row's `source_system`, and writes `e4_enrollment_reconciled` to my schema."*
+
+**Pre-built fallback:** `resources/e4_pipeline.pipeline.yml` (`src/engineer/sdp/e4_multisource_merge_sdp.py`).
+
+**Expected outcome:** `e4_enrollment_reconciled` — rows tagged `file+db+api` where the
+student is in the file sample, `api` otherwise (matched vs unmatched reconciliation is
+visible via `source_system`, which is the point of SE-10). ~3,939 fully-reconciled on the SA data.
+
+## E6 — CDC + SCD (SE-03, SE-21, SE-22, SE-23)
+
+**What it proves:** change-data-capture (new/changed/deleted) and both slowly-changing-
+dimension types, inferred automatically by diffing two snapshots — no hand-written CDC logic.
+
+**Setup (SA, done):** run **E6 - snapshot setup** notebook first — it builds `student_snapshot_v1`
+(baseline) and `student_snapshot_v2` (baseline + planted **10 inserts / 20 updates / 5 deletes**)
+in your wksp schema. Then run the E6 pipeline.
+
+**Code path (Genie — generate the SDP):** *"Generate an SDP that uses
+apply_changes_from_snapshot over my student_snapshot_v1 then v2 (keys=student_id) to build
+both an SCD Type 1 table (latest) and an SCD Type 2 table (history) in my schema."*
+
+**Pre-built fallback:** `resources/e6_pipeline.pipeline.yml` (`src/engineer/sdp/e6_cdc_scd_sdp.py`)
++ the snapshot-setup notebook.
+
+**Expected outcome:** `e6_student_scd1` = 1005 (1000 − 5 deletes + 10 inserts), 10 inserted
+ids; `e6_student_scd2` = 1005 current + ~21 end-dated history rows (`__START_AT`/`__END_AT`).
+The known counts are the proof (SE-03/23 = the detected changes; SE-21 = overwrite; SE-22 = history).
+
+**Notes:** the snapshot-diff is **isolation-safe** — it writes to your wksp and never mutates
+the shared `silver_dev` foundation (the standalone `40_day2_changes.sql` mutated it in place,
+which would break a concurrent group session; this SDP form is the recommended one).
+
+## E7 — Target loading (SE-24, SE-25, SE-26, SE-27)
+
+**What it proves:** loading a database target with UPSERT + hard-delete, and exporting to
+CSV / pipe / Excel / JSON.
+
+**Setup (SA, done):** requires E5's `e5_student_enriched` MV in your wksp schema. Pre-built
+notebook `/Workspace/Shared/Princeton POC/1 - Engineer/E7 - Target loading`.
+
+**Code path (Databricks Assistant — notebook):** *"Write a notebook that MERGEs
+e5_student_enriched into a target table (update matched / insert unmatched), then hard-deletes
+alumni rows, then exports the target to CSV, pipe-delimited, JSON, and Excel in my volume folder."*
+
+**Pre-built fallback:** run the deployed notebook **E7 - Target loading**
+(`src/engineer/e7_target_loading.py`).
+
+**Expected outcome:** `e7_student_target` after UPSERT+delete (0 alumni remain); four export
+artifacts under `…/files/e7_exports/wksp_<you>/` (student_target_csv, _pipe, _json, .xlsx);
+JSON reads back at 1000 rows.
+
+**Why a notebook (not SDP):** `MERGE` upsert/delete and writing external CSV/Excel/JSON files
+are imperative operations — SDP publishes governed tables, not external files. E6 already
+showed the *declarative* CDC/SCD upsert; E7 is the imperative target-loading complement.
+Excel write uses openpyxl in-memory (native Excel *writer* not enabled; reader is).
+
 ## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
 
 **What it proves:** the platform retrieves pattern-matched files from an SFTP server,
