@@ -1,0 +1,13 @@
+# E9 — Job monitoring dashboard (SE-34)
+#
+# AI/BI (Lakeview) dashboard over Databricks system tables (system.lakeflow.*). Proves the
+# platform's native job-observability surface: run history, success rate, per-task durations,
+# and retry visibility — with NO custom ingestion (the platform captures job telemetry itself).
+# Queries were verified against system.lakeflow on the dev warehouse before the JSON was built.
+resources:
+  dashboards:
+    e9_monitoring:
+      display_name: "[${var.catalog}] Job Monitoring (E9 · SE-34)"
+      file_path: ../src/e9/e9_monitoring.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      parent_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}/dashboards

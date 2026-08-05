@@ -26,17 +26,17 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **SE-09** — SFTP retrieval & ingestion | SE-09 | Pattern-matched SFTP pull → Volume → Auto Loader (no shell script) | ✅ |
 | **E2** — Relational DB ingestion | SE-01, SE-02 | Full extract + custom SQL (BYO-DB) | ⬜ parked |
 | **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ✅ |
-| **E9** — Job monitoring | SE-34 | Job monitoring dashboard | ⬜ |
+| **E9** — Job monitoring | SE-34 | Job monitoring dashboard (AI/BI over system.lakeflow) | ✅ |
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | 🟡 repo/bundle exists |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ⬜ |
 | **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
 | **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
-**Coverage so far: 32 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
-transformation, CDC/SCD, target-loading, and orchestration scenarios). Remaining work is
-Engineer monitoring/DevOps/governance (E9–E11) plus the Data Scientist, Business Analyst,
-and Admin personas.
+**Coverage so far: 33 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
+transformation, CDC/SCD, target-loading, orchestration, and monitoring scenarios). Remaining
+work is Engineer DevOps/governance (E10–E11) plus the Data Scientist, Business Analyst, and
+Admin personas.
 
 ---
 
@@ -500,6 +500,40 @@ there's no shell task type, so SE-32's "external command" runs via a Python `sub
 same call-an-external-process-and-act-on-its-output pattern, minus a dedicated shell task.
 (3) A Slack/Teams webhook post is stubbed (commented) in `e8_notify.py`; wire a UC secret scope
 to enable it for the customer POC.
+
+## E9 — Job monitoring dashboard (SE-34)
+
+**What it proves:** the platform's native job-observability surface — run history, success
+rate, per-task durations, and retry visibility — with **no custom monitoring build**. Databricks
+captures job/task telemetry into `system.lakeflow.*` automatically; the dashboard just reads it.
+
+**Setup (SA, done):** AI/BI dashboard `[princeton_poc_dev] Job Monitoring (E9 · SE-34)` deployed
+to dev as a **DAB resource** (`engineer/resources/e9_monitoring.dashboard.yml` +
+`engineer/src/e9/e9_monitoring.lvdash.json`), so it versions/promotes across dev/qa/prod like
+every other object. Open it:
+```bash
+databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 e9_monitoring
+```
+
+**Code path (Databricks Assistant / Genie):** *"Build an AI/BI dashboard over
+system.lakeflow.job_run_timeline, job_task_run_timeline, and jobs showing job run history,
+success rate, per-task durations, and retries for my POC jobs over the last 30 days."*
+(Genie can also answer these ad-hoc — the walkthrough has the SQL.)
+
+**Pre-built fallback:** the deployed dashboard itself + the guided walkthrough
+[`docs/runbook/E9_monitoring_walkthrough.md`](E9_monitoring_walkthrough.md) (Jobs UI
+drill-down, the reusable system-table SQL, and how to wire failure alerts).
+
+**Expected outcome (verified 2026-08-05):** dashboard is **ACTIVE** with 3 datasets (kpi, runs,
+tasks) and populated from live data — it already shows the E8 run, and drilling into the
+`retry_demo` task in the Jobs UI shows the two attempts (FAILED → SUCCEEDED) from SE-30. Success-%
+KPI, runs-per-day-by-status, and avg-duration-per-task all render.
+
+**Notes:** the walkthrough documents the real system-table gotchas (timeline tables need
+`GROUP BY run_id` + `MAX(CASE WHEN result_state IS NOT NULL…)`; the `jobs` table is SCD so pick
+the current name via `ROW_NUMBER`; compute duration from timestamps since serverless leaves
+`*_duration_seconds` at 0). SE-34 alerts are covered two ways: E8's job-level
+`email_notifications`, and a Databricks SQL Alert on the run-history query.
 
 ---
 

@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-05
 
-**Summary (RFP scenario IDs):** 32 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · SE-09) · 1 🟡 partial (SE-36) · 52 ⬜ planned.
+**Summary (RFP scenario IDs):** 33 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · SE-09) · 1 🟡 partial (SE-36) · 51 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -78,7 +78,7 @@ list is the full checklist.
 | SE-31 | Bulk disable / pause of workloads | E8 | ✅ built & verified |
 | SE-32 | Automated retry on failure | E8 | ✅ built & verified |
 | SE-33 | Failure & completion alerting | E8 | ✅ built & verified |
-| SE-34 | Job monitoring dashboard | E9 | ⬜ |
+| SE-34 | Job monitoring dashboard | E9 | ✅ built & verified |
 | SE-35 | Calling external processes | E8 | ✅ built & verified |
 
 ### 3.6 DevOps, CI/CD & Environment Promotion
@@ -191,11 +191,11 @@ list is the full checklist.
 ## Tally by persona
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
-| Engineer (SE) | 43 | 32 (SE-03/04/05/06/07/08/09/10, SE-11–33 except SE-34, SE-35) | 1 (SE-36) | 10 |
+| Engineer (SE) | 43 | 33 (SE-03/04/05/06/07/08/09/10, SE-11–35) | 1 (SE-36) | 9 |
 | Data Scientist (DS) | 10* | 0 | 0 | 10 |
 | Business Analyst (BA) | 8 | 0 | 0 | 8 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **32** | **1** | **53** |
+| **Total** | **86** | **33** | **1** | **52** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).

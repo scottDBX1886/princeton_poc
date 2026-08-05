@@ -1,0 +1,437 @@
+{
+  "datasets": [
+    {
+      "name": "kpi",
+      "displayName": "KPI summary (30d)",
+      "queryLines": [
+        "WITH jn AS (\n",
+        "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "runs AS (\n",
+        "  SELECT job_id, run_id, MIN(period_start_time) run_start,\n",
+        "         MAX(CASE WHEN result_state IS NOT NULL THEN result_state END) result_state\n",
+        "  FROM system.lakeflow.job_run_timeline GROUP BY job_id, run_id)\n",
+        "SELECT count(*) AS total_runs,\n",
+        "  sum(CASE WHEN result_state='SUCCEEDED' THEN 1 ELSE 0 END) AS succeeded,\n",
+        "  sum(CASE WHEN result_state IN ('ERROR','FAILED','TIMEDOUT') THEN 1 ELSE 0 END) AS failed,\n",
+        "  round(100.0*sum(CASE WHEN result_state='SUCCEEDED' THEN 1 ELSE 0 END)/count(*), 1) AS success_pct\n",
+        "FROM runs r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
+        "WHERE jn.name LIKE '%princeton_poc%' AND result_state IS NOT NULL\n",
+        "  AND run_start >= date_sub(current_date(), 30)\n"
+      ]
+    },
+    {
+      "name": "runs",
+      "displayName": "Job run history (30d)",
+      "queryLines": [
+        "WITH jn AS (\n",
+        "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "runs AS (\n",
+        "  SELECT job_id, run_id, MIN(period_start_time) run_start, MAX(period_end_time) run_end,\n",
+        "         MAX(CASE WHEN result_state IS NOT NULL THEN result_state END) result_state\n",
+        "  FROM system.lakeflow.job_run_timeline GROUP BY job_id, run_id)\n",
+        "SELECT jn.name AS job_name, r.run_id, r.run_start, r.result_state,\n",
+        "  CASE WHEN r.result_state='SUCCEEDED' THEN 'Succeeded'\n",
+        "       WHEN r.result_state IN ('ERROR','FAILED','TIMEDOUT') THEN 'Failed'\n",
+        "       ELSE 'Other' END AS status,\n",
+        "  round((unix_timestamp(r.run_end)-unix_timestamp(r.run_start))/60.0, 2) AS duration_min\n",
+        "FROM runs r JOIN jn ON r.job_id=jn.job_id AND jn.rn=1\n",
+        "WHERE jn.name LIKE '%princeton_poc%' AND r.result_state IS NOT NULL\n",
+        "  AND r.run_start >= date_sub(current_date(), 30)\n",
+        "ORDER BY r.run_start DESC\n"
+      ]
+    },
+    {
+      "name": "tasks",
+      "displayName": "Task run detail (30d)",
+      "queryLines": [
+        "WITH jn AS (\n",
+        "  SELECT job_id, name, ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY change_time DESC) rn\n",
+        "  FROM system.lakeflow.jobs WHERE delete_time IS NULL),\n",
+        "tasks AS (\n",
+        "  SELECT job_id, job_run_id, task_key, MIN(period_start_time) task_start,\n",
+        "         MAX(period_end_time) task_end,\n",
+        "         MAX(CASE WHEN result_state IS NOT NULL THEN result_state END) result_state\n",
+        "  FROM system.lakeflow.job_task_run_timeline GROUP BY job_id, job_run_id, task_key)\n",
+        "SELECT jn.name AS job_name, t.task_key, t.result_state,\n",
+        "  round((unix_timestamp(t.task_end)-unix_timestamp(t.task_start))/60.0, 2) AS duration_min,\n",
+        "  t.task_start\n",
+        "FROM tasks t JOIN jn ON t.job_id=jn.job_id AND jn.rn=1\n",
+        "WHERE jn.name LIKE '%princeton_poc%' AND t.result_state IS NOT NULL\n",
+        "  AND t.task_start >= date_sub(current_date(), 30)\n",
+        "ORDER BY t.task_start DESC\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "monitoring",
+      "displayName": "Job Monitoring",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Princeton POC \u2014 Job Monitoring (SE-34)"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Run history, success rate, durations & retries \u2014 sourced live from `system.lakeflow` (no custom ingestion). Scoped to `%princeton_poc%` jobs, last 30 days."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-total",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "total_runs",
+                      "expression": "`total_runs`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_runs",
+                  "displayName": "Total runs (30d)"
+                }
+              },
+              "frame": {
+                "title": "Total runs (30d)",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-succeeded",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "succeeded",
+                      "expression": "`succeeded`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "succeeded",
+                  "displayName": "Succeeded"
+                }
+              },
+              "frame": {
+                "title": "Succeeded",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-success-pct",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "success_pct",
+                      "expression": "`success_pct`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "success_pct",
+                  "displayName": "Success %"
+                }
+              },
+              "frame": {
+                "title": "Success %",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "runs-over-time",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "runs",
+                  "fields": [
+                    {
+                      "name": "daily(run_start)",
+                      "expression": "DATE_TRUNC(\"DAY\", `run_start`)"
+                    },
+                    {
+                      "name": "count(run_id)",
+                      "expression": "COUNT(`run_id`)"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(run_start)",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Day"
+                },
+                "y": {
+                  "fieldName": "count(run_id)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Runs"
+                },
+                "color": {
+                  "fieldName": "status",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Status"
+                }
+              },
+              "frame": {
+                "title": "Runs per day by status",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 3,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "task-durations",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "tasks",
+                  "fields": [
+                    {
+                      "name": "task_key",
+                      "expression": "`task_key`"
+                    },
+                    {
+                      "name": "avg(duration_min)",
+                      "expression": "AVG(`duration_min`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "task_key",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Task"
+                },
+                "y": {
+                  "fieldName": "avg(duration_min)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Avg min"
+                }
+              },
+              "frame": {
+                "title": "Avg task duration (min)",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 5,
+            "width": 3,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "runs-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Recent job runs"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "runs-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "runs",
+                  "fields": [
+                    {
+                      "name": "job_name",
+                      "expression": "`job_name`"
+                    },
+                    {
+                      "name": "run_start",
+                      "expression": "`run_start`"
+                    },
+                    {
+                      "name": "status",
+                      "expression": "`status`"
+                    },
+                    {
+                      "name": "result_state",
+                      "expression": "`result_state`"
+                    },
+                    {
+                      "name": "duration_min",
+                      "expression": "`duration_min`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "job_name",
+                    "displayName": "Job"
+                  },
+                  {
+                    "fieldName": "run_start",
+                    "displayName": "Started"
+                  },
+                  {
+                    "fieldName": "status",
+                    "displayName": "Status"
+                  },
+                  {
+                    "fieldName": "result_state",
+                    "displayName": "Result state"
+                  },
+                  {
+                    "fieldName": "duration_min",
+                    "displayName": "Duration (min)"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Run history (last 30 days)",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ]
+}
