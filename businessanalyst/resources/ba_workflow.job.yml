@@ -1,0 +1,30 @@
+# BA-08 — Saved, reusable BA workflow (the BA-04/05 upload+join+transform as a job)
+#
+# The Lakeflow Designer canvas an analyst builds saves to a reusable job like this. Runs the
+# budget-enrichment pipeline against the caller's own wksp_<user> schema (isolation-safe), so
+# analysts re-run it on demand (or scheduled) without rebuilding the canvas. Serverless.
+resources:
+  jobs:
+    ba_budget_enrollment_join:
+      name: "[${var.catalog}] BA Workflow — Budget-Enriched Enrollment (BA-08)"
+      tags:
+        persona: business_analyst
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+        - name: upload_file
+          default: departments_budget_fy2025.csv
+        - name: status_filter
+          default: active
+      tasks:
+        - task_key: budget_enrollment_join
+          notebook_task:
+            notebook_path: ../src/jobs/budget_enrollment_join_runner.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+              upload_file: "{{job.parameters.upload_file}}"
+              status_filter: "{{job.parameters.status_filter}}"
+          timeout_seconds: 900
