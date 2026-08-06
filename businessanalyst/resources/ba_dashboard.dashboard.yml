@@ -1,0 +1,13 @@
+# BA-02 — Enrollment by Department dashboard (subscribable / exportable)
+#
+# AI/BI (Lakeview) dashboard for the Business Analyst persona. Read-only over the shared
+# foundation (silver_dev), so the whole group can view / subscribe / export concurrently.
+# All datasets verified against live data before building the JSON.
+# Deploys with the bundle (auto-discovered by the `*/resources/*.yml` include glob).
+resources:
+  dashboards:
+    ba_enrollment_by_department:
+      display_name: "[${var.catalog}] Enrollment by Department (BA-02)"
+      file_path: ../src/dashboards/enrollment_by_department.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      parent_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}/dashboards

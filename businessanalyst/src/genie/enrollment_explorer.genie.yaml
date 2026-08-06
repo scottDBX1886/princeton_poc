@@ -1,0 +1,47 @@
+# Genie Space: Princeton Enrollment Explorer (BA-01)
+#
+# No-code natural-language exploration of the enrollment data for Business Analysts.
+# Genie spaces are created live in the workspace UI (Data → Genie) — they are not yet a
+# DAB resource type — so this file is the authoritative CONFIG the SA uses to build the space,
+# and the reference the analyst walkthrough points at. Every sample question below was
+# verified to return rows against the live silver_dev data before shipping.
+#
+# ISOLATION: this space is READ-ONLY over the shared foundation (silver_dev), so all ~20
+# analysts can use one shared space concurrently — nothing is written.
+
+name: Princeton Enrollment Explorer
+description: >
+  Ask natural-language questions about student enrollments, departments, terms, and GPAs —
+  no SQL. e.g. "Show me enrollments by department for Fall 2024."
+
+# Warehouse the space runs on (dev POC). Set per target when created.
+warehouse_id: ${warehouse_id}
+
+# Tables Genie is grounded on (the shared foundation dimensions + facts).
+tables:
+  - princeton_poc_dev.silver_dev.enrollment
+  - princeton_poc_dev.silver_dev.student
+  - princeton_poc_dev.silver_dev.course
+  - princeton_poc_dev.silver_dev.department
+  - princeton_poc_dev.silver_dev.term
+  - princeton_poc_dev.silver_dev.faculty
+
+# Space instructions (shown in the Genie header) — encodes the join paths so Genie answers
+# accurately. enrollment has NO direct dept_id: department is reached via course.dept_id.
+instructions: |
+  This space explores Princeton student enrollment data.
+  - `enrollment` is the fact (enrollment_id, student_id, course_id, term_id, grade, gpa_points).
+  - A student's department/major is `student.dept_id`; a COURSE's owning department is
+    `course.dept_id`. To attribute an enrollment to a department, join enrollment→course→department.
+  - `term` has year + season (Fall/Spring/Summer). `student.status` is one of
+    active / graduated / withdrawn / leave.
+  Answer with grouped summaries and let the user refine filters in natural language.
+
+# Pre-canned sample questions (surface as clickable starters). All verified to run.
+sample_questions:
+  - "Show me enrollment counts by department"
+  - "How many students are enrolled per term, by year and season?"
+  - "What is the average GPA by department for Fall terms?"
+  - "How many active vs graduated vs withdrawn students are there by department?"
+  - "Which 10 departments have the most enrollments?"
+  - "How many students does each faculty member teach in a given department?"

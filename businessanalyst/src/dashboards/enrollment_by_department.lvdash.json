@@ -1,0 +1,429 @@
+{
+  "datasets": [
+    {
+      "name": "kpi",
+      "displayName": "KPI totals",
+      "queryLines": [
+        "SELECT count(e.enrollment_id) AS total_enrollments,\n",
+        "  count(DISTINCT e.student_id) AS distinct_students,\n",
+        "  count(DISTINCT d.dept_id) AS departments,\n",
+        "  round(avg(e.gpa_points), 2) AS overall_avg_gpa\n",
+        "FROM princeton_poc_dev.silver_dev.enrollment e\n",
+        "JOIN princeton_poc_dev.silver_dev.course c ON e.course_id = c.course_id\n",
+        "JOIN princeton_poc_dev.silver_dev.department d ON c.dept_id = d.dept_id\n",
+        "JOIN princeton_poc_dev.silver_dev.term t ON e.term_id = t.term_id\n"
+      ]
+    },
+    {
+      "name": "by_dept",
+      "displayName": "Top departments",
+      "queryLines": [
+        "SELECT d.name AS department, count(e.enrollment_id) AS enrollment_count,\n",
+        "  round(avg(e.gpa_points), 2) AS avg_gpa\n",
+        "FROM princeton_poc_dev.silver_dev.enrollment e\n",
+        "JOIN princeton_poc_dev.silver_dev.course c ON e.course_id = c.course_id\n",
+        "JOIN princeton_poc_dev.silver_dev.department d ON c.dept_id = d.dept_id\n",
+        "JOIN princeton_poc_dev.silver_dev.term t ON e.term_id = t.term_id\n",
+        "GROUP BY d.name\n",
+        "ORDER BY enrollment_count DESC\n",
+        "LIMIT 15\n"
+      ]
+    },
+    {
+      "name": "by_year",
+      "displayName": "Enrollment by year",
+      "queryLines": [
+        "SELECT t.year, count(e.enrollment_id) AS enrollment_count\n",
+        "FROM princeton_poc_dev.silver_dev.enrollment e\n",
+        "JOIN princeton_poc_dev.silver_dev.course c ON e.course_id = c.course_id\n",
+        "JOIN princeton_poc_dev.silver_dev.department d ON c.dept_id = d.dept_id\n",
+        "JOIN princeton_poc_dev.silver_dev.term t ON e.term_id = t.term_id\n",
+        "GROUP BY t.year\n",
+        "ORDER BY t.year\n"
+      ]
+    },
+    {
+      "name": "summary",
+      "displayName": "Dept x term detail",
+      "queryLines": [
+        "SELECT d.name AS department, t.year, t.season, t.term_id,\n",
+        "  count(e.enrollment_id) AS enrollment_count,\n",
+        "  count(DISTINCT e.student_id) AS unique_students,\n",
+        "  round(avg(e.gpa_points), 2) AS avg_gpa\n",
+        "FROM princeton_poc_dev.silver_dev.enrollment e\n",
+        "JOIN princeton_poc_dev.silver_dev.course c ON e.course_id = c.course_id\n",
+        "JOIN princeton_poc_dev.silver_dev.department d ON c.dept_id = d.dept_id\n",
+        "JOIN princeton_poc_dev.silver_dev.term t ON e.term_id = t.term_id\n",
+        "GROUP BY d.name, t.year, t.season, t.term_id\n",
+        "ORDER BY t.year DESC, enrollment_count DESC\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "enrollment",
+      "displayName": "Enrollment by Department",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Enrollment by Department \u2014 Weekly Report (BA-02)"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Enrollment summary by department & term over the shared foundation. Use the **Subscribe** and **Export** buttons (top-right) \u2014 no SQL. Read-only."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-enroll",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "total_enrollments",
+                      "expression": "`total_enrollments`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_enrollments",
+                  "displayName": "Total enrollments"
+                }
+              },
+              "frame": {
+                "title": "Total enrollments",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-students",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "distinct_students",
+                      "expression": "`distinct_students`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "distinct_students",
+                  "displayName": "Distinct students"
+                }
+              },
+              "frame": {
+                "title": "Distinct students",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-gpa",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [
+                    {
+                      "name": "overall_avg_gpa",
+                      "expression": "`overall_avg_gpa`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "overall_avg_gpa",
+                  "displayName": "Overall avg GPA"
+                }
+              },
+              "frame": {
+                "title": "Overall avg GPA",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "dept-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "by_dept",
+                  "fields": [
+                    {
+                      "name": "department",
+                      "expression": "`department`"
+                    },
+                    {
+                      "name": "enrollment_count",
+                      "expression": "`enrollment_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "enrollment_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Enrollments"
+                },
+                "y": {
+                  "fieldName": "department",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Department"
+                }
+              },
+              "frame": {
+                "title": "Top 15 departments by enrollment",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "year-line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "by_year",
+                  "fields": [
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "enrollment_count",
+                      "expression": "`enrollment_count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "year",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Year"
+                },
+                "y": {
+                  "fieldName": "enrollment_count",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Enrollments"
+                }
+              },
+              "frame": {
+                "title": "Enrollment trend by year",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 5,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "detail-header",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Department \u00d7 term detail (subscribe or export this)"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "summary-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "summary",
+                  "fields": [
+                    {
+                      "name": "department",
+                      "expression": "`department`"
+                    },
+                    {
+                      "name": "year",
+                      "expression": "`year`"
+                    },
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "enrollment_count",
+                      "expression": "`enrollment_count`"
+                    },
+                    {
+                      "name": "unique_students",
+                      "expression": "`unique_students`"
+                    },
+                    {
+                      "name": "avg_gpa",
+                      "expression": "`avg_gpa`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "department",
+                    "displayName": "Department"
+                  },
+                  {
+                    "fieldName": "year",
+                    "displayName": "Year"
+                  },
+                  {
+                    "fieldName": "season",
+                    "displayName": "Season"
+                  },
+                  {
+                    "fieldName": "enrollment_count",
+                    "displayName": "Enrollments"
+                  },
+                  {
+                    "fieldName": "unique_students",
+                    "displayName": "Unique students"
+                  },
+                  {
+                    "fieldName": "avg_gpa",
+                    "displayName": "Avg GPA"
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Enrollment by department & term",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    }
+  ]
+}
