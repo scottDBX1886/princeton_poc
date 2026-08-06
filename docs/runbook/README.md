@@ -139,7 +139,8 @@ produces the expected object. The loop is the same for every entry:
 1. **Open the surface named in the entry.** For a *Genie-generated SDP* prompt: create a new
    Lakeflow pipeline, open its editor, and use the **Assistant** (sparkle) panel — or use the
    Databricks Assistant in a notebook attached to the pipeline. For a *Databricks Assistant —
-   notebook* prompt (E3, E7): open a new notebook and use the Assistant panel.
+   notebook* prompt (E3, E7): open a new notebook and use the Assistant panel. E8, E9 and SE-09
+   are **SA-deployed** (a `bundle run` / a deployed dashboard) — no prompt to paste; see below.
 2. **Paste the prompt** from the entry's fenced code-path block. Each is self-contained —
    catalog, schema, and paths are spelled out.
 3. **Substitute your schema.** Replace every `wksp_<my_user>` with your own per-person schema:
@@ -155,19 +156,23 @@ produces the expected object. The loop is the same for every entry:
 - Foundation job has run (Phase 0) — provides `silver_dev` + the landing files.
 - `princeton-mock-api` app is **running** and the `princeton_poc_e3` secret scope exists (E3).
 - Run order into your wksp: **E1 → E3 → E5 → E4 → E6-setup → E6 → E7.** (E4 reads E1+E3;
-  E7 reads E5; E6 needs its snapshot-setup notebook first.)
+  E7 reads E5; E6 needs its snapshot-setup notebook first.) SE-09, E8, E9 are independent of
+  this order (SA-deployed jobs/dashboard).
 - You have `CREATE SCHEMA` on `princeton_poc_dev` (the SDP auto-creates your wksp on first run).
 
-**Prompt test checklist:**
+**Prompt test checklist** (all 9 built objects):
 
-| Entry | Surface | Pass signal (from Expected outcome) |
-|-------|---------|-------------------------------------|
-| E1 | Assistant → SDP | 5 bronze tables (2000/2000/1000/10/200); `"Doe, John"` stays one field |
-| E3 | Assistant → notebook | 60,000 rows; a token refresh occurs mid-run |
-| E5 | Assistant → SDP | 8 MVs; `e5_gpa_valid`=59988 / `e5_gpa_rejects`=12 |
-| E4 | Assistant → SDP | `e4_enrollment_reconciled`; ~3,939 file+db+api |
-| E6 | Assistant → SDP | scd1=1005; scd2=1005 current + ~21 end-dated |
-| E7 | Assistant → notebook | target has 0 alumni; 4 export artifacts |
+| Entry | How to run | Pass signal (from Expected outcome) |
+|-------|-----------|-------------------------------------|
+| E1 | prompt → Assistant → SDP | 5 bronze tables (2000/2000/1000/10/200); `"Doe, John"` stays one field |
+| E3 | prompt → Assistant → notebook | 60,000 rows; a token refresh occurs mid-run |
+| E5 | prompt → Assistant → SDP | 8 MVs; `e5_gpa_valid`=59988 / `e5_gpa_rejects`=12 |
+| E4 | prompt → Assistant → SDP | `e4_enrollment_reconciled`; ~3,939 file+db+api |
+| E6 | prompt → Assistant → SDP | scd1=1005; scd2=1005 current + ~21 end-dated |
+| E7 | prompt → Assistant → notebook | target has 0 alumni; 4 export artifacts |
+| SE-09 | `databricks bundle run sftp_ingest -t dev` | 3 files on Volume; Bronze table = 600 rows |
+| E8 | `databricks bundle run orchestration_demo -t dev` | job SUCCESS; `retry_demo` fails attempt 0, succeeds attempt 1 |
+| E9 | open the deployed **Workload Monitoring** dashboard | ACTIVE; shows jobs + pipelines + notebook runs, last 30d |
 
 > If a prompt's generated code drifts from the expected outcome, the committed pre-built
 > object in each entry is the source of truth — diff against it, then tighten the prompt.
