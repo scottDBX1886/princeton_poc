@@ -30,13 +30,14 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | ✅ |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ✅ |
 | **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
-| **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
+| **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse (Genie), subscriptions (AI/BI), extracts, spreadsheet upload+join, saved workflow | ✅ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
-**Coverage so far: 41 of 85 RFP scenario IDs ✅ built & verified** — the **entire Engineer
-persona except the parked E2 (BYO-DB, SE-01/02)**: ingestion, transformation, CDC/SCD,
-target-loading, orchestration, monitoring, DevOps, and governance. Remaining work is E2 (parked)
-plus the Data Scientist, Business Analyst, and Admin personas.
+**Coverage so far: 49 of 85 RFP scenario IDs ✅ built & verified** — the **entire Engineer
+persona except the parked E2 (BYO-DB, SE-01/02)** (ingestion, transformation, CDC/SCD,
+target-loading, orchestration, monitoring, DevOps, governance) **plus the entire Business
+Analyst persona (BA-01…08)** (no-code browse, subscriptions, extracts, upload+join+transform,
+saved workflow). Remaining work is E2 (parked) plus the Data Scientist and Admin personas.
 
 ---
 
@@ -175,6 +176,10 @@ produces the expected object. The loop is the same for every entry:
 | E9 | open the deployed **Workload Monitoring** dashboard | ACTIVE; shows jobs + pipelines + notebook runs, last 30d |
 | E10 | `git log` · `bundle validate -t dev/qa/prod` · `git tag` | versioned history; all 3 targets `Validation OK!`; release tag listed |
 | E11 | lineage/DESCRIBE-HISTORY SQL · Catalog Explorer monitor + AI-suggest | lineage chains returned; `ADD COLUMNS` in history; monitor metrics; AI comments |
+| BA-01 | open Genie "Enrollment Explorer" · Catalog Explorer preview | NL questions return grouped results; schema + sample rows |
+| BA-02 | open the **Enrollment by Department (BA-02)** dashboard · Subscribe/Export | ACTIVE; KPIs + charts render; subscription/download works |
+| BA-03/06/07 | run `enrollment_export.sql` · Download Results | up to 10k rows; CSV/Excel/pipe download |
+| BA-04/05/08 | `databricks bundle run ba_budget_enrollment_join -t dev` | SUCCESS; `wksp_<you>.ba_dept_budget_enrollment_summary` ≈ 35,937 rows |
 
 > If a prompt's generated code drifts from the expected outcome, the committed pre-built
 > object in each entry is the source of truth — diff against it, then tighten the prompt.
@@ -638,7 +643,85 @@ scenarios land here._
 
 # Persona 3 — Business Analyst
 
-_TBD as built (BA-A…BA-E). No-code Genie + AI/BI + Lakeflow Designer scenarios land here._
+_No-code / low-code only — the analyst never writes SQL. Five pre-built objects (a Genie space,
+an AI/BI dashboard, a saved SQL export query, a sample upload + Designer canvas, and a saved
+workflow job) cover BA-01…08. All read the shared foundation; the one object that writes
+(BA-04/05/08) writes to the analyst's own `wksp_<user>` schema. Full walkthroughs in
+`businessanalyst/src/walkthroughs/`._
+
+## BA-01 — No-code browse, filter, preview (Genie + Catalog Explorer)
+
+**What it proves:** an analyst discovers and filters the enrollment data with natural language
+(Genie) and by browsing (Catalog Explorer) — zero SQL.
+
+**Pre-built object:** shared, read-only Genie space **"Princeton Enrollment Explorer"**
+(config: `businessanalyst/src/genie/enrollment_explorer.genie.yaml`). Created live in the UI
+(Genie spaces aren't a DAB resource type yet); the config lists the tables + join-path
+instructions the SA uses to build it.
+
+**How to test:** open the Genie space → click a starter question (*"Show me enrollment counts by
+department"*) → refine in English (*"…for Fall 2024"*). Then Catalog Explorer →
+`silver_dev.enrollment` → Sample Data. Walkthrough: `README_BA01.md`.
+
+**Expected outcome:** Genie returns grouped enrollment summaries (all sample questions verified to
+return live data); Catalog Explorer shows schema + sample rows. **Join gotcha** baked into the
+space instructions: enrollment has no `dept_id` — a course's department is `course.dept_id`.
+
+## BA-02 — Scheduled report & subscription (AI/BI dashboard)
+
+**What it proves:** an analyst subscribes to a pre-built dashboard for recurring delivery, or
+exports it on demand — no SQL.
+
+**Setup (SA, done):** AI/BI dashboard **"Enrollment by Department (BA-02)"** deployed as a DAB
+resource (`businessanalyst/resources/ba_dashboard.dashboard.yml` +
+`src/dashboards/enrollment_by_department.lvdash.json`), **verified ACTIVE**. KPIs, top-15
+department bar, enrollment-by-year trend, dept×term detail table.
+
+**How to test:** `databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 ba_enrollment`
+→ open the URL → **Schedule/Subscribe** (email/Slack, weekly), or **⋯ → Download** (CSV/Excel/PDF).
+Walkthrough: `README_BA02.md`.
+
+**Expected outcome:** a per-user subscription registers, or a file downloads. Queries pre-tested
+on `silver_dev` (40 depts, 960 dept×term groups, avg GPA ≈ 3.1). Read-only → concurrent-safe.
+
+## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe
+
+**What it proves:** an analyst pulls a filtered slice and downloads it in three formats for
+external hand-off.
+
+**Pre-built object:** saved query `businessanalyst/src/queries/enrollment_export.sql`
+(enrollment + student name + course title + term + dept; editable filter lines; 10k `LIMIT` guardrail).
+
+**How to test:** SQL Editor → run the query (optionally set `(d.name = 'Johnson Department')`) →
+**Download Results** → CSV (BA-03) / Excel (BA-06) / TSV-pipe (BA-07). Walkthrough: `README_BA03.md`.
+
+**Expected outcome:** up to 10k rows with human-readable columns; the department filter returns a
+smaller set (verified). All three formats download cleanly.
+
+## BA-04 / BA-05 / BA-08 — Upload + join + transform (Designer canvas), saved & reusable
+
+**What it proves:** an analyst uploads a spreadsheet, joins it to platform data, filters, renames,
+derives a column, and saves the whole workflow for reuse — all no-code.
+
+**Setup (SA, done):** sample `departments_budget_fy2025.csv` (40 real depts) staged at
+`/Volumes/princeton_poc_dev/landing_dev/files/uploads/`; reusable job **"BA Workflow —
+Budget-Enriched Enrollment"** (`businessanalyst/resources/ba_workflow.job.yml` + runner
+`src/jobs/budget_enrollment_join_runner.py`). **Run VERIFIED green — TERMINATED SUCCESS, 35,937 rows.**
+
+**How to test:**
+```bash
+databricks bundle run ba_budget_enrollment_join -t dev --profile dbx_shared_demo
+```
+(or build it on the Designer canvas per the walkthrough). Parameters: `upload_file`,
+`status_filter` (BA-05 variation), `catalog`, `schema_suffix`. Walkthrough: `README_BA04_BA08.md`.
+
+**Expected outcome:** table `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched
+with department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 → 1,094.16/student).
+
+**Notes:** (1) **Isolation** — writes to the analyst's own `wksp_<user>`, not shared `silver_dev`
+(a deliberate change from the original plan) so ~20 analysts run concurrently. (2) `countDistinct`
+in a Spark window is unsupported — the runner aggregates distinct students per dept separately and
+joins back.
 
 # Persona 4 — Platform Administrator
 
