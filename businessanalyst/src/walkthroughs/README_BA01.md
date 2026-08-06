@@ -29,5 +29,13 @@ You've explored the dataset two ways — conversationally (Genie) and by browsin
 ## Notes / troubleshooting
 
 - **Shared & read-only:** this Genie space reads the shared foundation, so the whole group can use it at once — nobody's questions affect anyone else.
-- **Genie space missing:** it's created live by the SA (see `businessanalyst/src/genie/enrollment_explorer.genie.yaml` for the exact config: which tables + the join-path instructions). Ask your admin to create it if absent.
-- **Join gotcha (for the SA building the space):** `enrollment` has no `dept_id` — a *course's* department is `course.dept_id`, a *student's* major is `student.dept_id`. The space instructions encode this so Genie attributes enrollments correctly.
+- **Deployed by the bundle (not hand-created):** BA-01 is a real DAB `genie_spaces` resource —
+  `businessanalyst/resources/ba_genie.genie_space.yml` + the serialized body
+  `businessanalyst/src/genie/enrollment_explorer.geniespace.json`. It's created/updated on
+  `databricks bundle deploy`, so it versions and promotes like every other object. Open it via
+  `databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 ba_enrollment_explorer`.
+- **Join gotcha (encoded in the space instructions):** `enrollment` has no `dept_id` — a *course's*
+  department is `course.dept_id`, a *student's* major is `student.dept_id`. The instructions tell
+  Genie this so it attributes enrollments correctly.
+- **Gotcha for anyone editing the serialized JSON:** `data_sources.tables` **must be sorted by
+  identifier** or the deploy fails with `INVALID_PARAMETER_VALUE`.

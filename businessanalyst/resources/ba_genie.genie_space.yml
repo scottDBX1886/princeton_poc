@@ -1,0 +1,16 @@
+# BA-01 — Genie space (DAB genie_spaces resource)
+#
+# Deployable Genie space for the Business Analyst persona. Read-only over the shared foundation
+# (silver_dev), so all ~20 analysts share one space concurrently. Serialized body lives in the
+# .geniespace.json (format learned from `databricks bundle generate genie-space`); the sample
+# questions + join-path instructions are baked in. Auto-discovered by the */resources/*.yml glob.
+resources:
+  genie_spaces:
+    ba_enrollment_explorer:
+      title: "[${var.catalog}] Enrollment Explorer (BA-01)"
+      description: >
+        No-code natural-language exploration of student enrollments, departments, terms, and
+        GPAs. Ask questions like "Show me enrollment counts by department" — no SQL.
+      warehouse_id: ${var.warehouse_id}
+      file_path: ../src/genie/enrollment_explorer.geniespace.json
+      parent_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}/genie

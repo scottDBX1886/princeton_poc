@@ -1,0 +1,75 @@
+{
+  "config": {
+    "sample_questions": [
+      {
+        "id": "0b3bc13fbc7b4da4b531c1ed86c0af32",
+        "question": [
+          "Show me enrollment counts by department"
+        ]
+      },
+      {
+        "id": "30a8b2d33edb4dd1a00e76287ec2f2f0",
+        "question": [
+          "How many students are enrolled per term, by year and season?"
+        ]
+      },
+      {
+        "id": "9b333f93b32a4d9eabc452fa0cae0158",
+        "question": [
+          "What is the average GPA by department for Fall terms?"
+        ]
+      },
+      {
+        "id": "3cfcc912052440ae84846533b5f6fa6b",
+        "question": [
+          "How many active vs graduated vs withdrawn students are there by department?"
+        ]
+      },
+      {
+        "id": "3c292dc9ce5b406c8af93acf5547f5b7",
+        "question": [
+          "Which 10 departments have the most enrollments?"
+        ]
+      },
+      {
+        "id": "4f073bb8eadb43758c9b2ec1cfb4ab89",
+        "question": [
+          "How many students does each faculty member teach?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "princeton_poc_dev.silver_dev.course"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.department"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.enrollment"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.faculty"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.student"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.term"
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "content": [
+          "This space explores Princeton student enrollment data in `princeton_poc_dev.silver_dev`. `enrollment` is the fact (enrollment_id, student_id, course_id, term_id, grade, gpa_points). IMPORTANT join paths: enrollment has NO dept_id \u2014 a COURSE's owning department is `course.dept_id` (join enrollment->course->department to attribute an enrollment to a department); a STUDENT's major is `student.dept_id`. `term` has year + season (Fall/Spring/Summer). `student.status` is one of active / graduated / withdrawn / leave. Answer with grouped summaries and let the user refine filters in natural language. Format dates as YYYY-MM-DD; round GPA to 2 decimals."
+        ],
+        "id": "0c4f2e33765e4addb50694255ca40803"
+      }
+    ]
+  },
+  "version": "2"
+}

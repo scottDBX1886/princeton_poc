@@ -654,10 +654,10 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 **What it proves:** an analyst discovers and filters the enrollment data with natural language
 (Genie) and by browsing (Catalog Explorer) — zero SQL.
 
-**Pre-built object:** shared, read-only Genie space **"Princeton Enrollment Explorer"**
-(config: `businessanalyst/src/genie/enrollment_explorer.genie.yaml`). Created live in the UI
-(Genie spaces aren't a DAB resource type yet); the config lists the tables + join-path
-instructions the SA uses to build it.
+**Setup (SA, done):** shared, read-only Genie space **"Enrollment Explorer (BA-01)"** deployed as
+a **DAB `genie_spaces` resource** (`businessanalyst/resources/ba_genie.genie_space.yml` +
+serialized body `src/genie/enrollment_explorer.geniespace.json`) — **deployed & verified** (accepts
+questions). Open it: `databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 ba_enrollment_explorer`.
 
 **How to test:** open the Genie space → click a starter question (*"Show me enrollment counts by
 department"*) → refine in English (*"…for Fall 2024"*). Then Catalog Explorer →
