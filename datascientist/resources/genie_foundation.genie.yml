@@ -1,0 +1,33 @@
+# Genie space over the shared foundation — the NO-CODE path for DS-01 (and reused by the
+# Business Analyst scenarios later). Read-only by nature, so it is safe to share across
+# all ~20 concurrent participants; no per-person isolation needed (spec §3.1 rule 6).
+#
+# NOTE on schema: the DAB `genie_spaces` resource takes `title`/`description`/
+# `warehouse_id`/`parent_path`/`serialized_space` — NOT a `datasets:` table list. The
+# curated table set lives inside `serialized_space`. Verified against CLI v1.9.0.
+resources:
+  genie_spaces:
+    foundation:
+      title: "[${var.catalog}] Data Foundation"
+      description: >-
+        Natural-language exploration over the shared higher-ed data foundation.
+        Surfaces the gold enrollment fact and the silver dimensions for ad-hoc
+        analysis without SQL (DS-01).
+      warehouse_id: ${var.warehouse_id}
+      serialized_space: |
+        {
+          "table_identifiers": [
+            "${var.catalog}.gold${var.schema_suffix}.enrollment_history",
+            "${var.catalog}.silver${var.schema_suffix}.student",
+            "${var.catalog}.silver${var.schema_suffix}.department",
+            "${var.catalog}.silver${var.schema_suffix}.term",
+            "${var.catalog}.silver${var.schema_suffix}.course",
+            "${var.catalog}.silver${var.schema_suffix}.faculty"
+          ],
+          "sample_questions": [
+            "Which departments have the most enrollments?",
+            "Show me average student GPA by term",
+            "Which faculty members teach the most students, and in what department?",
+            "Compare enrollment trends term over term for each department"
+          ]
+        }

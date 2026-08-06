@@ -17,6 +17,10 @@ resources:
     landing:
       catalog_name: ${var.catalog}
       name: landing${var.schema_suffix}
+    models:
+      catalog_name: ${var.catalog}
+      name: models${var.schema_suffix}
+      comment: "UC-registered MLflow models (DS-06(b) / DS-E)"
   volumes:
     landing_files:
       catalog_name: ${var.catalog}
