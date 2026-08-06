@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-05
 
-**Summary (RFP scenario IDs):** 37 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · SE-09) · 0 🟡 · 48 ⬜ planned.
+**Summary (RFP scenario IDs):** 41 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09) · 0 🟡 · 44 ⬜ planned. **Entire Engineer persona built except E2 (BYO-DB, SE-01/02, parked).**
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -92,10 +92,10 @@ list is the full checklist.
 ### 3.7 Data Observability & Governance
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| SE-40 | Data lineage — end-to-end tracing | E11 | ⬜ |
-| SE-41 | Schema drift detection | E11 | ⬜ |
-| SE-42 | Data drift / anomaly detection | E11 | ⬜ |
-| SE-43 | Automated documentation | E11 | ⬜ |
+| SE-40 | Data lineage — end-to-end tracing | E11 | ✅ built & verified (system.access.table_lineage) |
+| SE-41 | Schema drift detection | E11 | ✅ built & verified (Delta DESCRIBE HISTORY, wksp-safe) |
+| SE-42 | Data drift / anomaly detection | E11 | ✅ built & verified (Lakehouse Monitoring on the fact) |
+| SE-43 | Automated documentation | E11 | ✅ built & verified (Catalog discovery + AI comments) |
 
 ---
 
@@ -191,11 +191,11 @@ list is the full checklist.
 ## Tally by persona
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
-| Engineer (SE) | 43 | 37 (SE-03/04/05/06/07/08/09/10, SE-11–39) | 0 | 6 |
+| Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
 | Data Scientist (DS) | 10* | 0 | 0 | 10 |
 | Business Analyst (BA) | 8 | 0 | 0 | 8 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **37** | **0** | **49** |
+| **Total** | **86** | **41** | **0** | **45** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).

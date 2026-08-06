@@ -28,15 +28,15 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ✅ |
 | **E9** — Workload monitoring | SE-34 | AI/BI dashboard over jobs + pipelines + notebook runs (system tables) | ✅ |
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | ✅ |
-| **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ⬜ |
+| **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ✅ |
 | **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
 | **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
-**Coverage so far: 37 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
-transformation, CDC/SCD, target-loading, orchestration, monitoring, and DevOps scenarios).
-Remaining work is Engineer governance (E11) + the parked E2 (BYO-DB), plus the Data Scientist,
-Business Analyst, and Admin personas.
+**Coverage so far: 41 of 85 RFP scenario IDs ✅ built & verified** — the **entire Engineer
+persona except the parked E2 (BYO-DB, SE-01/02)**: ingestion, transformation, CDC/SCD,
+target-loading, orchestration, monitoring, DevOps, and governance. Remaining work is E2 (parked)
+plus the Data Scientist, Business Analyst, and Admin personas.
 
 ---
 
@@ -174,6 +174,7 @@ produces the expected object. The loop is the same for every entry:
 | E8 | `databricks bundle run orchestration_demo -t dev` | job SUCCESS; `retry_demo` fails attempt 0, succeeds attempt 1 |
 | E9 | open the deployed **Workload Monitoring** dashboard | ACTIVE; shows jobs + pipelines + notebook runs, last 30d |
 | E10 | `git log` · `bundle validate -t dev/qa/prod` · `git tag` | versioned history; all 3 targets `Validation OK!`; release tag listed |
+| E11 | lineage/DESCRIBE-HISTORY SQL · Catalog Explorer monitor + AI-suggest | lineage chains returned; `ADD COLUMNS` in history; monitor metrics; AI comments |
 
 > If a prompt's generated code drifts from the expected outcome, the committed pre-built
 > object in each entry is the source of truth — diff against it, then tighten the prompt.
@@ -588,6 +589,45 @@ commit → three environments" promotion claim honest. (2) The `deploy` job is m
 on purpose: no auto-deploy to unprovisioned hosts. Flip it to `push: [main]` once qa secrets exist.
 (3) The `validate` CI job would have caught the E9 `warehouse_id` regression — a live argument for
 the CI gate.
+
+## E11 — Governance: lineage, schema drift, data drift, AI docs (SE-40, SE-41, SE-42, SE-43)
+
+**What it proves:** Databricks' native governance surface over the POC data — **lineage** and
+**schema-drift history** are captured automatically (zero setup), while **data-drift monitoring**
+and **AI-generated documentation** are one-click actions. Nothing custom is built.
+
+**Setup (SA, done):** no build needed — lineage and Delta history are already populated by the
+POC's own pipeline/job runs. Full guide:
+[`docs/runbook/E11_governance_walkthrough.md`](E11_governance_walkthrough.md).
+
+**How to test (verified queries + UI actions):**
+```sql
+-- SE-40 lineage (automatic): full medallion + downstream wksp chains
+SELECT source_table_full_name, target_table_full_name
+FROM system.access.table_lineage
+WHERE target_table_full_name LIKE 'princeton_poc_dev.%' AND source_table_full_name IS NOT NULL
+ORDER BY target_table_full_name;
+
+-- SE-41 schema drift (automatic, isolation-safe — writes only your wksp)
+CREATE TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo AS
+  SELECT student_id, dept_id, status FROM princeton_poc_dev.silver_dev.student LIMIT 100;
+ALTER TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo ADD COLUMN citizenship STRING;
+DESCRIBE HISTORY princeton_poc_dev.wksp_<you>.e11_drift_demo;   -- shows version 1 = ADD COLUMNS
+```
+- **SE-42 (data drift):** Catalog Explorer → `gold_dev.enrollment_history` (5M rows) →
+  **Monitoring** → create a Snapshot monitor on `gpa_points` + `grade` → **Refresh metrics**.
+- **SE-43 (discovery + AI docs):** Catalog Explorer → open `silver_dev.student` → **AI suggest**
+  a description + column comments (or seed via `COMMENT ON`), then search to discover them.
+
+**Expected outcome:** the lineage query returns real Bronze→Silver→Gold→wksp chains; the drift
+demo's `DESCRIBE HISTORY` shows `ADD COLUMNS` at version 1; a monitor produces profile/drift
+metrics on the fact; AI-suggested comments appear on the table and in `information_schema`.
+
+**Notes:** (1) SE-41 drifts a **wksp copy**, not the shared `silver_dev` (isolation model — the
+foundation is read-only for the group; ~20 people run it concurrently). (2) POC tables ship
+without comments (verified all `NULL`), so SE-43 is demonstrated by the live **AI suggest** action
+or a `COMMENT ON` seed. (3) Lakehouse Monitoring is created per-table via UI/API (no pre-populated
+system schema here) — the measure columns are confirmed present on the fact table.
 
 ---
 
