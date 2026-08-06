@@ -1,36 +1,39 @@
-# BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe-delimited
+# BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe (Designer + Genie agent)
 
-**Persona:** Business Analyst. Pull a slice of enrollment data and download it as a file for
-colleagues or other systems — three formats, no code.
+**Persona:** Business Analyst (no SQL). Start from an **existing** platform object, describe the
+extract to the Lakeflow Designer Genie agent, run it, and download in three formats.
 
-## Pre-built object
+## Primary path — Lakeflow Designer + Genie agent
 
-Saved query **`businessanalyst/src/queries/enrollment_export.sql`** — joins
-enrollment → student → course → term → department into one flat, human-readable result
-(student name, course title, term, grade, GPA, department). Verified live.
+1. Open **Lakeflow Designer** → **New** → **Add data** → pick the existing
+   `princeton_poc_dev.silver_dev.enrollment` table (nothing to upload — it's the shared foundation fact).
+2. Open the Designer **Genie agent** panel and paste (edit the department in plain English):
+   ```text
+   From the enrollment table, join to student, course, term, and department so each row shows
+   student name, course title, term year and season, grade, gpa_points, and department name.
+   Filter to the Johnson Department. Sort by year descending. This is for an ad-hoc extract I'll
+   download as CSV/Excel.
+   ```
+3. The agent builds the join + filter flow on the canvas. **Run** it.
+4. On the result grid, **Download** → **CSV** (BA-03) / **Excel** (BA-06) / **pipe-delimited / TSV** (BA-07).
 
-## Steps
+> The Genie agent knows the join path from the space instructions, but the prompt states the intent
+> plainly. `enrollment` has no `dept_id` — a course's department is `course.dept_id` — so "join to
+> ... department" resolves through `course`.
 
-1. Databricks → **SQL Editor** → paste (or open the saved) **Enrollment Export** query.
-2. *(Optional)* filter: replace a `(TRUE)` in the `WHERE` with a real condition —
-   e.g. `(d.name = 'Johnson Department')` or `(t.year = 2025 AND t.season = 'Fall')`. No filter = leave `(TRUE)`.
-3. **Run.** Results appear (capped at 10,000 rows for an interactive download; raise the `LIMIT` for a full extract).
-4. Above the results grid, click **⋯ / Download** and pick the format:
-   - **CSV** → `BA-03` (comma-separated, opens in Excel)
-   - **Excel (.xlsx)** → `BA-06` (native workbook)
-   - **TSV / pipe** → `BA-07` (delimited for external distribution)
-5. The file lands in your Downloads folder.
+## Fallback — pre-built saved query (if the live NL build stalls)
+
+Saved query `businessanalyst/src/queries/enrollment_export.sql` produces the identical extract:
+1. SQL Editor → open/paste the query → optionally set a filter, e.g. `(d.name = 'Johnson Department')`.
+2. **Run** → **Download Results** → CSV / Excel / TSV-pipe. Verified against live data.
 
 ## Expected outcome
 
-- Unfiltered: up to 10,000 rows with columns `enrollment_id, student_id, student_name,
-  course_id, course_title, term_id, year, season, grade, gpa_points, department`.
-- With `(d.name = 'Johnson Department')`: a smaller, single-department extract (verified to return rows).
-- Each of CSV / Excel / pipe downloads cleanly.
+A filtered, human-readable extract with columns `enrollment_id, student_id, student_name,
+course_id, course_title, term_id, year, season, grade, gpa_points, department`. The
+Johnson-Department filter returns a smaller set (verified). All three download formats work.
 
-## Notes / troubleshooting
+## Notes
 
-- **Read-only** — a `SELECT`, safe to run concurrently by the whole group.
-- **Filter is valid SQL** — quote string values (`'Johnson Department'`, not `Johnson Department`).
-- **Big export?** Raise or remove the `LIMIT`; for very large extracts, subscribe to the BA-02
-  dashboard's CSV instead, or write to a Volume.
+- **Read-only & concurrent-safe** — a query over the shared foundation.
+- **Big export?** raise/remove the query's 10k `LIMIT`, or subscribe to the BA-02 dashboard's CSV.

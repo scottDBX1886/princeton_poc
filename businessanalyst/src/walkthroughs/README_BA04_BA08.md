@@ -1,57 +1,71 @@
-# BA-04 / BA-05 / BA-08 — Upload + join + transform (no-code canvas), saved & reusable
+# BA-04 / BA-05 / BA-08 — Upload + join + transform (Designer + Genie agent), saved & reusable
 
-**Persona:** Business Analyst. Upload a spreadsheet, join it to platform data, filter, rename,
-derive a column, save the result — via the **Lakeflow Designer** drag-and-drop canvas — then
-save the whole thing as a **reusable workflow** you can re-run any time.
+**Persona:** Business Analyst (no SQL). The demo flow: start from data — **upload your own file**
+(BA-04) or an **existing object** (BA-05) — then **tell the Lakeflow Designer Genie agent** what to
+build. Save the flow for reuse (BA-08). A verified pre-built job is the fallback if the live NL
+build stalls.
 
-## Pre-built objects
+---
 
-- Sample upload: `businessanalyst/src/sample_uploads/departments_budget_fy2025.csv` (40 real
-  departments with FY25 budgets) — staged at
-  `/Volumes/princeton_poc_dev/landing_dev/files/uploads/departments_budget_fy2025.csv`.
-- Reusable job (BA-08): **"BA Workflow — Budget-Enriched Enrollment"**
-  (`businessanalyst/resources/ba_workflow.job.yml`), backed by the runner
-  `businessanalyst/src/jobs/budget_enrollment_join_runner.py`. **Verified: TERMINATED SUCCESS,
-  35,937 rows.**
+## BA-04 — upload your own file, then prompt the agent to join + transform
 
-## BA-04 / BA-05 — the no-code canvas (Lakeflow Designer)
+1. **Lakeflow Designer** → **Add data** → **Upload file** → `departments_budget_fy2025.csv`
+   (columns: `dept_id, dept_name, budget_amount, approved_date`). A pre-staged copy also lives at
+   `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` if a live upload isn't convenient.
+2. Paste to the **Designer Genie agent**:
+   ```text
+   Join my uploaded budget file to the enrollment data: my file has dept_id and budget_amount;
+   join it through the course table (course.dept_id) to the enrollment fact, and join student to
+   get status. Keep only active students. Rename budget_amount to total_budget and dept_name to
+   department. Add a column budget_per_student = total_budget divided by the number of distinct
+   students in that department. Save the result to my own schema.
+   ```
+3. The agent builds upload → join → filter → rename → derive → write. **Run.**
 
-The analyst builds this on the Designer canvas (each step is a draggable node):
+## BA-05 — start from an existing object, prompt light transforms
 
-1. **Add Data** — upload / pick `departments_budget_fy2025.csv` from the volume.
-2. **Join** — budget → `course` (on `dept_id`) → `enrollment`; join `student` for status.
-   *(A course's department is `course.dept_id`; enrollment has no direct dept_id.)*
-3. **Filter** — `student.status = 'active'` (BA-05: change this to `graduated`, or relax it, in the panel).
-4. **Rename** — `budget_amount` → `total_budget`, `dept_name` → `department`, `approved_date` → `budget_approved`.
-5. **Add column** — `budget_per_student = total_budget / distinct students in the department`.
-6. **Save** — write to **your own** `wksp_<you>.ba_dept_budget_enrollment_summary`.
-
-Click **Run**. No SQL written.
+1. **Lakeflow Designer** → **Add data** → `princeton_poc_dev.silver_dev.student` (join `department`).
+2. Paste to the **Designer Genie agent**:
+   ```text
+   From the student table joined to department, keep only active students. Rename the department
+   name column to major, derive a full_name column by concatenating first_name and last_name, and
+   add an email_domain column extracted from the part of the email after the @. Save the result to
+   my own schema.
+   ```
+3. The agent builds the rename/filter/derive flow. **Run.**
 
 ## BA-08 — save & reuse
 
-- The canvas saves as the **"BA Workflow — Budget-Enriched Enrollment"** job. Re-run any time from
-  **Jobs & Pipelines**, or via:
-  ```bash
-  databricks bundle run ba_budget_enrollment_join -t dev --profile dbx_shared_demo
-  ```
-- **Parameters** let you reuse it without editing: `upload_file` (drop a new budget file, e.g.
-  `departments_budget_fy2026.csv`), `status_filter` (BA-05 variation), `catalog`/`schema_suffix`.
-- Add a **schedule** in job settings for weekly auto-refresh.
+- In Designer, **Save as** a workflow/job. Re-run it any time, change a parameter (different file,
+  different filter), or **schedule** it — no rebuilding the canvas. Different analysts run the same
+  saved workflow.
+
+---
+
+## Fallback — pre-built, verified job (if the live NL build stalls)
+
+Job **"BA Workflow — Budget-Enriched Enrollment"** (`businessanalyst/resources/ba_workflow.job.yml`,
+runner `businessanalyst/src/jobs/budget_enrollment_join_runner.py`) — **verified: TERMINATED
+SUCCESS, 35,937 rows**. It is the compiled equivalent of the BA-04 canvas and demonstrates BA-08
+reuse via parameters:
+```bash
+databricks bundle run ba_budget_enrollment_join -t dev --profile dbx_shared_demo
+```
+Parameters: `upload_file`, `status_filter` (the BA-05 variation), `catalog`, `schema_suffix`.
 
 ## Expected outcome
 
-Table `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollment rows enriched with each
-department's budget and a derived `budget_per_student`. **Verified:** 35,937 active-student rows,
-e.g. *Leblanc Department* budget 1,169,659 → 1,094.16 per student.
+`wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched with department budget +
+derived `budget_per_student` (e.g. *Leblanc Department* 1,169,659 → 1,094.16 per student). BA-05's
+transform yields a renamed/derived, active-only table; BA-08 leaves a saved workflow you re-run on demand.
 
 ## Notes / troubleshooting
 
-- **Isolation:** writes to **your** `wksp_<you>` schema, never the shared `silver_dev` — so ~20
-  analysts run it at once without collision. (This is a deliberate change from the original plan,
-  which targeted shared `silver_dev`.)
-- **`countDistinct` in a window is unsupported in Spark** — the runner computes distinct students
-  per department as a separate aggregation and joins it back. (Noted because the Designer canvas's
-  "distinct count" node compiles to the same safe pattern.)
-- **File not found:** upload your CSV to `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` first.
-- **Different data (BA-05):** point `upload_file` at another spreadsheet, or change `status_filter`.
+- **Isolation:** Designer and the fallback both write to **your** `wksp_<you>` schema, never shared
+  `silver_dev` — so ~20 analysts run at once without collision.
+- **Join gotcha the agent handles:** `enrollment` has no `dept_id`; a course's department is
+  `course.dept_id`. The prompts state the join path so the agent resolves it correctly.
+- **`countDistinct` in a Spark window is unsupported** — the fallback runner computes distinct
+  students per department as a separate aggregation and joins it back (the Designer "distinct count"
+  node compiles to the same safe pattern).
+- **File not found (BA-04):** upload your CSV, or use the pre-staged copy under `files/uploads/`.

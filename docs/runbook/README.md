@@ -30,7 +30,7 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | ✅ |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ✅ |
 | **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
-| **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse (Genie), subscriptions (AI/BI), extracts, spreadsheet upload+join, saved workflow | ✅ |
+| **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse (Genie), subscriptions (AI/BI), Designer + Genie-agent flows for extract/upload+join/transform, saved workflow | ✅ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
 **Coverage so far: 49 of 85 RFP scenario IDs ✅ built & verified** — the **entire Engineer
@@ -178,8 +178,9 @@ produces the expected object. The loop is the same for every entry:
 | E11 | lineage/DESCRIBE-HISTORY SQL · Catalog Explorer monitor + AI-suggest | lineage chains returned; `ADD COLUMNS` in history; monitor metrics; AI comments |
 | BA-01 | open Genie "Enrollment Explorer" · Catalog Explorer preview | NL questions return grouped results; schema + sample rows |
 | BA-02 | open the **Enrollment by Department (BA-02)** dashboard · Subscribe/Export | ACTIVE; KPIs + charts render; subscription/download works |
-| BA-03/06/07 | run `enrollment_export.sql` · Download Results | up to 10k rows; CSV/Excel/pipe download |
-| BA-04/05/08 | `databricks bundle run ba_budget_enrollment_join -t dev` | SUCCESS; `wksp_<you>.ba_dept_budget_enrollment_summary` ≈ 35,937 rows |
+| BA-03/06/07 | Designer: add `silver_dev.enrollment` → paste Genie-agent prompt → Download (fallback: `enrollment_export.sql`) | filtered extract; CSV/Excel/pipe download |
+| BA-04 | Designer: upload budget CSV → paste Genie-agent prompt → Run (fallback: `bundle run ba_budget_enrollment_join`) | `wksp_<you>.ba_dept_budget_enrollment_summary` ≈ 35,937 rows |
+| BA-05/08 | Designer: add `silver_dev.student` → paste Genie-agent prompt → Run → Save as workflow (fallback: same job) | transformed table in `wksp_<you>`; saved reusable workflow |
 
 > If a prompt's generated code drifts from the expected outcome, the committed pre-built
 > object in each entry is the source of truth — diff against it, then tighten the prompt.
@@ -684,44 +685,99 @@ Walkthrough: `README_BA02.md`.
 **Expected outcome:** a per-user subscription registers, or a file downloads. Queries pre-tested
 on `silver_dev` (40 depts, 960 dept×term groups, avg GPA ≈ 3.1). Read-only → concurrent-safe.
 
-## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe
+> **Demo flow for BA-03/04/05 (Lakeflow Designer + its Genie agent).** The analyst starts from
+> data — either an **existing platform object** (BA-03, BA-05) or a **file they upload** (BA-04) —
+> then **describes what they want in plain English to the Designer's Genie agent**, which builds
+> the flow. The runbook gives the exact prompt to paste. No SQL, no manual node-wiring. If the
+> live NL build stalls, each entry's **pre-built fallback** (a verified job / saved query) produces
+> the same result.
 
-**What it proves:** an analyst pulls a filtered slice and downloads it in three formats for
-external hand-off.
+## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe (Designer, from existing data)
 
-**Pre-built object:** saved query `businessanalyst/src/queries/enrollment_export.sql`
-(enrollment + student name + course title + term + dept; editable filter lines; 10k `LIMIT` guardrail).
+**What it proves:** starting from an **existing** platform object, an analyst describes an extract
+in natural language, Designer builds it, and they download the result in three formats — no SQL.
 
-**How to test:** SQL Editor → run the query (optionally set `(d.name = 'Johnson Department')`) →
-**Download Results** → CSV (BA-03) / Excel (BA-06) / TSV-pipe (BA-07). Walkthrough: `README_BA03.md`.
+**Demo flow:**
+1. **Start point — existing data:** in Lakeflow Designer, **Add data** → pick
+   `princeton_poc_dev.silver_dev.enrollment` (the foundation fact — already there, nothing to upload).
+2. **Prompt the Designer Genie agent** (paste, then edit the filter in plain English):
+   ```text
+   From the enrollment table, join to student, course, term, and department so each row shows
+   student name, course title, term year and season, grade, gpa_points, and department name.
+   Filter to the Johnson Department. Sort by year descending. This is for an ad-hoc extract I'll
+   download as CSV/Excel.
+   ```
+3. Designer builds the join+filter flow. **Run**, then **Download** the result → CSV (BA-03) /
+   Excel (BA-06) / pipe-delimited (BA-07).
 
-**Expected outcome:** up to 10k rows with human-readable columns; the department filter returns a
-smaller set (verified). All three formats download cleanly.
+**Pre-built fallback:** saved query `businessanalyst/src/queries/enrollment_export.sql` (same
+join, editable filter lines, 10k `LIMIT`) — run it in the SQL editor and **Download Results**.
+Walkthrough: `README_BA03.md`.
 
-## BA-04 / BA-05 / BA-08 — Upload + join + transform (Designer canvas), saved & reusable
+**Expected outcome:** a filtered, human-readable extract (student name, course title, term, grade,
+GPA, department); the Johnson-Department filter returns a smaller set (verified). All three formats download cleanly.
 
-**What it proves:** an analyst uploads a spreadsheet, joins it to platform data, filters, renames,
-derives a column, and saves the whole workflow for reuse — all no-code.
+## BA-04 — Upload + join + transform (Designer, from your own file)
 
-**Setup (SA, done):** sample `departments_budget_fy2025.csv` (40 real depts) staged at
-`/Volumes/princeton_poc_dev/landing_dev/files/uploads/`; reusable job **"BA Workflow —
-Budget-Enriched Enrollment"** (`businessanalyst/resources/ba_workflow.job.yml` + runner
-`src/jobs/budget_enrollment_join_runner.py`). **Run VERIFIED green — TERMINATED SUCCESS, 35,937 rows.**
+**What it proves:** an analyst **uploads their own spreadsheet**, then has the Designer Genie agent
+join it to platform data and transform it — no SQL.
 
-**How to test:**
+**Demo flow:**
+1. **Start point — upload:** in Lakeflow Designer → **Add data** → **Upload file** →
+   `departments_budget_fy2025.csv` (columns: `dept_id, dept_name, budget_amount, approved_date`).
+   *(A pre-staged copy also lives at `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` if a
+   live upload isn't convenient.)*
+2. **Prompt the Designer Genie agent:**
+   ```text
+   Join my uploaded budget file to the enrollment data: my file has dept_id and budget_amount;
+   join it through the course table (course.dept_id) to the enrollment fact, and join student to
+   get status. Keep only active students. Rename budget_amount to total_budget and dept_name to
+   department. Add a column budget_per_student = total_budget divided by the number of distinct
+   students in that department. Save the result to my own schema.
+   ```
+3. Designer builds upload→join→filter→rename→derive→write. **Run.**
+
+**Pre-built fallback:** job **"BA Workflow — Budget-Enriched Enrollment"**
+(`businessanalyst/resources/ba_workflow.job.yml`) — **verified green (35,937 rows)**:
 ```bash
 databricks bundle run ba_budget_enrollment_join -t dev --profile dbx_shared_demo
 ```
-(or build it on the Designer canvas per the walkthrough). Parameters: `upload_file`,
-`status_filter` (BA-05 variation), `catalog`, `schema_suffix`. Walkthrough: `README_BA04_BA08.md`.
 
-**Expected outcome:** table `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched
-with department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 → 1,094.16/student).
+**Expected outcome:** `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched with
+department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 → 1,094.16/student).
 
-**Notes:** (1) **Isolation** — writes to the analyst's own `wksp_<user>`, not shared `silver_dev`
-(a deliberate change from the original plan) so ~20 analysts run concurrently. (2) `countDistinct`
-in a Spark window is unsupported — the runner aggregates distinct students per dept separately and
-joins back.
+## BA-05 / BA-08 — Light transform (Designer, from existing data) + save & reuse
+
+**What it proves:** starting from an **existing** object, an analyst applies light transforms
+(rename / filter / derived field) via a Designer Genie-agent prompt, then **saves the flow as a
+reusable workflow** (BA-08).
+
+**Demo flow:**
+1. **Start point — existing data:** Designer → **Add data** → `princeton_poc_dev.silver_dev.student`
+   (join `department` for the major name).
+2. **Prompt the Designer Genie agent:**
+   ```text
+   From the student table joined to department, keep only active students. Rename the department
+   name column to major, derive a full_name column by concatenating first_name and last_name, and
+   add an email_domain column extracted from the part of the email after the @. Save the result to
+   my own schema.
+   ```
+3. Designer builds the rename/filter/derive flow. **Run.**
+4. **BA-08 — save & reuse:** **Save as** a workflow/job. Re-run any time (or schedule it); change
+   the filter/params to reuse on new data without rebuilding the canvas.
+
+**Pre-built fallback:** the same `ba_budget_enrollment_join` job demonstrates the save-and-reuse
+pattern (parameters `upload_file`, `status_filter`, `catalog`, `schema_suffix`); re-run it or
+schedule it. Walkthrough: `README_BA04_BA08.md`.
+
+**Expected outcome:** a transformed table in `wksp_<you>` (renamed + derived columns, active-only),
+and a saved workflow that re-runs on demand.
+
+**Notes:** (1) **Isolation** — Designer/fallback both write to the analyst's own `wksp_<user>`,
+not shared `silver_dev`, so ~20 analysts run concurrently. (2) **Join gotcha the Genie agent
+handles:** `enrollment` has no `dept_id` — a course's department is `course.dept_id`; the prompts
+state this so the agent joins correctly. (3) `countDistinct` in a Spark window is unsupported —
+the fallback job aggregates distinct students per dept separately and joins back.
 
 # Persona 4 — Platform Administrator
 
