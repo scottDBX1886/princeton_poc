@@ -31,8 +31,8 @@ def resolve_context(spark, dbutils):
 
     Widgets are declared here (idempotent) so each notebook does not restate them.
     """
-    dbutils.widgets.text("catalog", "princeton_poc")
-    dbutils.widgets.text("schema_suffix", "")
+    dbutils.widgets.text("catalog", "princeton_poc_dev")
+    dbutils.widgets.text("schema_suffix", "_dev")
     catalog = dbutils.widgets.get("catalog")
     suffix = dbutils.widgets.get("schema_suffix")
 
