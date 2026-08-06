@@ -1,12 +1,17 @@
 name: Databricks bundle CI/CD
 
 # SE-38 (CI/CD) evidence for the Princeton POC. Two jobs:
-#   validate  — runs on every push/PR: `databricks bundle validate` for dev/qa/prod.
-#               No secrets needed (validation is static), so it works out of the box and is
-#               the gate that would have caught the E9 "warehouse_id required" regression.
-#   deploy    — manual (workflow_dispatch) promotion to a chosen target. Gated on repo
-#               secrets (DATABRICKS_HOST / DATABRICKS_TOKEN) so it only runs once the target
-#               workspace is provisioned — no auto-deploy to placeholder hosts.
+#   validate  — on every push/PR: `databricks bundle validate` for dev/qa/prod. `bundle validate`
+#               DOES require workspace auth (it resolves the workspace client), and the targets
+#               pin `profile: dbx_shared_demo`, so this job only runs when the repo has Databricks
+#               credentials configured (secrets DATABRICKS_HOST / DATABRICKS_TOKEN). Without them
+#               it SKIPS cleanly (green) instead of failing — so forks/contributors without
+#               workspace access don't get spurious failure emails.
+#   deploy    — manual (workflow_dispatch) promotion to a chosen target, secret- + environment-gated.
+#
+# To activate CI validation: add repo secrets DATABRICKS_HOST and DATABRICKS_TOKEN (a workspace
+# URL + token/PAT for the CI service principal). The steps below then write a `dbx_shared_demo`
+# profile from those secrets so the targets' pinned profile resolves.
 
 on:
   push:
@@ -25,12 +30,35 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      # Secrets can't be referenced in a job-level `if:`; surface presence as a plain env flag.
+      HAS_CREDS: ${{ secrets.DATABRICKS_HOST != '' && secrets.DATABRICKS_TOKEN != '' }}
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: No credentials — skip validation
+        if: env.HAS_CREDS != 'true'
+        run: |
+          echo "DATABRICKS_HOST / DATABRICKS_TOKEN not configured — skipping bundle validation."
+          echo "Add these repo secrets to enable CI validation (see workflow header)."
+
       - uses: databricks/setup-cli@main
+        if: env.HAS_CREDS == 'true'
+
+      - name: Write dbx_shared_demo profile from secrets
+        if: env.HAS_CREDS == 'true'
+        run: |
+          # The bundle targets pin `profile: dbx_shared_demo`; materialize it from CI secrets.
+          cat > ~/.databrickscfg <<EOF
+          [dbx_shared_demo]
+          host  = ${DATABRICKS_HOST}
+          token = ${DATABRICKS_TOKEN}
+          EOF
+
       - name: Validate all targets
-        # Static validation — no workspace auth required. Fails the build if any target's
-        # bundle is malformed (missing vars, bad resource refs, broken paths).
+        if: env.HAS_CREDS == 'true'
         run: |
           for t in dev qa prod; do
             echo "::group::validate $t"
@@ -54,6 +82,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
+      - name: Write dbx_shared_demo profile from secrets
+        run: |
+          cat > ~/.databrickscfg <<EOF
+          [dbx_shared_demo]
+          host  = ${DATABRICKS_HOST}
+          token = ${DATABRICKS_TOKEN}
+          EOF
       - name: Deploy bundle to selected target
         run: databricks bundle deploy -t "$TARGET"
       - name: Smoke test — foundation build
