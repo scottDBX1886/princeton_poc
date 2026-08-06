@@ -1,0 +1,60 @@
+name: Databricks bundle CI/CD
+
+# SE-38 (CI/CD) evidence for the Princeton POC. Two jobs:
+#   validate  — runs on every push/PR: `databricks bundle validate` for dev/qa/prod.
+#               No secrets needed (validation is static), so it works out of the box and is
+#               the gate that would have caught the E9 "warehouse_id required" regression.
+#   deploy    — manual (workflow_dispatch) promotion to a chosen target. Gated on repo
+#               secrets (DATABRICKS_HOST / DATABRICKS_TOKEN) so it only runs once the target
+#               workspace is provisioned — no auto-deploy to placeholder hosts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Bundle target to deploy"
+        required: true
+        default: qa
+        type: choice
+        options: [dev, qa, prod]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Validate all targets
+        # Static validation — no workspace auth required. Fails the build if any target's
+        # bundle is malformed (missing vars, bad resource refs, broken paths).
+        run: |
+          for t in dev qa prod; do
+            echo "::group::validate $t"
+            databricks bundle validate -t "$t"
+            echo "::endgroup::"
+          done
+
+  deploy:
+    # Only on manual dispatch — promotion is a deliberate act, not every push.
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}   # GitHub Environments can add approval gates for prod
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      # Bind the dispatch input to an env var and reference $TARGET in run: (never interpolate
+      # ${{ }} directly into a shell command). TARGET is a constrained choice, but this is the
+      # safe pattern to model.
+      TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: databricks/setup-cli@main
+      - name: Deploy bundle to selected target
+        run: databricks bundle deploy -t "$TARGET"
+      - name: Smoke test — foundation build
+        run: databricks bundle run foundation_build -t "$TARGET"

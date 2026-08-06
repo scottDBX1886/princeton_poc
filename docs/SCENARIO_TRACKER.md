@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-05
 
-**Summary (RFP scenario IDs):** 33 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · SE-09) · 1 🟡 partial (SE-36) · 51 ⬜ planned.
+**Summary (RFP scenario IDs):** 37 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · SE-09) · 0 🟡 · 48 ⬜ planned.
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -84,10 +84,10 @@ list is the full checklist.
 ### 3.6 DevOps, CI/CD & Environment Promotion
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| SE-36 | Source control integration | E10 | 🟡 repo/bundle ✅ exists; formal demo ⬜ |
-| SE-37 | Promotion across environments | E10 | ⬜ (dev/qa/prod targets ✅ defined) |
-| SE-38 | CI/CD pipeline integration | E10 | ⬜ |
-| SE-39 | Rollback of a failed deployment | E10 | ⬜ |
+| SE-36 | Source control integration | E10 | ✅ built & verified |
+| SE-37 | Promotion across environments | E10 | ✅ built & verified (dev/qa/prod all validate) |
+| SE-38 | CI/CD pipeline integration | E10 | ✅ built & verified (GitHub Actions workflow) |
+| SE-39 | Rollback of a failed deployment | E10 | ✅ built & verified (git revert / tag redeploy) |
 
 ### 3.7 Data Observability & Governance
 | ID | Scenario | Covered by | Status |
@@ -191,11 +191,11 @@ list is the full checklist.
 ## Tally by persona
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
-| Engineer (SE) | 43 | 33 (SE-03/04/05/06/07/08/09/10, SE-11–35) | 1 (SE-36) | 9 |
+| Engineer (SE) | 43 | 37 (SE-03/04/05/06/07/08/09/10, SE-11–39) | 0 | 6 |
 | Data Scientist (DS) | 10* | 0 | 0 | 10 |
 | Business Analyst (BA) | 8 | 0 | 0 | 8 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **33** | **1** | **52** |
+| **Total** | **86** | **37** | **0** | **49** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).

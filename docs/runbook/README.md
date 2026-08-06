@@ -27,16 +27,16 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E2** — Relational DB ingestion | SE-01, SE-02 | Full extract + custom SQL (BYO-DB) | ⬜ parked |
 | **E8** — Orchestration | SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35 | Sequential/parallel/scheduled jobs, retry, alerting, external calls | ✅ |
 | **E9** — Workload monitoring | SE-34 | AI/BI dashboard over jobs + pipelines + notebook runs (system tables) | ✅ |
-| **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | 🟡 repo/bundle exists |
+| **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | ✅ |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ⬜ |
 | **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
 | **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse, subscriptions, extracts, spreadsheet join, light transforms, saved workflows | ⬜ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 
-**Coverage so far: 33 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
-transformation, CDC/SCD, target-loading, orchestration, and monitoring scenarios). Remaining
-work is Engineer DevOps/governance (E10–E11) plus the Data Scientist, Business Analyst, and
-Admin personas.
+**Coverage so far: 37 of 85 RFP scenario IDs ✅ built & verified** (all Engineer ingestion,
+transformation, CDC/SCD, target-loading, orchestration, monitoring, and DevOps scenarios).
+Remaining work is Engineer governance (E11) + the parked E2 (BYO-DB), plus the Data Scientist,
+Business Analyst, and Admin personas.
 
 ---
 
@@ -173,6 +173,7 @@ produces the expected object. The loop is the same for every entry:
 | SE-09 | `databricks bundle run sftp_ingest -t dev` | 3 files on Volume; Bronze table = 600 rows |
 | E8 | `databricks bundle run orchestration_demo -t dev` | job SUCCESS; `retry_demo` fails attempt 0, succeeds attempt 1 |
 | E9 | open the deployed **Workload Monitoring** dashboard | ACTIVE; shows jobs + pipelines + notebook runs, last 30d |
+| E10 | `git log` · `bundle validate -t dev/qa/prod` · `git tag` | versioned history; all 3 targets `Validation OK!`; release tag listed |
 
 > If a prompt's generated code drifts from the expected outcome, the committed pre-built
 > object in each entry is the source of truth — diff against it, then tighten the prompt.
@@ -553,6 +554,40 @@ need `GROUP BY run_id` + `MAX(CASE WHEN result_state IS NOT NULL…)`; the `jobs
 are SCD so pick the current name via `ROW_NUMBER`; compute duration from timestamps since
 serverless leaves `*_duration_seconds` at 0. (4) SE-34 alerts: E8's job-level
 `email_notifications` + a Databricks SQL Alert on the run-history query.
+
+## E10 — DevOps: source control, promotion, CI/CD, rollback (SE-36, SE-37, SE-38, SE-39)
+
+**What it proves:** the POC is engineered the way a production data platform is — versioned in
+Git, promoted across environments from one codebase, deployed by CI, and rollback-able. **The
+repo + bundle + workflow *are* the deliverable; there's no notebook to run.**
+
+**Setup (SA, done):** the repo (`https://github.com/scottDBX1886/princeton_poc`), the three
+bundle targets (`dev`/`qa`/`prod`, **all validating**), the CI workflow
+(`.github/workflows/deploy.yml`), and a known-good release tag. Full guide:
+[`docs/runbook/E10_devops_walkthrough.md`](E10_devops_walkthrough.md).
+
+**How to test (commands, not a prompt):**
+```bash
+git log --oneline | head                       # SE-36: versioned history, one commit per object
+databricks bundle validate -t dev  --profile dbx_shared_demo   # SE-37: all three targets validate…
+databricks bundle validate -t qa   --profile dbx_shared_demo   #   …same code, three catalogs
+databricks bundle validate -t prod --profile dbx_shared_demo
+git tag                                         # SE-39: known-good tag to roll back to
+```
+The CI workflow (SE-38) is visible under the repo's **Actions** tab — the `validate` job runs on
+every push/PR; `deploy` is a manual dispatch that promotes to a chosen target.
+
+**Expected outcome:** `git log` shows the versioned build history; **all three** `bundle validate`
+calls return `Validation OK!` (same code, `princeton_poc_dev` / `_test` / `princeton_poc`);
+`git tag` lists the release tag; the Actions tab shows the CI runs. SE-39 rollback = `git revert`
+or deploy a prior tag, then `bundle deploy`.
+
+**Notes:** (1) `qa`/`prod` carry **placeholder** `storage_root` + `warehouse_id` (fill with real
+workspace values before deploying there) — but they *validate*, which is what makes the "one
+commit → three environments" promotion claim honest. (2) The `deploy` job is manual + secret-gated
+on purpose: no auto-deploy to unprovisioned hosts. Flip it to `push: [main]` once qa secrets exist.
+(3) The `validate` CI job would have caught the E9 `warehouse_id` regression — a live argument for
+the CI gate.
 
 ---
 

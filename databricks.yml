@@ -42,6 +42,7 @@ targets:
       catalog: "princeton_poc_test"
       schema_suffix: "_test"
       storage_root: "<QA_STORAGE_URL>"
+      warehouse_id: "<QA_WAREHOUSE_ID>"   # set to the qa workspace's SQL warehouse before deploy (E9 dashboard needs it)
   prod:
     mode: production
     workspace:
@@ -51,6 +52,7 @@ targets:
       catalog: "princeton_poc"
       schema_suffix: ""
       storage_root: "<PROD_STORAGE_URL>"
+      warehouse_id: "<PROD_WAREHOUSE_ID>"   # set to the prod workspace's SQL warehouse before deploy (E9 dashboard needs it)
 
 include:
   # Persona-scoped resources. Each persona owns a top-level folder with its own
