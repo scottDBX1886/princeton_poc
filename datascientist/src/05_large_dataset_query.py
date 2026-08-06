@@ -29,8 +29,11 @@
 # MAGIC (`CONFIG_NOT_AVAILABLE`, `TABLE_OR_VIEW_NOT_FOUND`). Replaced with the above.
 
 # COMMAND ----------
+
 # MAGIC %md ## Context
+
 # COMMAND ----------
+
 import os
 import sys
 import time
@@ -44,9 +47,12 @@ FACT = f"{GOLD}.enrollment_history"
 print(f"fact: {FACT} | writing timings to {WORK}")
 
 # COMMAND ----------
+
 # MAGIC %md ## 1. Scale of the table
 # MAGIC Establish that this is genuinely a large dataset before claiming anything about speed.
+
 # COMMAND ----------
+
 scale = spark.sql(f"""
     SELECT count(*)                  AS n_rows,
            count(DISTINCT student_id) AS n_students,
@@ -63,11 +69,14 @@ print(f"files={detail['numFiles']}  size={detail['sizeInBytes']/1024**2:,.1f} Mi
       f"clusteringColumns={detail['clusteringColumns']}")
 
 # COMMAND ----------
+
 # MAGIC %md ## 2. The heavy query
 # MAGIC Mirrors `foundation/src/heavy_query.sql` — the reusable analytical load the Admin
 # MAGIC compute/cost scenarios (PA-13…18) also use, so timings are comparable across personas.
 # MAGIC Catalog names come from widgets here; the shipped .sql file hardcodes prod names.
+
 # COMMAND ----------
+
 heavy_sql = f"""
 SELECT d.division,
        eh.dept_id,
@@ -84,20 +93,30 @@ ORDER BY eh.term_id, dept_rank_in_term
 """
 
 # COMMAND ----------
+
 # MAGIC %md ### Plan first — what the optimiser decided, before running it
 # MAGIC `PhotonScan` + a projected `ReadSchema` narrower than the table = column pruning.
 # MAGIC `PhotonBroadcastHashJoin` = the 40-row dimension was broadcast rather than shuffled.
+
 # COMMAND ----------
-plan = spark.sql(heavy_sql)._jdf.queryExecution().explainString(
-    spark._jvm.org.apache.spark.sql.execution.ExplainMode.fromString("formatted")
-)
+
+import io
+import contextlib
+
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    spark.sql(heavy_sql).explain(mode="formatted")
+plan = buf.getvalue()
 print(plan[:2500])
 
 # COMMAND ----------
+
 # MAGIC %md ### Run it, timed
 # MAGIC `.collect()` forces full execution — a bare `spark.sql()` only builds a plan, so
 # MAGIC timing it would measure nothing.
+
 # COMMAND ----------
+
 start = time.time()
 rows = spark.sql(heavy_sql).collect()
 elapsed = time.time() - start
@@ -106,10 +125,13 @@ print(f"{len(rows):,} result rows over {scale['n_rows']:,} fact rows in {elapsed
 display(spark.createDataFrame(rows[:50]))
 
 # COMMAND ----------
+
 # MAGIC %md ## 3. Liquid clustering — does filtering a clustered column pay off?
 # MAGIC `enrollment_history` is clustered on (term_id, dept_id). A filter on those columns
 # MAGIC should touch far less data than a full scan. Timed side by side.
+
 # COMMAND ----------
+
 t0 = time.time()
 full_scan = spark.sql(f"SELECT count(*) AS c FROM {FACT} WHERE gpa_points IS NOT NULL").first()["c"]
 t_full = time.time() - t0
@@ -125,10 +147,13 @@ print(f"clustered filter: {clustered:,} rows in {t_clustered:.2f}s")
 print(f"-> clustered read is {t_full/max(t_clustered, 1e-9):.1f}x faster on wall clock")
 
 # COMMAND ----------
+
 # MAGIC %md ## 4. Record the timing (per-person table)
 # MAGIC A durable artifact for the read-out, and the baseline the Admin cost scenarios
 # MAGIC (PA-19…25) compare against.
+
 # COMMAND ----------
+
 from datetime import datetime, timezone
 
 metrics = spark.createDataFrame([{
@@ -147,8 +172,11 @@ metrics.write.mode("overwrite").saveAsTable(out)
 print(f"wrote timings to {out}")
 
 # COMMAND ----------
+
 # MAGIC %md ## 5. Assertions
+
 # COMMAND ----------
+
 # This scenario is meaningless on a small table — assert we really are at scale.
 assert scale["n_rows"] >= 1_000_000, \
     f"DS-05 needs a multi-million-row fact; found {scale['n_rows']:,}. Run foundation_build."
@@ -182,13 +210,16 @@ print(f"PASS: DS-05 — {scale['n_rows']:,} rows aggregated to {len(rows)} group
       f"{t_full/max(t_clustered, 1e-9):.1f}x faster than full scan.")
 
 # COMMAND ----------
+
 # MAGIC %md ## 6. Post-hoc metrics from `system.query.history` (run ~15 min later)
 # MAGIC The platform records bytes read, files pruned, and durations for every statement.
 # MAGIC **This lags ~15 minutes**, so it will likely return nothing for the run above — that
 # MAGIC is expected, not a failure. Re-run this cell later, or during the demo point at a
 # MAGIC previous run. `pruned_files` vs `read_files` is the clustering payoff in the
 # MAGIC platform's own numbers.
+
 # COMMAND ----------
+
 display(spark.sql(f"""
     SELECT start_time,
            left(statement_text, 60) AS statement,
