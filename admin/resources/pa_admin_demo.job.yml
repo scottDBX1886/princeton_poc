@@ -1,0 +1,24 @@
+# PA Task 0 — stand up the admin_demo schema + copies of the sensitive tables.
+# Prerequisite for PA-B (masking), PA-C (row-level security), PA-D (policy test/inventory).
+#
+# Picked up automatically by the root databricks.yml `include: "*/resources/*.yml"` glob.
+# Notebook path is relative to THIS file's directory (admin/resources -> ../src/...).
+#
+# Re-running this job rebuilds the copies from the foundation, which drops any masks or
+# row filters a previous PA demo left behind — the documented reset between runs.
+resources:
+  jobs:
+    pa_admin_demo_setup:
+      name: "[${var.catalog}] PA Task 0 — admin_demo setup"
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+      tasks:
+        - task_key: admin_demo_setup
+          notebook_task:
+            notebook_path: ../src/pa_00_admin_demo_setup.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
