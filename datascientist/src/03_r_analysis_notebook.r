@@ -16,6 +16,23 @@
 # MAGIC **To run:** attach to a classic cluster (any listed DBR), then Run All.
 # MAGIC
 # MAGIC Foundation is READ-ONLY; output goes to the caller's own `wksp_<user>` schema.
+# MAGIC
+# MAGIC ## 🟡 STATUS: NOT YET RUN — needs a classic cluster
+# MAGIC DS-02 and DS-04 are verified green on serverless. This notebook has **not been
+# MAGIC executed** because no classic cluster with an R kernel was available at build time, so
+# MAGIC the `sparklyr` calls below are unverified against a live session. The SQL it issues is
+# MAGIC the same shape as the verified Python notebooks, but treat the R-specific parts
+# MAGIC (`spark_connect`, `sdf_sql`, `sdf_copy_to` + `spark_write_table`) as untested.
+# MAGIC
+# MAGIC Before flipping DS-03 to ✅ in `docs/SCENARIO_TRACKER.md`: start a classic cluster,
+# MAGIC Run All, confirm the PASS line, and check that
+# MAGIC `wksp_<user>.ds_03_r_summary` holds 6 metric rows.
+# MAGIC
+# MAGIC Known things to watch on first run:
+# MAGIC - `sparklyr` may need installing on the cluster (`install.packages("sparklyr")`) if the
+# MAGIC   DBR image doesn't ship it.
+# MAGIC - `spark_write_table` on a 3-part UC name may need `spark_write_table(name = out)` vs a
+# MAGIC   `saveAsTable`-style path; adjust if it errors on the catalog-qualified name.
 
 # COMMAND ----------
 # MAGIC %md ## Context
