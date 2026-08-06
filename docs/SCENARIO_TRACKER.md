@@ -14,7 +14,7 @@ list is the full checklist.
 **Status legend:** ✅ Built & verified · 🟡 Source/prereq built, scenario pending · ⬜ Planned only
 **Last updated:** 2026-08-06
 
-**Summary (RFP scenario IDs):** 49 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08) · 0 🟡 · 36 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built.**
+**Summary (RFP scenario IDs):** 52 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04) · 1 🟡 (DS-03, needs classic compute) · 33 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A, DS-B).**
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -102,10 +102,10 @@ list is the full checklist.
 ## Persona 2 — Data Scientist / Advanced Analyst (DS-01 … DS-09)
 | ID | Scenario | Covered by | Status |
 |----|----------|-----------|--------|
-| DS-01 | SQL-based data exploration | DS-A | ⬜ |
-| DS-02 | Notebook environment — Python | DS-B | ⬜ |
-| DS-03 | Notebook environment — R | DS-B | ⬜ |
-| DS-04 | Bring your own data — ad-hoc file upload | DS-B | ⬜ |
+| DS-01 | SQL-based data exploration | DS-A | ✅ built & verified |
+| DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) |
+| DS-03 | Notebook environment — R | DS-B | 🟡 built (sparklyr); needs a classic cluster to run — not yet executed |
+| DS-04 | Bring your own data — ad-hoc file upload | DS-B | ✅ built & verified (40 depts, 5 matched, per-user upload path) |
 | DS-05 | Large dataset handling | DS-C | ⬜ (multi-M fact ✅ exists) |
 | DS-06(a) | Connectivity from local environment (Python/R/SAS/SPSS) | DS-D | ⬜ |
 | DS-06(b) | In-platform ML model training | DS-E | ⬜ |
@@ -192,10 +192,10 @@ list is the full checklist.
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
-| Data Scientist (DS) | 10* | 0 | 0 | 10 |
+| Data Scientist (DS) | 10* | 3 (DS-01/02/04) | 1 (DS-03) | 6 |
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **49** | **0** | **37** |
+| **Total** | **86** | **52** | **1** | **33** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).
