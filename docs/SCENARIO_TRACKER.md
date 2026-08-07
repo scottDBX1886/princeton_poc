@@ -184,6 +184,7 @@ list is the full checklist.
 | Mock REST API app (SE-08 source) | ✅ deployed & running (E3 verified against it, 60k rows) |
 | SFTP server + retrieval (SE-09) | ✅ built & verified |
 | Multi-user isolation (issue #34) | 🟡 designed; code retrofit pending |
+| PA harness — `admin_demo` schema + sensitive table copies | ✅ built & verified (prereq for PA-B/C/D; masks/row filters apply to copies so the shared foundation is never mutated) |
 | Demonstration runbook | 🟡 in progress — Engineer persona fully testable (Phase 0 + E1/E3/E4/E5/E6/E7/SE-09 entries done, copy-paste prompts + coverage map); DS/BA/PA entries pending |
 
 ---
