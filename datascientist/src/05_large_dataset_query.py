@@ -146,6 +146,18 @@ print(f"full scan      : {full_scan:,} rows in {t_full:.2f}s")
 print(f"clustered filter: {clustered:,} rows in {t_clustered:.2f}s")
 print(f"-> clustered read is {t_full/max(t_clustered, 1e-9):.1f}x faster on wall clock")
 
+# MEASURED (2026-08-06, row_count=5000000): full scan 0.66s vs clustered filter 0.63s —
+# effectively no difference. Expected, and worth saying out loud rather than spinning:
+# `DESCRIBE DETAIL` above reports numFiles=1, so the entire 5M-row fact is a single 34 MiB
+# file and there is nothing for file pruning to skip. Liquid clustering IS declared on
+# (term_id, dept_id) and the plan confirms Photon, but the payoff only appears once the
+# table spans many files.
+#
+# To make this a real comparison for the customer read-out, regenerate the fact at POC
+# scale first:
+#   databricks bundle run foundation_build -t dev --var row_count=50000000 --profile <PROFILE>
+# Do NOT present the 5M numbers as a clustering win — at one file it is measuring noise.
+
 # COMMAND ----------
 
 # MAGIC %md ## 4. Record the timing (per-person table)
