@@ -2,8 +2,9 @@ resources:
   jobs:
     foundation_build:
       name: "[${var.catalog}] Foundation build"
-      # The UC namespace (catalog/schemas/volume) is created at `bundle deploy` via
-      # resources/uc_namespace.yml — NOT as a job task. So generate_core is first.
+      # The UC namespace (catalog/schemas/volume) is created by the FIRST task (uc_setup) via
+      # SQL on serverless — this provisions default storage, which the DAB `catalogs` REST API
+      # does NOT. Everything else depends on uc_setup. (See foundation/src/00_uc_setup.py.)
       #
       # catalog + schema_suffix flow: target -> vars -> each task's base_parameters ->
       # notebook widgets. This is how per-target names (princeton_poc_dev + _dev schemas)
@@ -14,7 +15,16 @@ resources:
         - name: schema_suffix
           default: ${var.schema_suffix}
       tasks:
+        - task_key: uc_setup
+          notebook_task:
+            notebook_path: ../src/00_uc_setup.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+
         - task_key: generate_core
+          depends_on:
+            - task_key: uc_setup
           notebook_task:
             notebook_path: ../src/10_generate_core.py
             base_parameters:

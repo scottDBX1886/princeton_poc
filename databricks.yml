@@ -8,9 +8,6 @@ variables:
   schema_suffix:
     description: Environment suffix on layer schema names (dev=_dev, qa=_test, prod=empty). Threads to schemas, the landing volume path, and notebooks.
     default: ""
-  storage_root:
-    description: Managed storage location URL for the catalog (external location or metastore-managed path). Operator sets per target.
-    default: ""   # MUST be overridden per target with a real storage URL, or drop storage_root from the catalog resource to inherit metastore default
   warehouse_id:
     description: SQL warehouse ID for SQL-backed tasks (added in later phases). Set per target when needed.
     default: ""   # no Phase 0 resource uses a warehouse; supply an ID (e.g. from `databricks warehouses list`) when SQL tasks are added
@@ -20,19 +17,23 @@ variables:
 
 targets:
   dev:
-    # Production mode (not development) so resource names are NOT auto-prefixed with
-    # dev_<user>_. We already isolate environments by catalog + schema_suffix, so we want
-    # clean, predictable schema names (bronze_dev, silver_dev, ...) here too.
+    # DEFAULT build environment. Points at the `datamarket` workspace, which mirrors what the
+    # customer POC workspace will look like (metastore-managed storage, no external storage_root
+    # needed for catalog creation). When we stand up the ACTUAL customer POC, re-use this target
+    # and just update `profile`/host + `warehouse_id`.
+    #
+    # Production mode (not development) so resource names are NOT auto-prefixed with dev_<user>_.
+    # We isolate environments by catalog + schema_suffix, so schema names stay clean
+    # (bronze_dev, silver_dev, ...).
     mode: production
     default: true
     workspace:
-      profile: dbx_shared_demo
+      profile: datamarket
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_dev"
       schema_suffix: "_dev"
-      storage_root: "abfss://unity-catalog@adlsdbxdemoshared.dfs.core.windows.net/"   # internal test env (dbx_shared_demo)
-      warehouse_id: "a94a22f8652d85c1"   # sled-demo-shared-endpoint (dbx_shared_demo)
+      warehouse_id: "22544c5f43410646"   # Serverless Starter Warehouse (datamarket)
   qa:
     mode: production
     workspace:
@@ -41,7 +42,6 @@ targets:
     variables:
       catalog: "princeton_poc_test"
       schema_suffix: "_test"
-      storage_root: "<QA_STORAGE_URL>"
       warehouse_id: "<QA_WAREHOUSE_ID>"   # set to the qa workspace's SQL warehouse before deploy (E9 dashboard needs it)
   prod:
     mode: production
@@ -51,7 +51,6 @@ targets:
     variables:
       catalog: "princeton_poc"
       schema_suffix: ""
-      storage_root: "<PROD_STORAGE_URL>"
       warehouse_id: "<PROD_WAREHOUSE_ID>"   # set to the prod workspace's SQL warehouse before deploy (E9 dashboard needs it)
 
 include:

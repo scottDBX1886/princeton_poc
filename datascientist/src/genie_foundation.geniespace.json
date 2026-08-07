@@ -1,0 +1,63 @@
+{
+  "config": {
+    "sample_questions": [
+      {
+        "id": "0688efb7cee44f6785dd004efd97651c",
+        "question": [
+          "Which departments have the most enrollments?"
+        ]
+      },
+      {
+        "id": "ef517bf27b6a41c199bca4af094cd925",
+        "question": [
+          "Show me average student GPA by term"
+        ]
+      },
+      {
+        "id": "2b783f7cac3346f3ad3cf73f18332bad",
+        "question": [
+          "Which faculty members teach the most students, and in what department?"
+        ]
+      },
+      {
+        "id": "232e04d6c5534d31b4806a5df6cb7d67",
+        "question": [
+          "Compare enrollment trends term over term for each department"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "princeton_poc_dev.gold_dev.enrollment_history"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.course"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.department"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.faculty"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.student"
+      },
+      {
+        "identifier": "princeton_poc_dev.silver_dev.term"
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "content": [
+          "Explore the shared higher-ed data foundation. enrollment_history (gold) is the fact; silver holds student, department, term, course, faculty. A course's department is course.dept_id; a student's major is student.dept_id. Answer with grouped summaries."
+        ],
+        "id": "948669157d364fe284e529387453246f"
+      }
+    ]
+  },
+  "version": "2"
+}
