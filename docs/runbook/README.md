@@ -45,33 +45,68 @@ saved workflow). Remaining work is E2 (parked) plus the Data Scientist and Admin
 
 Every scenario runs against this one dataset. Build it once per workspace.
 
-**Prerequisites:** `docs/CONFIG.md` values filled in (`storage_root`, `warehouse_id`);
-`--profile` chosen.
+**Prerequisites:** a **serverless** workspace (UC default storage requires serverless), a SQL
+warehouse id, and a CLI `--profile` for that workspace. **No external storage location or
+credential is needed** — the catalog uses UC **default storage** (see the "new workspace" note below).
 
-**Catalog name is per-target** (shared-metastore naming): `dev` → `princeton_poc_dev`,
-`qa` → `princeton_poc_test`, `prod` → `princeton_poc`. The value flows automatically from
-the target into every job task, so the verify queries below use `<catalog>` — substitute
-the one for the target you built.
+**Catalog / schema names are per-target:** `dev` → `princeton_poc_dev` + `*_dev` schemas,
+`qa` → `princeton_poc_test` + `*_test`, `prod` → `princeton_poc` + no suffix. Names flow from
+the target vars into every task, so the verify queries use `<catalog>`/`<sfx>` — substitute the
+target you built (dev = `princeton_poc_dev` / `_dev`).
 
-**Build:**
+**Build (order matters — the catalog must exist on default storage before the rest):**
 ```bash
-databricks bundle validate --strict -t dev --profile <PROFILE>
-databricks bundle deploy  -t dev --profile <PROFILE>   # creates catalog/schemas/volume + the job
-databricks bundle run foundation_build -t dev --profile <PROFILE>   # generates all data + files
+# 1. Deploy the bundle (uploads code; creates jobs/pipelines/app; dashboards+Genie need step 2+3 first,
+#    so on a brand-new workspace expect the Genie spaces to fail here — that's fine, step 4 fixes it).
+databricks bundle validate -t dev --profile <PROFILE>
+databricks bundle deploy   -t dev --profile <PROFILE>
+
+# 2. Generate the data. The foundation job's FIRST task (uc_setup) runs SQL `CREATE CATALOG/SCHEMA/
+#    VOLUME` on serverless → provisions UC default storage → then generates all tables + source files.
+databricks bundle run foundation_build -t dev --profile <PROFILE>
+
+# 3. Re-deploy so the Genie spaces create now that silver_<sfx> tables exist (they ground on live tables).
+databricks bundle deploy -t dev --profile <PROFILE>
 ```
 
-**Verify (assert query — substitute `<catalog>` for the target):**
+**Verify (assert query — substitute `<catalog>` + `<sfx>`, e.g. `princeton_poc_dev` / `_dev`):**
 ```sql
 SELECT
-  (SELECT count(*) FROM <catalog>.silver.student)            AS students,       -- ~30000
-  (SELECT count(*) FROM <catalog>.gold.enrollment_history)   AS fact_rows,      -- = row_count
-  (SELECT count(*) FROM <catalog>.silver.financial_aid)      AS aid_rows;       -- ~50000
+  (SELECT count(*) FROM <catalog>.silver<sfx>.student)          AS students,   -- 30000
+  (SELECT count(*) FROM <catalog>.gold<sfx>.enrollment_history) AS fact_rows,  -- = row_count (5,000,000)
+  (SELECT count(*) FROM <catalog>.silver<sfx>.enrollment)       AS enrollments;-- 60000
 ```
 And confirm the five source files landed:
 ```bash
-databricks fs ls dbfs:/Volumes/<catalog>/landing/files --profile <PROFILE>
+databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile <PROFILE>
 # expect: students.csv, enrollments.pipe.txt, financial_aid.xlsx, course_catalog.json, faculty.xml
 ```
+
+### Deploying to a new / customer POC workspace
+
+The **`dev` target is the reusable POC template.** To stand the POC up in a fresh workspace, you
+do **not** add a new target — you point `dev` at that workspace and reuse everything:
+
+1. In `databricks.yml`, set the `dev` target's `workspace.profile` (and host) to the POC workspace,
+   and `warehouse_id` to its serverless SQL warehouse. Leave catalog/schema names as-is.
+2. Clear any stale local state for the target so old resource IDs don't leak across workspaces:
+   `rm -rf .databricks/bundle/dev`.
+3. Run the **Build** sequence above (deploy → `foundation_build` → deploy).
+
+**Why no storage config:** the catalog is created by SQL `CREATE CATALOG` (in the `uc_setup`
+task) on a serverless warehouse, which provisions **UC default storage** automatically — so a
+serverless workspace needs **no external location, storage credential, or `storage_root`**. (The
+DAB `catalogs` *resource* was intentionally removed: the REST API path creates a storage-less
+catalog and every table/volume then fails `403 credentialName=None`. SQL-on-serverless is the
+only path that provisions default storage.)
+
+**Gotchas (all learned the hard way, captured here so the POC deploy is smooth):**
+- **Genie spaces need their tables to already exist** — deploy them *after* `foundation_build`
+  (hence the deploy → run → deploy order). On the first deploy they'll error "table does not exist"; that's expected.
+- **App name is workspace-global** — if a prior partial deploy left `princeton-mock-api`, a
+  redeploy hits `ALREADY_EXISTS`; `databricks bundle destroy -t dev --profile <PROFILE>` clears it.
+- **Stale deploy lock** after an interrupted run → add `--force-lock` (safe when it's your own lock).
+- **Genie `.geniespace.json` tables must be sorted by identifier**, else create fails `INVALID_PARAMETER_VALUE`.
 
 ---
 
@@ -82,7 +117,7 @@ session, then show the platform detecting exactly the planted changes.
 
 **Step 1 — note the current table version (the CDF floor):**
 ```sql
-DESCRIBE HISTORY <catalog>.silver.student LIMIT 1;   -- note the version number
+DESCRIBE HISTORY <catalog>.silver_dev.student LIMIT 1;   -- note the version number
 ```
 
 **Step 2 — apply the day-2 changes** (`foundation/src/40_day2_changes.sql`): run the
@@ -91,7 +126,7 @@ script. It plants **10 inserts, 20 updates, 5 deletes, and adds one column.**
 **Step 3 — show the platform detected them (CDF):**
 ```sql
 SELECT _change_type, count(*)
-FROM table_changes('<catalog>.silver.student', <version_from_step_1>)
+FROM table_changes('<catalog>.silver_dev.student', <version_from_step_1>)
 GROUP BY _change_type;
 -- Expect: insert=10, update_preimage=20, update_postimage=20, delete=5
 ```
@@ -440,7 +475,7 @@ git-versioned Lakeflow tasks, with NO standalone shell/bash script.
 
 **Run:**
 ```bash
-databricks bundle run sftp_ingest -t dev --profile dbx_shared_demo
+databricks bundle run sftp_ingest -t dev --profile <PROFILE>
 ```
 
 **What happens:** task `retrieve` (`50_sftp_retrieve.py`) runs an in-process paramiko SFTP
@@ -480,7 +515,7 @@ stage ──┬── leg_a ──┐
 
 **Run:**
 ```bash
-databricks bundle run orchestration_demo -t dev --profile dbx_shared_demo
+databricks bundle run orchestration_demo -t dev --profile <PROFILE>
 ```
 
 **Code path (Databricks Assistant — the job is a DAB resource):** *"Generate a Databricks
@@ -532,7 +567,7 @@ deployed to dev as a **DAB resource** (`engineer/resources/e9_monitoring.dashboa
 `engineer/src/e9/e9_monitoring.lvdash.json`, generated by `engineer/src/e9/build_dashboard.py`),
 so it versions/promotes across dev/qa/prod like every other object. Open it:
 ```bash
-databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 e9_monitoring
+databricks bundle summary -t dev --profile <PROFILE> | grep -A2 e9_monitoring
 ```
 
 **Code path (Databricks Assistant / Genie):** *"Build an AI/BI dashboard over
@@ -576,9 +611,9 @@ bundle targets (`dev`/`qa`/`prod`, **all validating**), the CI workflow
 **How to test (commands, not a prompt):**
 ```bash
 git log --oneline | head                       # SE-36: versioned history, one commit per object
-databricks bundle validate -t dev  --profile dbx_shared_demo   # SE-37: all three targets validate…
-databricks bundle validate -t qa   --profile dbx_shared_demo   #   …same code, three catalogs
-databricks bundle validate -t prod --profile dbx_shared_demo
+databricks bundle validate -t dev  --profile <PROFILE>   # SE-37: all three targets validate…
+databricks bundle validate -t qa   --profile <PROFILE>   #   …same code, three catalogs
+databricks bundle validate -t prod --profile <PROFILE>
 git tag                                         # SE-39: known-good tag to roll back to
 ```
 The CI workflow (SE-38) is visible under the repo's **Actions** tab — the `validate` job runs on
@@ -589,9 +624,11 @@ calls return `Validation OK!` (same code, `princeton_poc_dev` / `_test` / `princ
 `git tag` lists the release tag; the Actions tab shows the CI runs. SE-39 rollback = `git revert`
 or deploy a prior tag, then `bundle deploy`.
 
-**Notes:** (1) `qa`/`prod` carry **placeholder** `storage_root` + `warehouse_id` (fill with real
-workspace values before deploying there) — but they *validate*, which is what makes the "one
-commit → three environments" promotion claim honest. (2) The `deploy` job is manual + secret-gated
+**Notes:** (1) `qa`/`prod` carry a **placeholder** `warehouse_id` (fill with the real workspace's
+SQL warehouse before deploying there) — but they *validate*, which is what makes the "one commit →
+three environments" promotion claim honest. Catalogs use UC **default storage**, so no
+`storage_root`/external location is needed per target (serverless workspaces only). (2) The
+`deploy` job is manual + secret-gated
 on purpose: no auto-deploy to unprovisioned hosts. Flip it to `push: [main]` once qa secrets exist.
 (3) The `validate` CI job would have caught the E9 `warehouse_id` regression — a live argument for
 the CI gate.
@@ -658,7 +695,7 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 **Setup (SA, done):** shared, read-only Genie space **"Enrollment Explorer (BA-01)"** deployed as
 a **DAB `genie_spaces` resource** (`businessanalyst/resources/ba_genie.genie_space.yml` +
 serialized body `src/genie/enrollment_explorer.geniespace.json`) — **deployed & verified** (accepts
-questions). Open it: `databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 ba_enrollment_explorer`.
+questions). Open it: `databricks bundle summary -t dev --profile <PROFILE> | grep -A2 ba_enrollment_explorer`.
 
 **How to test:** open the Genie space → click a starter question (*"Show me enrollment counts by
 department"*) → refine in English (*"…for Fall 2024"*). Then Catalog Explorer →
@@ -678,7 +715,7 @@ resource (`businessanalyst/resources/ba_dashboard.dashboard.yml` +
 `src/dashboards/enrollment_by_department.lvdash.json`), **verified ACTIVE**. KPIs, top-15
 department bar, enrollment-by-year trend, dept×term detail table.
 
-**How to test:** `databricks bundle summary -t dev --profile dbx_shared_demo | grep -A2 ba_enrollment`
+**How to test:** `databricks bundle summary -t dev --profile <PROFILE> | grep -A2 ba_enrollment`
 → open the URL → **Schedule/Subscribe** (email/Slack, weekly), or **⋯ → Download** (CSV/Excel/PDF).
 Walkthrough: `README_BA02.md`.
 
@@ -740,7 +777,7 @@ join it to platform data and transform it — no SQL.
 **Pre-built fallback:** job **"BA Workflow — Budget-Enriched Enrollment"**
 (`businessanalyst/resources/ba_workflow.job.yml`) — **verified green (35,937 rows)**:
 ```bash
-databricks bundle run ba_budget_enrollment_join -t dev --profile dbx_shared_demo
+databricks bundle run ba_budget_enrollment_join -t dev --profile <PROFILE>
 ```
 
 **Expected outcome:** `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched with
