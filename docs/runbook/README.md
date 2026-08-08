@@ -54,20 +54,24 @@ credential is needed** — the catalog uses UC **default storage** (see the "new
 the target vars into every task, so the verify queries use `<catalog>`/`<sfx>` — substitute the
 target you built (dev = `princeton_poc_dev` / `_dev`).
 
-**Build (order matters — the catalog must exist on default storage before the rest):**
+**Build (two steps — deploy, then run; no re-deploy needed):**
 ```bash
-# 1. Deploy the bundle (uploads code; creates jobs/pipelines/app; dashboards+Genie need step 2+3 first,
-#    so on a brand-new workspace expect the Genie spaces to fail here — that's fine, step 4 fixes it).
+# 1. Deploy the bundle. Creates jobs/pipelines/dashboards/app only — it does NOT touch live tables,
+#    so this is always clean/green even on a brand-new workspace.
 databricks bundle validate -t dev --profile datamarket
 databricks bundle deploy   -t dev --profile datamarket
 
-# 2. Generate the data. The foundation job's FIRST task (uc_setup) runs SQL `CREATE CATALOG/SCHEMA/
-#    VOLUME` on serverless → provisions UC default storage → then generates all tables + source files.
+# 2. Run the foundation job — one run does everything, in order:
+#    uc_setup      -> SQL CREATE CATALOG/SCHEMA/VOLUME on serverless (provisions UC default storage)
+#    generate_*/bronze_silver -> all tables + source files
+#    genie_setup   -> creates the Genie spaces from the now-existing tables (Genie API needs them to exist)
 databricks bundle run foundation_build -t dev --profile datamarket
-
-# 3. Re-deploy so the Genie spaces create now that silver_<sfx> tables exist (they ground on live tables).
-databricks bundle deploy -t dev --profile datamarket
 ```
+
+> **Why Genie is a job task, not a deploy-time resource:** the Genie API validates its grounding
+> tables at create time, and they don't exist until the data loads. Making Genie creation the
+> foundation job's final task decouples `bundle deploy` from the data load — one deploy + one run,
+> no re-deploy, no mid-deploy "table does not exist" failure.
 
 **Verify (assert query — substitute `<catalog>` + `<sfx>`, e.g. `princeton_poc_dev` / `_dev`):**
 ```sql
@@ -101,8 +105,10 @@ catalog and every table/volume then fails `403 credentialName=None`. SQL-on-serv
 only path that provisions default storage.)
 
 **Gotchas (all learned the hard way, captured here so the POC deploy is smooth):**
-- **Genie spaces need their tables to already exist** — deploy them *after* `foundation_build`
-  (hence the deploy → run → deploy order). On the first deploy they'll error "table does not exist"; that's expected.
+- **Genie spaces are created by the foundation job's `genie_setup` task** (not at deploy time),
+  so they're built after the tables exist automatically — no special ordering, no re-deploy.
+  (They're job-created artifacts, so they won't appear in `bundle summary`/`destroy`; the task is
+  idempotent and rebuilds them on each `foundation_build` run.)
 - **App name is workspace-global** — if a prior partial deploy left `princeton-mock-api`, a
   redeploy hits `ALREADY_EXISTS`; `databricks bundle destroy -t dev --profile datamarket` clears it.
 - **Stale deploy lock** after an interrupted run → add `--force-lock` (safe when it's your own lock).

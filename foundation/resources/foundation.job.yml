@@ -58,3 +58,17 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
+
+        # Genie spaces are created HERE (post-load), not as DAB deploy-time resources — the Genie
+        # API validates grounding tables at create time, so it must run after the data exists.
+        # This keeps `bundle deploy` clean (no table dependency) and the bring-up a single
+        # deploy + run. Idempotent (see foundation/src/60_genie_setup.py).
+        - task_key: genie_setup
+          depends_on:
+            - task_key: bronze_silver
+          notebook_task:
+            notebook_path: ../src/60_genie_setup.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+              warehouse_id: ${var.warehouse_id}
