@@ -37,21 +37,21 @@ targets:
   qa:
     mode: production
     workspace:
-      profile: dbx_shared_demo
+      profile: datamarket
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_test"
       schema_suffix: "_test"
-      warehouse_id: "<QA_WAREHOUSE_ID>"   # set to the qa workspace's SQL warehouse before deploy (E9 dashboard needs it)
+      warehouse_id: "22544c5f43410646"   # datamarket Serverless Starter Warehouse
   prod:
     mode: production
     workspace:
-      profile: dbx_shared_demo
+      profile: datamarket
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc"
       schema_suffix: ""
-      warehouse_id: "<PROD_WAREHOUSE_ID>"   # set to the prod workspace's SQL warehouse before deploy (E9 dashboard needs it)
+      warehouse_id: "22544c5f43410646"   # datamarket Serverless Starter Warehouse
 
 include:
   # Persona-scoped resources. Each persona owns a top-level folder with its own
