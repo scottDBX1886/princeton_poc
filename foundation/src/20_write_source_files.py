@@ -77,9 +77,13 @@ with pd.ExcelWriter(buf, engine="openpyxl") as w:
     fa.head(5).to_excel(w, sheet_name="Summary", index=False)
     fa.to_excel(w, sheet_name="AidDetail", index=False)   # <- named target sheet
     fa.head(1).to_excel(w, sheet_name="Decoy", index=False)
-with open(f"{BASE}/financial_aid.xlsx", "wb") as f:        # single sequential write to Volume
+# Land the .xlsx INSIDE its own directory (like the other four formats), so Auto Loader — which
+# monitors a directory, not a file — can ingest it in the E1 SDP pipeline. The batch reader
+# reads the file path directly; Auto Loader reads the directory.
+dbutils.fs.mkdirs(f"{BASE}/financial_aid_xlsx")
+with open(f"{BASE}/financial_aid_xlsx/financial_aid.xlsx", "wb") as f:  # single sequential write to Volume
     f.write(buf.getvalue())
-print("financial_aid.xlsx written: Summary / AidDetail / Decoy =", len(fa), "rows")
+print("financial_aid_xlsx/financial_aid.xlsx written: Summary / AidDetail / Decoy =", len(fa), "rows")
 
 # COMMAND ----------
 # MAGIC %md ## course_catalog_json — nested dept -> [courses] with arrays; optional key omitted (SE-06)

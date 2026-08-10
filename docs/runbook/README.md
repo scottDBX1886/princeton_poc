@@ -80,10 +80,11 @@ SELECT
   (SELECT count(*) FROM <catalog>.gold<sfx>.enrollment_history) AS fact_rows,  -- = row_count (5,000,000)
   (SELECT count(*) FROM <catalog>.silver<sfx>.enrollment)       AS enrollments;-- 60000
 ```
-And confirm the five source files landed:
+And confirm the five source **directories** landed (each format is a directory so Auto Loader
+can monitor it; the .xlsx lives inside `financial_aid_xlsx/`):
 ```bash
 databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile datamarket
-# expect: students.csv, enrollments.pipe.txt, financial_aid.xlsx, course_catalog.json, faculty.xml
+# expect dirs: students_csv, enrollments_pipe, financial_aid_xlsx, course_catalog_json, faculty_xml
 ```
 
 ### Deploying to a new / customer POC workspace
@@ -237,14 +238,14 @@ notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-fo
 
 **Code path (Genie — generate the SDP pipeline):**
 ```text
-Generate a Lakeflow Spark Declarative Pipeline that reads the five files under
-/Volumes/princeton_poc_dev/landing_dev/files/ and creates one bronze streaming table each,
-using Auto Loader:
-  - students.csv           -> CSV, keep quoted embedded commas as one field
-  - enrollments.pipe.txt   -> pipe-delimited
-  - financial_aid.xlsx     -> Excel, read only the sheet named AidDetail
-  - course_catalog.json    -> nested JSON
-  - faculty.xml            -> XML, rowTag faculty
+Generate a Lakeflow Spark Declarative Pipeline that uses Auto Loader to read five source
+DIRECTORIES under /Volumes/princeton_poc_dev/landing_dev/files/ (Auto Loader monitors a
+directory, not a single file), creating one bronze streaming table each:
+  - students_csv/          -> CSV, keep quoted embedded commas as one field
+  - enrollments_pipe/      -> pipe-delimited
+  - financial_aid_xlsx/    -> Excel, read only the sheet named AidDetail
+  - course_catalog_json/   -> nested JSON
+  - faculty_xml/           -> XML, rowTag faculty
 Target catalog princeton_poc_dev, schema wksp_<my_user>. Note that streaming Excel via
 Auto Loader requires cloudFiles.schemaEvolutionMode=none.
 ```

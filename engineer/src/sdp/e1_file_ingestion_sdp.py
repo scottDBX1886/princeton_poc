@@ -42,7 +42,8 @@ def e1_financial_aid_raw():
             .option("cloudFiles.inferColumnTypes", True)
             # Excel via Auto Loader does not support schema evolution — must be 'none'.
             .option("cloudFiles.schemaEvolutionMode", "none")
-            .load(f"{LANDING}/financial_aid.xlsx"))
+            # Auto Loader monitors a DIRECTORY (not a single file); the .xlsx lives inside it.
+            .load(f"{LANDING}/financial_aid_xlsx"))
 
 
 # SE-06 — nested JSON

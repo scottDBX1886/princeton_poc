@@ -58,7 +58,7 @@ print("enrollments:", enrollments.count())
 aid = (spark.read.format("excel")
   .option("headerRows", 1)
   .option("dataAddress", "AidDetail")   # bare sheet name (matches how it was written)
-  .load(f"{LANDING}/financial_aid.xlsx"))
+  .load(f"{LANDING}/financial_aid_xlsx/financial_aid.xlsx"))
 aid.write.mode("overwrite").saveAsTable(f"{OUT}.e1_financial_aid_raw")
 print("financial_aid (AidDetail sheet):", aid.count())
 
