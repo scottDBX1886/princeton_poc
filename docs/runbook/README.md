@@ -238,25 +238,44 @@ notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-fo
 
 **Code path (Genie — generate the SDP pipeline):**
 ```text
-Generate a Lakeflow Spark Declarative Pipeline that uses Auto Loader to read five source
-DIRECTORIES under /Volumes/princeton_poc_dev/landing_dev/files/ (Auto Loader monitors a
-directory, not a single file), creating one bronze streaming table each:
-  - students_csv/          -> CSV, keep quoted embedded commas as one field
-  - enrollments_pipe/      -> pipe-delimited
-  - financial_aid_xlsx/    -> Excel, read only the sheet named AidDetail
-  - course_catalog_json/   -> nested JSON
-  - faculty_xml/           -> XML, rowTag faculty
-Target catalog princeton_poc_dev, schema wksp_<my_user>. Note that streaming Excel via
-Auto Loader requires cloudFiles.schemaEvolutionMode=none.
+I'm building a Lakeflow Spark Declarative Pipeline (Python) that ingests five higher-ed source
+files into bronze streaming tables using Auto Loader. Write the pipeline for me.
+
+Important: each source is staged in its OWN directory under
+/Volumes/princeton_poc_dev/landing_dev/files/ — Auto Loader reads a directory, not a single
+file — so point each streaming table at the directory. Create one @dp.table streaming table per
+source, reading with spark.readStream.format("cloudFiles"), and let Auto Loader manage its own
+schema location and checkpoints (don't set them). Enable cloudFiles.inferColumnTypes on each.
+
+Create these five tables in catalog princeton_poc_dev, schema wksp_<my_user>:
+
+1. e1_students_raw — dir students_csv/ — cloudFiles.format csv, header true, quote '"',
+   escape '"' (a name field contains an embedded comma inside quotes; it must stay one field).
+2. e1_enrollments_raw — dir enrollments_pipe/ — cloudFiles.format csv, header true, sep "|".
+3. e1_financial_aid_raw — dir financial_aid_xlsx/ — cloudFiles.format excel, dataAddress
+   "AidDetail" (read only that named sheet, not the first), headerRows 1. Excel via Auto Loader
+   does NOT support schema evolution, so set cloudFiles.schemaEvolutionMode "none".
+4. e1_course_catalog_raw — dir course_catalog_json/ — cloudFiles.format json, multiLine true
+   (nested objects/arrays).
+5. e1_faculty_raw — dir faculty_xml/ — cloudFiles.format xml, rowTag "faculty" (optional
+   <tenure> node should come through as null, not drop the row).
+
+The pipeline's target catalog + schema are set in the pipeline settings, so reference each
+table by its short name; don't hard-code the catalog inside the code.
 ```
 
-**Notebook alternative (for the imperative-code angle):**
+**Notebook alternative (for the imperative-code angle — batch reads, not Auto Loader):**
 ```text
-Write a PySpark notebook that reads each of the five files under
-/Volumes/princeton_poc_dev/landing_dev/files/ with native readers (csv; excel with
-dataAddress='AidDetail'; json; xml rowTag=faculty), writing each to catalog
-princeton_poc_dev, schema wksp_<my_user>. Show row counts and verify the embedded-comma
-value "Doe, John" stays in one field.
+Write a PySpark notebook that batch-reads five higher-ed sources under
+/Volumes/princeton_poc_dev/landing_dev/files/ with native readers and writes each to catalog
+princeton_poc_dev, schema wksp_<my_user>:
+  - students_csv/ (csv, header, quote '"', escape '"')
+  - enrollments_pipe/ (csv, header, sep "|")
+  - financial_aid_xlsx/financial_aid.xlsx (spark.read.format("excel"), dataAddress "AidDetail",
+    headerRows 1 — a single-file path is fine for a batch read)
+  - course_catalog_json/ (json, multiLine)
+  - faculty_xml/ (xml, rowTag "faculty")
+Print each row count and verify the embedded-comma value "Doe, John" stays in one field.
 ```
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
