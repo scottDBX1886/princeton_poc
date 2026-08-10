@@ -34,7 +34,7 @@ list is the full checklist.
 |----|----------|-----------|--------|--------|
 | SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) | — (parked) |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) | — (parked) |
-| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟡 written |
+| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
 | SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
 | SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
@@ -60,9 +60,9 @@ list is the full checklist.
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟡 written |
-| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟡 written |
-| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟡 written |
+| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
+| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
+| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
 
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status | Prompt tested? |
