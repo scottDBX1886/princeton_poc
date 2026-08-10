@@ -418,6 +418,15 @@ staging split. (2) **`try_to_date` / `try_cast`** (not `to_date`/`cast`, which t
 mode) parse the mixed-format dates and tolerate bad casts. (3) All 8 MVs run in one managed
 update with automatic dependency resolution + lineage — no orchestration code.
 
+> **Expect variation from the prompt (this is fine, not a discrepancy):** the prompt is
+> deliberately **language-agnostic**, so Genie may generate the pipeline in **SQL or Python** —
+> both are first-class SDP — and may split the work into a **different number of MVs** than the
+> pre-built's 8 (a verified run produced a SQL pipeline with 14 MVs). What matters is that all
+> ten patterns (SE-11…20) are covered and the reject-path split + pivot behave. Exact row counts
+> on the reject MVs can also differ if the generation validates a different column (e.g. casting
+> `gpa_points` to INT drops all fractional GPAs) — still a valid demonstration of the reject path.
+> The platform choosing the language from a plain-English ask is itself part of the story.
+
 ## E4 — Multi-source merge (SE-10)
 
 **What it proves:** one pipeline reconciles three different source *types* on a common key —
