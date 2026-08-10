@@ -313,27 +313,43 @@ its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
 1. **Apps SSO proxy** — the notebook authenticates as the service principal via OAuth
    **M2M**: client-credentials grant at `{host}/oidc/v1/token` (`scope=all-apis`), token
    in `Authorization`. This is what lets an *unattended* notebook reach the app.
-2. **The API's own OAuth (SE-08 proper)** — `POST /oauth/token` client-credentials →
-   bearer in `X-API-Token` → page `GET /enrollments` until `next` is null → re-issue on 401.
+2. **The API's own OAuth (SE-08 proper)** — `POST /oauth/token` client-credentials using the
+   app's OWN demo creds (`princeton_poc_client` / `poc_secret_change_me`, distinct from the SP)
+   → returned token goes in `X-API-Token` **as the raw token, not `Bearer …`** → page
+   `GET /enrollments` by **page number** (`next` = next page number) until `next` is null → re-issue on 401.
 
 **Code path (Databricks Assistant — notebook):**
 ```text
 Write a notebook that ingests a paginated REST API served by the Databricks App named
-"princeton-mock-api", which sits behind the Databricks Apps SSO proxy. The app's base URL is
-its deployed app URL (get it from the Apps UI, or run
-`databricks apps get princeton-mock-api` and use the "url" field, e.g.
-https://princeton-mock-api-<id>.<region>.databricksapps.com). Use that base URL for the API calls below.
+"princeton-mock-api", which sits behind the Databricks Apps SSO proxy. Get the app's base URL
+from `databricks apps get princeton-mock-api` (the "url" field), e.g.
+https://princeton-mock-api-<id>.<region>.databricksapps.com.
 
-  1. Get a service-principal OAuth M2M token from <workspace-host>/oidc/v1/token with
-     scope=all-apis (client_id/client_secret from secret scope princeton_poc_e3); put it in
-     the Authorization header to clear the Apps SSO proxy and reach princeton-mock-api.
-  2. Then do the app's own client-credentials OAuth (POST {base_url}/oauth/token) and put that
-     bearer in the X-API-Token header.
-  3. Page through GET {base_url}/enrollments following the "next" cursor until it is null,
-     refreshing the X-API-Token on any 401. Use page_size=1000 (the API's max) so it's ~60
-     pages, not 600 — the pull is serial, so a small page size just multiplies latency.
+There are TWO SEPARATE sets of credentials — do not mix them up:
+  • Layer-1 (Apps SSO proxy): a SERVICE PRINCIPAL's client_id/client_secret, read from secret
+    scope princeton_poc_e3. Used only to get a workspace OAuth token.
+  • Layer-2 (the app's own OAuth): the app's OWN demo credentials, which are literally
+    client_id="princeton_poc_client" and client_secret="poc_secret_change_me" (these are the
+    app's fixed demo creds, NOT the service principal's — pass them as literals).
+
+Steps:
+  1. POST https://<workspace-host>/oidc/v1/token with grant_type=client_credentials,
+     scope=all-apis, using the SP client_id/client_secret from scope princeton_poc_e3.
+     Take the returned access_token — call it PLATFORM_TOKEN.
+  2. POST {base_url}/oauth/token with grant_type=client_credentials and the APP's demo
+     client_id/client_secret ("princeton_poc_client" / "poc_secret_change_me"), AND send
+     header Authorization: Bearer PLATFORM_TOKEN (so the call clears the SSO proxy). Take the
+     returned access_token — call it API_TOKEN.
+  3. GET {base_url}/enrollments with BOTH headers on every request:
+       Authorization: Bearer PLATFORM_TOKEN
+       X-API-Token: API_TOKEN            <-- the RAW token, NOT "Bearer <token>"
+     Pagination is PAGE-NUMBER based: send params page (start at 1) and page_size=1000. The
+     JSON response has fields total, data (the rows), and next (the next page NUMBER, or null
+     when done). Loop until next is null. On HTTP 401, re-run step 2 to refresh API_TOKEN and
+     retry the same page. Use page_size=1000 (the API's max) so it's ~60 pages, not 600.
 Write all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table
-e3_enrollments_from_api. Never hardcode credentials.
+e3_enrollments_from_api. Add a request timeout on every call. Assert the final row count
+equals the API's reported total. Never hardcode the SP secret (only the app's demo creds are literals).
 ```
 
 > **Before running:** confirm the app is up — `databricks apps get princeton-mock-api` should
