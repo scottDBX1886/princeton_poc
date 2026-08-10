@@ -17,7 +17,10 @@ list is the full checklist.
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
 **Last updated:** 2026-08-11
 
-**Summary (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A, DS-B).**
+**Summary — pre-built objects (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C: DS-01/02/03/04/05).**
+
+**Summary — prompt tested (the generate-from-prompt path):** 19 🟢 tested (E1 SE-04/05/06/07 · E3 SE-08 · E5 SE-11–20 · E6 SE-03/21/22/23) · 20 🟡 written-not-yet-tested (E4 SE-10 · E7 SE-24–27 · E8 SE-28–33/35 · E9 SE-34 · BA-01/03/04/05/06/07/08) · 47 — n/a (no generation prompt: SE-09, E10, E11, E2-parked, all DS + PA).
+
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
 > ⚠️ **Count correction:** we've been loosely calling this "~60 scenarios" — the actual
@@ -188,11 +191,13 @@ list is the full checklist.
 | SFTP server + retrieval (SE-09) | ✅ built & verified |
 | Multi-user isolation (issue #34) | 🟡 designed; code retrofit pending |
 | PA harness — `admin_demo` schema + sensitive table copies | ✅ built & verified (prereq for PA-B/C/D; masks/row filters apply to copies so the shared foundation is never mutated) |
-| Demonstration runbook | 🟡 in progress — Engineer persona fully testable (Phase 0 + E1/E3/E4/E5/E6/E7/SE-09 entries done, copy-paste prompts + coverage map); DS/BA/PA entries pending |
+| Demonstration runbook | 🟡 in progress — Engineer (E1–E11 + SE-09) and Business Analyst (BA-01…08) entries complete with copy-paste prompts + coverage map; DS and PA entries pending |
 
 ---
 
 ## Tally by persona
+
+**Pre-built object (Status):**
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
@@ -200,6 +205,15 @@ list is the full checklist.
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
 | **Total** | **86** | **53** | **1** | **32** |
+
+**Prompt tested? (generate-from-prompt path):**
+| Persona | 🟢 tested | 🟡 written, not tested | — n/a |
+|---------|-----------|------------------------|-------|
+| Engineer (SE) | 19 (SE-03/04/05/06/07/08, SE-11–23) | 13 (SE-10, SE-24–35) | 11 (SE-01/02/09, SE-36–43) |
+| Data Scientist (DS) | 0 | 0 | 10* |
+| Business Analyst (BA) | 0 | 7 (BA-01/03/04/05/06/07/08) | 1 (BA-02) |
+| Admin (PA) | 0 | 0 | 25 |
+| **Total** | **19** | **20** | **47** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).
