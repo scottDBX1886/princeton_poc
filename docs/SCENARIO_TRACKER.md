@@ -35,10 +35,10 @@ list is the full checklist.
 | SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) | — (parked) |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) | — (parked) |
 | SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟡 written |
-| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟡 written |
-| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟡 written |
-| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟡 written |
-| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟡 written |
+| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
+| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
+| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
+| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟡 written |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟡 written |
