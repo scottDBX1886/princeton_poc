@@ -318,17 +318,26 @@ its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
 
 **Code path (Databricks Assistant — notebook):**
 ```text
-Write a notebook that ingests a paginated REST API behind the Databricks Apps SSO proxy:
+Write a notebook that ingests a paginated REST API served by the Databricks App named
+"princeton-mock-api", which sits behind the Databricks Apps SSO proxy. The app's base URL is
+its deployed app URL (get it from the Apps UI, or run
+`databricks apps get princeton-mock-api` and use the "url" field, e.g.
+https://princeton-mock-api-<id>.<region>.databricksapps.com). Use that base URL for the API calls below.
+
   1. Get a service-principal OAuth M2M token from <workspace-host>/oidc/v1/token with
      scope=all-apis (client_id/client_secret from secret scope princeton_poc_e3); put it in
-     the Authorization header to clear the Apps proxy.
-  2. Then do the app's own client-credentials OAuth (POST /oauth/token) and put that bearer
-     in the X-API-Token header.
-  3. Page through GET /enrollments following the "next" cursor until it is null, refreshing
-     the X-API-Token on any 401.
+     the Authorization header to clear the Apps SSO proxy and reach princeton-mock-api.
+  2. Then do the app's own client-credentials OAuth (POST {base_url}/oauth/token) and put that
+     bearer in the X-API-Token header.
+  3. Page through GET {base_url}/enrollments following the "next" cursor until it is null,
+     refreshing the X-API-Token on any 401.
 Write all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table
 e3_enrollments_from_api. Never hardcode credentials.
 ```
+
+> **Before running:** confirm the app is up — `databricks apps get princeton-mock-api` should
+> show `RUNNING`. If it's `UNAVAILABLE`/`STOPPED`, start it (`databricks apps start princeton-mock-api`,
+> ~1–2 min) or the SA re-deploys it; E3 can't ingest until the app is running.
 
 **Pre-built fallback:** run the deployed notebook **E3 - REST API ingestion**
 (local reference client: `engineer/src/apps/mock_api/verify.py`).
