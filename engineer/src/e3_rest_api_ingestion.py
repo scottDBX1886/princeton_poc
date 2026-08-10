@@ -84,10 +84,13 @@ def headers():
     h["X-API-Token"] = mock_token
     return h
 
+# page_size=1000 is the API's max — 60 pages instead of 600, ~10x fewer round-trips
+# (the pull is otherwise serial, so a smaller page size just multiplies latency).
+PAGE_SIZE = 1000
 rows, page, total, pages, refreshes = [], 1, None, 0, 0
 while page:
     resp = requests.get(f"{APP_URL}/enrollments",
-                        params={"page": page, "page_size": 100}, headers=headers())
+                        params={"page": page, "page_size": PAGE_SIZE}, headers=headers())
     if resp.status_code == 401:                 # mock token expired -> refresh (SE-08)
         refreshes += 1
         print(f"401 at page {page}; refreshing mock token...")

@@ -330,7 +330,8 @@ https://princeton-mock-api-<id>.<region>.databricksapps.com). Use that base URL 
   2. Then do the app's own client-credentials OAuth (POST {base_url}/oauth/token) and put that
      bearer in the X-API-Token header.
   3. Page through GET {base_url}/enrollments following the "next" cursor until it is null,
-     refreshing the X-API-Token on any 401.
+     refreshing the X-API-Token on any 401. Use page_size=1000 (the API's max) so it's ~60
+     pages, not 600 — the pull is serial, so a small page size just multiplies latency.
 Write all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table
 e3_enrollments_from_api. Never hardcode credentials.
 ```
