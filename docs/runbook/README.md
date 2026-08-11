@@ -63,9 +63,13 @@ saved workflow). Remaining work is E2 (parked) plus the Data Scientist and Admin
 | [E10 — DevOps / CI-CD](#e10--devops-source-control-promotion-cicd-rollback-se-36-se-37-se-38-se-39) | [BA-05/08 — transform + reuse](#ba-05--ba-08--light-transform-designer-from-existing-data--save--reuse) |
 | [E11 — Governance](#e11--governance-lineage-schema-drift-data-drift-ai-docs-se-40-se-41-se-42-se-43) | |
 
-> **Each Engineer entry follows the same shape:** *What it proves · Setup · Code path (the
-> paste-in prompt) · Pre-built fallback · Expected outcome · Notes.* Skim the bold labels; the
-> long prompt block is the thing you copy into Genie/the Assistant.
+> **Each entry follows the same shape:** *What it proves · Setup · Code path (the paste-in
+> prompt) · Pre-built fallback · Expected outcome · Notes.* The prompt sits in a collapsed
+> **► click to expand** block — open it to copy into Genie/the Assistant.
+>
+> **Badge under each heading** shows two states: **Built** (does the pre-built object run —
+> ✅) and **Prompt** (does generating from the prompt produce a working object — 🟢 tested ·
+> 🟡 written, not yet verified · — n/a for SA-deployed jobs/walkthroughs with no generation prompt).
 
 ---
 
@@ -257,6 +261,8 @@ produces the expected object. The loop is the same for every entry:
 
 ## E1 — Multi-format file ingestion (SE-04, SE-05, SE-06, SE-07)
 
+> **Built:** ✅ · **Prompt:** 🟢 tested (E1 Genie → SDP)
+
 **What it proves:** the platform natively ingests five file formats with real-world
 "gotchas": CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel
 (targeting a *named* sheet), nested JSON, and XML with optional nodes.
@@ -264,7 +270,9 @@ produces the expected object. The loop is the same for every entry:
 **Setup (SA, done):** foundation source files staged on the landing Volume; pre-built
 notebook deployed to `/Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion`.
 
-**Code path (Genie — generate the SDP pipeline):**
+<details>
+<summary><strong>Code path (Genie — generate the SDP pipeline)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 I'm building a Lakeflow Spark Declarative Pipeline (Python) that ingests five higher-ed source
 files into bronze streaming tables using Auto Loader. Write the pipeline for me.
@@ -292,7 +300,11 @@ The pipeline's target catalog + schema are set in the pipeline settings, so refe
 table by its short name; don't hard-code the catalog inside the code.
 ```
 
-**Notebook alternative (for the imperative-code angle — batch reads, not Auto Loader):**
+</details>
+
+<details>
+<summary><strong>Notebook alternative (for the imperative-code angle — batch reads, not Auto Loader)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Write a PySpark notebook that batch-reads five higher-ed sources under
 /Volumes/princeton_poc_dev/landing_dev/files/ with native readers and writes each to catalog
@@ -305,6 +317,8 @@ princeton_poc_dev, schema wksp_<my_user>:
   - faculty_xml/ (xml, rowTag "faculty")
 Print each row count and verify the embedded-comma value "Doe, John" stays in one field.
 ```
+
+</details>
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
 `engineer/resources/e1_pipeline.pipeline.yml` (`engineer/src/sdp/e1_file_ingestion_sdp.py`) — 5 bronze
@@ -328,6 +342,8 @@ concurrently without colliding; the foundation stays read-only.
 
 ## E3 — REST API ingestion (SE-08): OAuth 2.0 + pagination + token refresh
 
+> **Built:** ✅ · **Prompt:** 🟢 tested (output identical to pre-built)
+
 **What it proves:** the platform ingests from a paginated REST API using OAuth 2.0
 client-credentials, following pagination automatically and refreshing the token on expiry
 — with no manual intervention.
@@ -346,7 +362,9 @@ its OAuth secret stored in UC secret scope `princeton_poc_e3` (keys `client_id`,
    → returned token goes in `X-API-Token` **as the raw token, not `Bearer …`** → page
    `GET /enrollments` by **page number** (`next` = next page number) until `next` is null → re-issue on 401.
 
-**Code path (Databricks Assistant — notebook):**
+<details>
+<summary><strong>Code path (Databricks Assistant — notebook)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Write a notebook that ingests a paginated REST API served by the Databricks App named
 "princeton-mock-api", which sits behind the Databricks Apps SSO proxy. Get the app's base URL
@@ -380,6 +398,8 @@ e3_enrollments_from_api. Add a request timeout on every call. Assert the final r
 equals the API's reported total. Never hardcode the SP secret (only the app's demo creds are literals).
 ```
 
+</details>
+
 > **Before running:** confirm the app is up — `databricks apps get princeton-mock-api` should
 > show `RUNNING`. If it's `UNAVAILABLE`/`STOPPED`, start it (`databricks apps start princeton-mock-api`,
 > ~1–2 min) or the SA re-deploys it; E3 can't ingest until the app is running.
@@ -399,13 +419,17 @@ unattended. (3) SP credentials live only in the UC secret scope, never in notebo
 
 ## E4 — Multi-source merge (SE-10)
 
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+
 **What it proves:** one pipeline reconciles three different source *types* on a common key —
 file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).
 
 **Setup (SA, done):** requires E1 + E3 to have run into the same wksp schema (their Bronze
 outputs are the inputs — the correct medallion pattern; ingestion auth stays in E3).
 
-**Code path (Genie — generate the SDP):**
+<details>
+<summary><strong>Code path (Genie — generate the SDP)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog
 princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:
@@ -416,6 +440,8 @@ Tag each output row with a source_system column showing which sources it matched
 (e.g. "file+db+api" vs "api"), so matched vs unmatched reconciliation is visible.
 ```
 
+</details>
+
 **Pre-built fallback:** `engineer/resources/e4_pipeline.pipeline.yml` (`engineer/src/sdp/e4_multisource_merge_sdp.py`).
 
 **Expected outcome:** `e4_enrollment_reconciled` — rows tagged `file+db+api` where the
@@ -423,6 +449,8 @@ student is in the file sample, `api` otherwise (matched vs unmatched reconciliat
 visible via `source_system`, which is the point of SE-10). ~3,939 fully-reconciled on the SA data.
 
 ## E5 — "Kitchen-sink" transformation pipeline (SE-11 … SE-20)
+
+> **Built:** ✅ · **Prompt:** 🟢 tested (all 10 patterns covered)
 
 **What it proves:** ten transformation capabilities in one pipeline — the platform's
 breadth for real ETL work. One notebook section per scenario.
@@ -435,7 +463,9 @@ null + conditional (coalesce/if-then-else) · SE-15 mixed-format date parsing ·
 validation with reject path · SE-17 running totals with control-break · SE-18 pivot +
 unpivot · SE-19 last-record-in-group · SE-20 grouped iteration → one summary row.
 
-**Code path (Genie — generate the SDP pipeline):**
+<details>
+<summary><strong>Code path (Genie — generate the SDP pipeline)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Generate a Lakeflow Spark Declarative Pipeline reading from princeton_poc_dev.silver_dev,
 writing materialized views to catalog princeton_poc_dev, schema wksp_<my_user>, that
@@ -452,6 +482,8 @@ demonstrates:
   - last-record-per-group
   - a one-row-per-student summary
 ```
+
+</details>
 
 **Pre-built fallback:** deploy + run the committed **SDP pipeline**
 `engineer/resources/e5_pipeline.pipeline.yml` (`engineer/src/sdp/e5_transformations_sdp.py`) — 8
@@ -482,6 +514,8 @@ update with automatic dependency resolution + lineage — no orchestration code.
 
 ## E6 — CDC + SCD (SE-03, SE-21, SE-22, SE-23)
 
+> **Built:** ✅ · **Prompt:** 🟢 tested (SCD1/SCD2 match pre-built)
+
 **What it proves:** change-data-capture (new/changed/deleted) and both slowly-changing-
 dimension types, inferred automatically by diffing two snapshots — no hand-written CDC logic.
 
@@ -489,7 +523,9 @@ dimension types, inferred automatically by diffing two snapshots — no hand-wri
 (baseline) and `student_snapshot_v2` (baseline + planted **10 inserts / 20 updates / 5 deletes**)
 in your wksp schema. Then run the E6 pipeline.
 
-**Code path (Genie — generate the SDP):**
+<details>
+<summary><strong>Code path (Genie — generate the SDP)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Generate a Lakeflow SDP (Python) that uses apply_changes_from_snapshot to compare two
 student snapshots and infer inserts/updates/deletes. Feed the snapshots via a callable that
@@ -499,6 +535,8 @@ as version 2, then None. keys = student_id. Build both:
   - e6_student_scd2 : SCD Type 2 (full history with __START_AT / __END_AT)
 Write to catalog princeton_poc_dev, schema wksp_<my_user>.
 ```
+
+</details>
 
 **Pre-built fallback:** `engineer/resources/e6_pipeline.pipeline.yml` (`engineer/src/sdp/e6_cdc_scd_sdp.py`)
 + the snapshot-setup notebook.
@@ -513,13 +551,17 @@ which would break a concurrent group session; this SDP form is the recommended o
 
 ## E7 — Target loading (SE-24, SE-25, SE-26, SE-27)
 
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+
 **What it proves:** loading a database target with UPSERT + hard-delete, and exporting to
 CSV / pipe / Excel / JSON.
 
 **Setup (SA, done):** requires E5's `e5_student_enriched` MV in your wksp schema. Pre-built
 notebook `/Workspace/Shared/Princeton POC/1 - Engineer/E7 - Target loading`.
 
-**Code path (Databricks Assistant — notebook):**
+<details>
+<summary><strong>Code path (Databricks Assistant — notebook)</strong> — click to expand the copy-paste prompt</summary>
+
 ```text
 Write a notebook that, using catalog princeton_poc_dev and schema wksp_<my_user>:
   1. Seeds a target table e7_student_target from a 500-row subset of e5_student_enriched.
@@ -530,6 +572,8 @@ Write a notebook that, using catalog princeton_poc_dev and schema wksp_<my_user>
      /Volumes/princeton_poc_dev/landing_dev/files/e7_exports/wksp_<my_user>/.
 Use native writers for CSV/pipe/JSON; write Excel with openpyxl in-memory.
 ```
+
+</details>
 
 **Pre-built fallback:** run the deployed notebook **E7 - Target loading**
 (`engineer/src/e7_target_loading.py`).
@@ -555,6 +599,8 @@ showcase. And `dp.create_sink` is the answer if a future need is "stream pipelin
 external Delta/Kafka target" — not E7's file-export + MERGE requirements.)_
 
 ## SE-09 — SFTP file retrieval & ingestion (native, no shell script)
+
+> **Built:** ✅ · **Prompt:** — n/a (SA-deployed job, no generation prompt)
 
 **What it proves:** the platform retrieves pattern-matched files from an SFTP server,
 stages them in a UC Volume, and ingests them via Auto Loader — all as orchestrated,
@@ -586,6 +632,8 @@ Lakeflow Connect SFTP connector (Public Preview), it replaces the paramiko retri
 with a fully managed connector — the marquee no-code answer.
 
 ## E8 — Orchestration (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
+
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
 
 **What it proves:** the platform's job orchestration surface — task chaining, parallel
 execution, automated retry on failure, scheduling, external-command calls, and
@@ -640,6 +688,8 @@ to enable it for the customer POC.
 
 ## E9 — Workload monitoring dashboard (SE-34)
 
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+
 **What it proves:** the platform's native observability surface across **all three workload
 types — jobs, pipelines, and notebook runs** — run history, success rate, durations, and retry
 visibility, with **no custom monitoring build**. Databricks captures the telemetry into system
@@ -688,6 +738,8 @@ serverless leaves `*_duration_seconds` at 0. (4) SE-34 alerts: E8's job-level
 
 ## E10 — DevOps: source control, promotion, CI/CD, rollback (SE-36, SE-37, SE-38, SE-39)
 
+> **Built:** ✅ · **Prompt:** — n/a (git/CLI walkthrough, no generation prompt)
+
 **What it proves:** the POC is engineered the way a production data platform is — versioned in
 Git, promoted across environments from one codebase, deployed by CI, and rollback-able. **The
 repo + bundle + workflow *are* the deliverable; there's no notebook to run.**
@@ -723,6 +775,8 @@ on purpose: no auto-deploy to unprovisioned hosts. Flip it to `push: [main]` onc
 the CI gate.
 
 ## E11 — Governance: lineage, schema drift, data drift, AI docs (SE-40, SE-41, SE-42, SE-43)
+
+> **Built:** ✅ · **Prompt:** — n/a (UI/SQL walkthrough, no generation prompt)
 
 **What it proves:** Databricks' native governance surface over the POC data — **lineage** and
 **schema-drift history** are captured automatically (zero setup), while **data-drift monitoring**
@@ -778,6 +832,8 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 
 ## BA-01 — No-code browse, filter, preview (Genie + Catalog Explorer)
 
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+
 **What it proves:** an analyst discovers and filters the enrollment data with natural language
 (Genie) and by browsing (Catalog Explorer) — zero SQL.
 
@@ -795,6 +851,8 @@ return live data); Catalog Explorer shows schema + sample rows. **Join gotcha** 
 space instructions: enrollment has no `dept_id` — a course's department is `course.dept_id`.
 
 ## BA-02 — Scheduled report & subscription (AI/BI dashboard)
+
+> **Built:** ✅ · **Prompt:** — n/a (subscribe to a pre-built dashboard)
 
 **What it proves:** an analyst subscribes to a pre-built dashboard for recurring delivery, or
 exports it on demand — no SQL.
@@ -820,6 +878,8 @@ on `silver_dev` (40 depts, 960 dept×term groups, avg GPA ≈ 3.1). Read-only �
 
 ## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe (Designer, from existing data)
 
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+
 **What it proves:** starting from an **existing** platform object, an analyst describes an extract
 in natural language, Designer builds it, and they download the result in three formats — no SQL.
 
@@ -844,6 +904,8 @@ Walkthrough: `README_BA03.md`.
 GPA, department); the Johnson-Department filter returns a smaller set (verified). All three formats download cleanly.
 
 ## BA-04 — Upload + join + transform (Designer, from your own file)
+
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
 
 **What it proves:** an analyst **uploads their own spreadsheet**, then has the Designer Genie agent
 join it to platform data and transform it — no SQL.
@@ -873,6 +935,8 @@ databricks bundle run ba_budget_enrollment_join -t dev --profile datamarket
 department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 → 1,094.16/student).
 
 ## BA-05 / BA-08 — Light transform (Designer, from existing data) + save & reuse
+
+> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
 
 **What it proves:** starting from an **existing** object, an analyst applies light transforms
 (rename / filter / derived field) via a Designer Genie-agent prompt, then **saves the flow as a
