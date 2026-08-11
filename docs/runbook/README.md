@@ -41,6 +41,34 @@ saved workflow). Remaining work is E2 (parked) plus the Data Scientist and Admin
 
 ---
 
+## How to use this runbook
+
+- **Setting up the environment?** → [Phase 0 — foundation](#phase-0--stand-up-the-shared-data-foundation) and [Deploying to a new / customer POC workspace](#deploying-to-a-new--customer-poc-workspace).
+- **Running scenarios in a group session?** → read [Running this with a group](#running-this-with-a-group-multi-user-sessions) first, then [SA pre-flight](#sa-pre-flight--how-to-test-these-prompts) for the paste-and-run loop + checklist.
+- **Testing one scenario?** → jump straight to it below.
+
+**Contents**
+
+| Persona 1 — Engineer | Other |
+|---|---|
+| [E1 — Multi-format file ingestion](#e1--multi-format-file-ingestion-se-04-se-05-se-06-se-07) | [Phase 0 — foundation](#phase-0--stand-up-the-shared-data-foundation) |
+| [E3 — REST API ingestion](#e3--rest-api-ingestion-se-08-oauth-20--pagination--token-refresh) | [Demo-time CDC/SCD/drift](#demo-time-cdc--scd--schema-drift-se-03-se-21-se-22-se-23-se-41) |
+| [E4 — Multi-source merge](#e4--multi-source-merge-se-10) | [Running with a group](#running-this-with-a-group-multi-user-sessions) |
+| [E5 — Transformation kitchen-sink](#e5--kitchen-sink-transformation-pipeline-se-11--se-20) | [SA pre-flight + checklist](#sa-pre-flight--how-to-test-these-prompts) |
+| [E6 — CDC + SCD](#e6--cdc--scd-se-03-se-21-se-22-se-23) | **Persona 3 — Business Analyst** |
+| [E7 — Target loading](#e7--target-loading-se-24-se-25-se-26-se-27) | [BA-01 — no-code browse](#ba-01--no-code-browse-filter-preview-genie--catalog-explorer) |
+| [SE-09 — SFTP retrieval](#se-09--sftp-file-retrieval--ingestion-native-no-shell-script) | [BA-02 — scheduled report](#ba-02--scheduled-report--subscription-aibi-dashboard) |
+| [E8 — Orchestration](#e8--orchestration-se-28-se-29-se-30-se-31-se-32-se-33-se-35) | [BA-03/06/07 — ad-hoc extract](#ba-03--ba-06--ba-07--ad-hoc-extract-to-csv--excel--pipe-designer-from-existing-data) |
+| [E9 — Workload monitoring](#e9--workload-monitoring-dashboard-se-34) | [BA-04 — upload + join](#ba-04--upload--join--transform-designer-from-your-own-file) |
+| [E10 — DevOps / CI-CD](#e10--devops-source-control-promotion-cicd-rollback-se-36-se-37-se-38-se-39) | [BA-05/08 — transform + reuse](#ba-05--ba-08--light-transform-designer-from-existing-data--save--reuse) |
+| [E11 — Governance](#e11--governance-lineage-schema-drift-data-drift-ai-docs-se-40-se-41-se-42-se-43) | |
+
+> **Each Engineer entry follows the same shape:** *What it proves · Setup · Code path (the
+> paste-in prompt) · Pre-built fallback · Expected outcome · Notes.* Skim the bold labels; the
+> long prompt block is the thing you copy into Genie/the Assistant.
+
+---
+
 ## Phase 0 — Stand up the shared data foundation
 
 Every scenario runs against this one dataset. Build it once per workspace.
@@ -144,7 +172,7 @@ is the drift event — show it surfaced in Catalog Explorer / the pipeline's sch
 
 ---
 
-## ⚠️ Running this with a group (multi-user sessions)
+## Running this with a group (multi-user sessions)
 
 These runbooks are run by **~20+ participants concurrently, per-person**. To avoid
 collisions:
