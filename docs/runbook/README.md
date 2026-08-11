@@ -198,7 +198,7 @@ produces the expected object. The loop is the same for every entry:
 **Prereqs for a clean run** (build order matters — several prompts read prior outputs):
 - Foundation job has run (Phase 0) — provides `silver_dev` + the landing files.
 - `princeton-mock-api` app is **running** and the `princeton_poc_e3` secret scope exists (E3).
-- Run order into your wksp: **E1 → E3 → E5 → E4 → E6-setup → E6 → E7.** (E4 reads E1+E3;
+- Run order into your wksp: **E1 → E3 → E4 → E5 → E6-setup → E6 → E7.** (E4 reads E1+E3;
   E7 reads E5; E6 needs its snapshot-setup notebook first.) SE-09, E8, E9 are independent of
   this order (SA-deployed jobs/dashboard).
 - You have `CREATE SCHEMA` on `princeton_poc_dev` (the SDP auto-creates your wksp on first run).
@@ -209,8 +209,8 @@ produces the expected object. The loop is the same for every entry:
 |-------|-----------|-------------------------------------|
 | E1 | prompt → Assistant → SDP | 5 bronze tables (2000/2000/1000/10/200); `"Doe, John"` stays one field |
 | E3 | prompt → Assistant → notebook | 60,000 rows; a token refresh occurs mid-run |
-| E5 | prompt → Assistant → SDP | 8 MVs; `e5_gpa_valid`=59988 / `e5_gpa_rejects`=12 |
 | E4 | prompt → Assistant → SDP | `e4_enrollment_reconciled`; ~3,939 file+db+api |
+| E5 | prompt → Assistant → SDP | 8 MVs; `e5_gpa_valid`=59988 / `e5_gpa_rejects`=12 |
 | E6 | prompt → Assistant → SDP | scd1=1005; scd2=1005 current + ~21 end-dated |
 | E7 | prompt → Assistant → notebook | target has 0 alumni; 4 export artifacts |
 | SE-09 | `databricks bundle run sftp_ingest -t dev` | 3 files on Volume; Bronze table = 600 rows |
@@ -369,6 +369,31 @@ management) evidence. (2) SE-08's actual requirement (the API's OAuth + paginati
 independent of the proxy; the SP layer is Databricks-Apps plumbing to reach the app
 unattended. (3) SP credentials live only in the UC secret scope, never in notebook code.
 
+## E4 — Multi-source merge (SE-10)
+
+**What it proves:** one pipeline reconciles three different source *types* on a common key —
+file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).
+
+**Setup (SA, done):** requires E1 + E3 to have run into the same wksp schema (their Bronze
+outputs are the inputs — the correct medallion pattern; ingestion auth stays in E3).
+
+**Code path (Genie — generate the SDP):**
+```text
+Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog
+princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:
+  - wksp_<my_user>.e1_students_raw            (file-sourced)
+  - wksp_<my_user>.e3_enrollments_from_api    (API-sourced)
+  - princeton_poc_dev.silver_dev.student      (DB-sourced)
+Tag each output row with a source_system column showing which sources it matched
+(e.g. "file+db+api" vs "api"), so matched vs unmatched reconciliation is visible.
+```
+
+**Pre-built fallback:** `engineer/resources/e4_pipeline.pipeline.yml` (`engineer/src/sdp/e4_multisource_merge_sdp.py`).
+
+**Expected outcome:** `e4_enrollment_reconciled` — rows tagged `file+db+api` where the
+student is in the file sample, `api` otherwise (matched vs unmatched reconciliation is
+visible via `source_system`, which is the point of SE-10). ~3,939 fully-reconciled on the SA data.
+
 ## E5 — "Kitchen-sink" transformation pipeline (SE-11 … SE-20)
 
 **What it proves:** ten transformation capabilities in one pipeline — the platform's
@@ -426,31 +451,6 @@ update with automatic dependency resolution + lineage — no orchestration code.
 > on the reject MVs can also differ if the generation validates a different column (e.g. casting
 > `gpa_points` to INT drops all fractional GPAs) — still a valid demonstration of the reject path.
 > The platform choosing the language from a plain-English ask is itself part of the story.
-
-## E4 — Multi-source merge (SE-10)
-
-**What it proves:** one pipeline reconciles three different source *types* on a common key —
-file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).
-
-**Setup (SA, done):** requires E1 + E3 to have run into the same wksp schema (their Bronze
-outputs are the inputs — the correct medallion pattern; ingestion auth stays in E3).
-
-**Code path (Genie — generate the SDP):**
-```text
-Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog
-princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:
-  - wksp_<my_user>.e1_students_raw            (file-sourced)
-  - wksp_<my_user>.e3_enrollments_from_api    (API-sourced)
-  - princeton_poc_dev.silver_dev.student      (DB-sourced)
-Tag each output row with a source_system column showing which sources it matched
-(e.g. "file+db+api" vs "api"), so matched vs unmatched reconciliation is visible.
-```
-
-**Pre-built fallback:** `engineer/resources/e4_pipeline.pipeline.yml` (`engineer/src/sdp/e4_multisource_merge_sdp.py`).
-
-**Expected outcome:** `e4_enrollment_reconciled` — rows tagged `file+db+api` where the
-student is in the file sample, `api` otherwise (matched vs unmatched reconciliation is
-visible via `source_system`, which is the point of SE-10). ~3,939 fully-reconciled on the SA data.
 
 ## E6 — CDC + SCD (SE-03, SE-21, SE-22, SE-23)
 
