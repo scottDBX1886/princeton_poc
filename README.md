@@ -10,7 +10,8 @@ on one shared higher-ed data foundation.
 - **Scenario tracker:** `docs/SCENARIO_TRACKER.md` — all 85 RFP scenario IDs + status (coverage source of truth)
 - **Project board:** https://github.com/users/scottDBX1886/projects/2 — ~33 build objects (work-item tracking)
 - **Deploy config:** `docs/CONFIG.md` — variables to fill in before deploy
-- **Runbook:** `docs/runbook/README.md` — hand to the DMIA team to run each scenario live
+- **Runbook:** split per persona — `docs/runbook/README.md` is the index (coverage map + links) →
+  `foundation/RUNBOOK.md` (build first), then `engineer/`, `businessanalyst/`, `datascientist/`, `admin/RUNBOOK.md`
 
 ## Quick start
 1. Fill in `docs/CONFIG.md` values (`storage_root`, `warehouse_id`) and set them in `databricks.yml`.
