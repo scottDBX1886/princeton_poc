@@ -51,14 +51,41 @@ databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile datamarket
 
 ### Deploying to a new / customer POC workspace
 
-The **`dev` target is the reusable POC template.** To stand the POC up in a fresh workspace, you
-do **not** add a new target — you point `dev` at that workspace and reuse everything:
+The **`dev` target is the reusable POC template.** You do **not** add a new target — you point
+`dev` at the new workspace and reuse everything. Requires a **serverless** workspace (for UC
+default storage). Work top-to-bottom:
 
-1. In `databricks.yml`, set the `dev` target's `workspace.profile` (and host) to the POC workspace,
-   and `warehouse_id` to its serverless SQL warehouse. Leave catalog/schema names as-is.
-2. Clear any stale local state for the target so old resource IDs don't leak across workspaces:
-   `rm -rf .databricks/bundle/dev`.
-3. Run the **Build** sequence above (deploy → `foundation_build` → deploy).
+**A. Repoint the bundle (3 edits + clear state)**
+- [ ] 1. Create a CLI profile for the workspace: `databricks auth login --host https://<poc-url> --profile poc`
+- [ ] 2. Get its warehouse id: `databricks warehouses list --profile poc`
+- [ ] 3. In `databricks.yml`, on the `dev` target, set `workspace.profile: poc` and
+      `variables.warehouse_id: <poc-warehouse-id>`. **Leave `catalog`/`schema_suffix` as-is**
+      (`princeton_poc_dev` / `_dev`) — several notebooks hardcode those names.
+- [ ] 4. Clear stale local state so old workspace resource IDs don't leak:
+      `rm -rf .databricks/bundle/dev`
+
+**B. Build the foundation (2 commands — the whole data + Genie layer)**
+- [ ] 5. `databricks bundle deploy -t dev --profile poc`  (clean/green; no live-table dependency)
+- [ ] 6. `databricks bundle run foundation_build -t dev --profile poc`
+      (uc_setup → default-storage catalog+schemas+volume, generators, genie_setup)
+- [ ] 7. Verify with the assert query above (students 30000 / fact 5,000,000 / enrollments 60000).
+
+**C. Per-workspace prereqs that do NOT auto-deploy** (needed for E3 — the REST-API scenario; skip
+if you're not demoing E3). These are manual because they involve a service principal + a secret:
+- [ ] 8. **Mock API app** — start it: `databricks bundle run mock_api -t dev --profile poc`
+      (deploy uploads the code but doesn't start it serving; app is workspace-global).
+- [ ] 9. **Secret scope** — `databricks secrets create-scope princeton_poc_e3 --profile poc`, then
+      store the ingest SP's creds: `put-secret princeton_poc_e3 client_id` and `client_secret`
+      (paste values in your own terminal — never in chat/history).
+- [ ] 10. **Grants** — the ingest SP needs `CAN_USE` on the `princeton-mock-api` app; the *app's own*
+      SP needs `USE CATALOG` + `USE SCHEMA` + `SELECT` on `princeton_poc_dev.silver_dev` (else
+      `/enrollments` 500s with `INSUFFICIENT_PRIVILEGES`). Get the app SP via
+      `databricks apps get princeton-mock-api`.
+- [ ] 11. Confirm E3 end to end: run the pre-built E3 notebook → 60,000 rows in `e3_enrollments_from_api`.
+
+**D. Per-persona / prompt-test prereqs** (only if testing those prompts on the new workspace)
+- [ ] 12. **E4** reads E1 + E3 outputs from the *same* schema — run E1 and E3 into your test schema first.
+- [ ] 13. **E6** needs its snapshot-setup notebook run first (creates `student_snapshot_v1`/`v2` in your schema).
 
 **Why no storage config:** the catalog is created by SQL `CREATE CATALOG` (in the `uc_setup`
 task) on a serverless warehouse, which provisions **UC default storage** automatically — so a
@@ -73,7 +100,7 @@ only path that provisions default storage.)
   (They're job-created artifacts, so they won't appear in `bundle summary`/`destroy`; the task is
   idempotent and rebuilds them on each `foundation_build` run.)
 - **App name is workspace-global** — if a prior partial deploy left `princeton-mock-api`, a
-  redeploy hits `ALREADY_EXISTS`; `databricks bundle destroy -t dev --profile datamarket` clears it.
+  redeploy hits `ALREADY_EXISTS`; `databricks bundle destroy -t dev --profile <profile>` clears it.
 - **Stale deploy lock** after an interrupted run → add `--force-lock` (safe when it's your own lock).
 - **Genie `.geniespace.json` tables must be sorted by identifier**, else create fails `INVALID_PARAMETER_VALUE`.
 
