@@ -359,7 +359,7 @@ which would break a concurrent group session; this SDP form is the recommended o
 
 ## E7 — Target loading (SE-24, SE-25, SE-26, SE-27)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: 23999 target, 0 alumni, 4 export formats — matches baseline)
 
 **What it proves:** loading a database target with UPSERT + hard-delete, and exporting to
 CSV / pipe / Excel / JSON.
