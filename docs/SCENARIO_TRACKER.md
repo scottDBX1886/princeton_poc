@@ -19,7 +19,7 @@ list is the full checklist.
 
 **Summary — pre-built objects (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C: DS-01/02/03/04/05).**
 
-**Summary — prompt tested (the generate-from-prompt path):** 19 🟢 tested (E1 SE-04/05/06/07 · E3 SE-08 · E5 SE-11–20 · E6 SE-03/21/22/23) · 20 🟡 written-not-yet-tested (E4 SE-10 · E7 SE-24–27 · E8 SE-28–33/35 · E9 SE-34 · BA-01/03/04/05/06/07/08) · 47 — n/a (no generation prompt: SE-09, E10, E11, E2-parked, all DS + PA).
+**Summary — prompt tested (the generate-from-prompt path):** RESET 2026-08-17 for re-verification on the new `princeton_poc` workspace — 0 🟢 tested, all prompt-bearing scenarios back to 🟡 written (E1–E9 Engineer + BA). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, E10, E11, all DS + PA.)
 
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
@@ -37,35 +37,35 @@ list is the full checklist.
 |----|----------|-----------|--------|--------|
 | SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) | — (parked) |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) | — (parked) |
-| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
-| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
-| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
-| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
-| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (E1 Genie prompt → working SDP) |
-| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (E3 prompt → notebook; output identical to pre-built, 60k rows) |
+| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟡 written |
+| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟡 written |
+| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟡 written |
+| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟡 written |
+| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟡 written |
+| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟡 written |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟡 written |
 
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
-| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (E5 Genie prompt → SQL SDP, 14 MVs; all 10 patterns covered) |
+| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟡 written |
+| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟡 written |
+| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟡 written |
+| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟡 written |
+| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟡 written |
+| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟡 written |
+| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟡 written |
+| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟡 written |
+| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟡 written |
+| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟡 written |
 
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
-| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
-| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (E6 Genie prompt → Python SDP; SCD1/SCD2 match pre-built) |
+| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟡 written |
+| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟡 written |
+| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟡 written |
 
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status | Prompt tested? |
