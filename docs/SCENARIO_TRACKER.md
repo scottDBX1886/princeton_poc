@@ -42,7 +42,7 @@ list is the full checklist.
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
 | SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
 | SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟡 written |
+| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟡 written |
 
