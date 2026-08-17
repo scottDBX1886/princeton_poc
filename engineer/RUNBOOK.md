@@ -284,6 +284,11 @@ demonstrates:
   - a pivot
   - last-record-per-group
   - a one-row-per-student summary
+Name the lookup-enriched, one-row-per-student materialized view exactly `e5_student_enriched`,
+and give it a `standing` column derived from the student status
+(e.g. CASE WHEN status = 'graduated' THEN 'Alumnus' ELSE 'Active' END). Downstream steps
+(E7 target loading) read `e5_student_enriched` and filter on `standing`, so this name and
+column are a fixed contract even though the other MV names are free.
 ```
 
 </details>
