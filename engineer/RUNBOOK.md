@@ -463,11 +463,12 @@ stage ──┬── leg_a ──┐
 databricks bundle run orchestration_demo -t dev --profile datamarket
 ```
 
-**Code path (Databricks Assistant — the job is a DAB resource):** *"Generate a Databricks
-Asset Bundle job with 7 tasks: a stage task, two parallel legs that both depend only on
-stage, a merge that depends on both legs, an external-command task, a retry-enabled task
-(max_retries) that simulates a transient failure, and a notification task — plus a paused
-daily cron schedule and job-level email notifications."*
+**Code path (Databricks Assistant — create the job directly):** *"Create a job with 7 tasks:
+a stage task, two parallel legs that both depend only on stage, a merge that depends on both
+legs, an external-command task, a retry-enabled task (max_retries) that simulates a transient
+failure, and a notification task — plus a paused daily cron schedule and job-level email
+notifications."*  (Lets the Assistant author a live Lakeflow Job you can run and verify
+directly, rather than emitting DAB YAML to deploy — the pre-built DAB job is the fallback.)
 
 **Pre-built fallback:** the `orchestration_demo` job itself
 (`engineer/resources/e8_orchestration.job.yml` + the 7 driver notebooks under
