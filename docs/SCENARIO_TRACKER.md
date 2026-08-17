@@ -44,7 +44,7 @@ list is the full checklist.
 | SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
-| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟡 written |
+| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) |
 
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
