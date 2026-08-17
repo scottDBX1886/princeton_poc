@@ -49,16 +49,16 @@ list is the full checklist.
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟡 written |
-| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟡 written |
-| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟡 written |
-| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟡 written |
-| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟡 written |
-| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟡 written |
-| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟡 written |
-| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟡 written |
-| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟡 written |
-| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟡 written |
+| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
 
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
