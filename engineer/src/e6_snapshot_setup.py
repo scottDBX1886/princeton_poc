@@ -14,13 +14,22 @@ from pyspark.sql import functions as F
 
 dbutils.widgets.text("catalog", "princeton_poc_dev")
 dbutils.widgets.text("schema_suffix", "_dev")
+# Optional: the schema the snapshots should land in. Leave blank to derive wksp_<current_user>.
+# Set this to match the schema your E6 Genie pipeline targets (e.g. "wksp_scott_johnson") so
+# the pipeline finds student_snapshot_v1/v2 in the same place.
+dbutils.widgets.text("target_schema", "")
 CATALOG = dbutils.widgets.get("catalog")
 SUFFIX = dbutils.widgets.get("schema_suffix")
 SILVER = f"{CATALOG}.silver{SUFFIX}"
 
-user = spark.sql("SELECT current_user()").first()[0]
-WS = f"{CATALOG}.wksp_" + re.sub(r"[^a-zA-Z0-9]", "_", user)
+target_schema = dbutils.widgets.get("target_schema").strip()
+if target_schema:
+    WS = f"{CATALOG}.{target_schema}"
+else:
+    user = spark.sql("SELECT current_user()").first()[0]
+    WS = f"{CATALOG}.wksp_" + re.sub(r"[^a-zA-Z0-9]", "_", user)
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {WS}")
+print(f"snapshots target schema: {WS}")
 
 # COMMAND ----------
 # MAGIC %md ## v1 — baseline snapshot (a modest, deterministic slice of students)
