@@ -51,6 +51,14 @@ databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile datamarket
 
 ### Deploying to a new / customer POC workspace
 
+> **One-command standup (recommended):** after `databricks auth login --profile <profile>`, run
+> `./scripts/setup_new_workspace.sh <profile>`. It does the entire checklist below automatically —
+> pre-creates the catalog on default storage, deploys, builds the foundation, starts the mock API,
+> **creates the ingest SP + mints its secret + populates the `princeton_poc_e3` scope**, wires all
+> grants, stages the BA upload, runs every pre-built, and verifies the counts. Idempotent + fail-fast.
+> Verified on a fresh workspace: E3 60000 · E4 60000 · E5 59988 · E6 1005 · E7 23999 · BA 35937.
+> The manual checklist below is the fallback / reference for what the script does.
+
 The **`dev` target is the reusable POC template.** You do **not** add a new target — you point
 `dev` at the new workspace and reuse everything. Requires a **serverless** workspace (for UC
 default storage). Work top-to-bottom:
