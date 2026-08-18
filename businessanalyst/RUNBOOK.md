@@ -2,13 +2,13 @@
 
 No-code / low-code scenarios (BA-01…BA-08) — Genie, AI/BI dashboards, and Lakeflow Designer +
 its Genie agent. Prerequisite: the shared foundation — see
-[`foundation/RUNBOOK.md`](../foundation/RUNBOOK.md). Index: [`docs/runbook/README.md`](../docs/runbook/README.md).
+`[foundation/RUNBOOK.md](../foundation/RUNBOOK.md)`. Index: `[docs/runbook/README.md](../docs/runbook/README.md)`.
 
-_No-code / low-code only — the analyst never writes SQL. Five pre-built objects (a Genie space,
+*No-code / low-code only — the analyst never writes SQL. Five pre-built objects (a Genie space,
 an AI/BI dashboard, a saved SQL export query, a sample upload + Designer canvas, and a saved
 workflow job) cover BA-01…08. All read the shared foundation; the one object that writes
-(BA-04/05/08) writes to the analyst's own `wksp_<user>` schema. Full walkthroughs in
-`businessanalyst/src/walkthroughs/`._
+(BA-04/05/08) writes to the analyst's own* `wksp_<user>` *schema. Full walkthroughs in*
+`businessanalyst/src/walkthroughs/`*.*
 
 ## BA-01 — No-code browse, filter, preview (Genie + Catalog Explorer)
 
@@ -18,12 +18,11 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 (Genie) and by browsing (Catalog Explorer) — zero SQL.
 
 **How to test:** 
-1. Create new "Visual Data prep".  
+
+1. Create new "Visual Data prep".
 2. Enter the following prompt into the Genie Code chat on the canvas.
- ```
-    Add gold_enrollment_course_inner and apply filter on "grade" for only values "C" and "C+"
- ```
- 3. Verify the filter condition applied correctly.
+    `Add gold_enrollment_course_inner and apply filter on "grade" for only values "C" and "C+"`
+  1. Verify the filter condition applied correctly.
 
 **Expected outcome:** Data browseable through a visual interface; row-level filter applied without SQL; result set previewable.
 
@@ -34,24 +33,27 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 **What it proves:** an analyst subscribes to a pre-built dashboard for recurring delivery, or
 exports it on demand — no SQL.
 
-**Setup (SA, done):** AI/BI dashboard **"Enrollment by Department (BA-02)"** deployed as a DAB
-resource (`businessanalyst/resources/ba_dashboard.dashboard.yml` +
-`src/dashboards/enrollment_by_department.lvdash.json`), **verified ACTIVE**. KPIs, top-15
-department bar, enrollment-by-year trend, dept×term detail table.
 
-**How to test:** `databricks bundle summary -t dev --profile princeton_poc | grep -A2 ba_enrollment`
-→ open the URL → **Schedule/Subscribe** (email/Slack, weekly), or **⋯ → Download** (CSV/Excel/PDF).
-Walkthrough: `README_BA02.md`.
 
-**Expected outcome:** a per-user subscription registers, or a file downloads. Queries pre-tested
-on `silver_dev` (40 depts, 960 dept×term groups, avg GPA ≈ 3.1). Read-only → concurrent-safe.
+**How to test:** 
+```
+1. Open dashbaord "[princeton_poc_dev] Workload Monitoring (E9 · SE-34)"
+2. In upper Right corner, click "Schedule"
+3. Click "+Schedule"
+4. Leave Schedule section as the default.
+5. Click "Advanced settings"
+6. On "Custom Email subject", add your name to end of value
+7. Select a SQL warehouse
+8. Click "Subscribe" check box.
+9. Click "Attachments"
+10. Under "INclude Pages", select "All pages"
+11. In "Include data", select "avg job-task duration(min)" and "Run history - all worksloads (last 30 days)
+12. Click "Create"
+13. On the newly created schedule for your user, hover over the schedule and on the far right, open menu and click "Run now".  Let this run and an email will be sent to you.
+```
+**Expected outcome:** Report or file delivered at the scheduled time without analyst intervention on delivery day.
 
-> **Demo flow for BA-03/04/05 (Lakeflow Designer + its Genie agent).** The analyst starts from
-> data — either an **existing platform object** (BA-03, BA-05) or a **file they upload** (BA-04) —
-> then **describes what they want in plain English to the Designer's Genie agent**, which builds
-> the flow. The runbook gives the exact prompt to paste. No SQL, no manual node-wiring. If the
-> live NL build stalls, each entry's **pre-built fallback** (a verified job / saved query) produces
-> the same result.
+
 
 ## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe (Designer, from existing data)
 
@@ -61,17 +63,18 @@ on `silver_dev` (40 depts, 960 dept×term groups, avg GPA ≈ 3.1). Read-only �
 in natural language, Designer builds it, and they download the result in three formats — no SQL.
 
 **Demo flow:**
+
 1. **Start point — existing data:** in Lakeflow Designer, **Add data** → pick
-   `princeton_poc_dev.silver_dev.enrollment` (the foundation fact — already there, nothing to upload).
+  `princeton_poc_dev.silver_dev.enrollment` (the foundation fact — already there, nothing to upload).
 2. **Prompt the Designer Genie agent** (paste, then edit the filter in plain English):
-   ```text
+  ```text
    From the enrollment table, join to student, course, term, and department so each row shows
    student name, course title, term year and season, grade, gpa_points, and department name.
    Filter to the Johnson Department. Sort by year descending. This is for an ad-hoc extract I'll
    download as CSV/Excel.
-   ```
+  ```
 3. Designer builds the join+filter flow. **Run**, then **Download** the result → CSV (BA-03) /
-   Excel (BA-06) / pipe-delimited (BA-07).
+  Excel (BA-06) / pipe-delimited (BA-07).
 
 **Pre-built fallback:** saved query `businessanalyst/src/queries/enrollment_export.sql` (same
 join, editable filter lines, 10k `LIMIT`) — run it in the SQL editor and **Download Results**.
@@ -88,22 +91,24 @@ GPA, department); the Johnson-Department filter returns a smaller set (verified)
 join it to platform data and transform it — no SQL.
 
 **Demo flow:**
+
 1. **Start point — upload:** in Lakeflow Designer → **Add data** → **Upload file** →
-   `departments_budget_fy2025.csv` (columns: `dept_id, dept_name, budget_amount, approved_date`).
-   *(A pre-staged copy also lives at `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` if a
+  `departments_budget_fy2025.csv` (columns: `dept_id, dept_name, budget_amount, approved_date`).
+   *(A pre-staged copy also lives at* `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` *if a
    live upload isn't convenient.)*
 2. **Prompt the Designer Genie agent:**
-   ```text
+  ```text
    Join my uploaded budget file to the enrollment data: my file has dept_id and budget_amount;
    join it through the course table (course.dept_id) to the enrollment fact, and join student to
    get status. Keep only active students. Rename budget_amount to total_budget and dept_name to
    department. Add a column budget_per_student = total_budget divided by the number of distinct
    students in that department. Save the result to my own schema.
-   ```
+  ```
 3. Designer builds upload→join→filter→rename→derive→write. **Run.**
 
 **Pre-built fallback:** job **"BA Workflow — Budget-Enriched Enrollment"**
 (`businessanalyst/resources/ba_workflow.job.yml`) — **verified green (35,937 rows)**:
+
 ```bash
 databricks bundle run ba_budget_enrollment_join -t dev --profile princeton_poc
 ```
@@ -120,18 +125,19 @@ department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 �
 reusable workflow** (BA-08).
 
 **Demo flow:**
+
 1. **Start point — existing data:** Designer → **Add data** → `princeton_poc_dev.silver_dev.student`
-   (join `department` for the major name).
+  (join `department` for the major name).
 2. **Prompt the Designer Genie agent:**
-   ```text
+  ```text
    From the student table joined to department, keep only active students. Rename the department
    name column to major, derive a full_name column by concatenating first_name and last_name, and
    add an email_domain column extracted from the part of the email after the @. Save the result to
    my own schema.
-   ```
+  ```
 3. Designer builds the rename/filter/derive flow. **Run.**
 4. **BA-08 — save & reuse:** **Save as** a workflow/job. Re-run any time (or schedule it); change
-   the filter/params to reuse on new data without rebuilding the canvas.
+  the filter/params to reuse on new data without rebuilding the canvas.
 
 **Pre-built fallback:** the same `ba_budget_enrollment_join` job demonstrates the save-and-reuse
 pattern (parameters `upload_file`, `status_filter`, `catalog`, `schema_suffix`); re-run it or
