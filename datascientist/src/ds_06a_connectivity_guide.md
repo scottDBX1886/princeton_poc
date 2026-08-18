@@ -19,21 +19,29 @@ their laptop, with no extra configuration.
 
 | Value | Where to get it | Example |
 |---|---|---|
-| **Server hostname** | Workspace URL, no `https://` | `fe-sandbox-serverless-sandbox-x7sksm.cloud.databricks.com` |
+| **Server hostname** | Workspace URL, no `https://` | `<workspace-host>` — read it live, see below |
 | **HTTP path** | SQL Warehouse → Connection details | `/sql/1.0/warehouses/<warehouse_id>` |
 | **Token** | User Settings → Developer → Access tokens | `dapi…` |
-| **Catalog / schemas** | Set per bundle target | `princeton_poc_dev` · `silver_dev`, `gold_dev` |
+| **Catalog / schemas** | Set per bundle target (dev/qa/prod) | dev: `princeton_poc_dev` · `silver_dev`, `gold_dev` |
 
-The build workspace is **AWS Databricks**, so the hostname ends in
-`.cloud.databricks.com`. An Azure workspace would be `adb-<id>.<n>.azuredatabricks.net`
-instead — the snippets are otherwise identical, only the host changes. Get the exact host
-and HTTP path from **SQL Warehouse → Connection details**, which renders ready-to-copy
-values for each client type, rather than assembling them by hand.
+**Do not copy a hostname out of this document.** POC workspaces get rebuilt and
+reclaimed, and a stale host is the most common reason these snippets fail. Read the live
+values from **SQL Warehouse → Connection details** in whichever workspace you are
+demonstrating against — it renders ready-to-copy `Server hostname` and `HTTP path` per
+client type.
+
+Only the host shape differs by cloud; nothing else in these snippets changes:
+
+| Cloud | Hostname form |
+|---|---|
+| AWS | `<workspace-name>.cloud.databricks.com` |
+| Azure | `adb-<workspace-id>.<n>.azuredatabricks.net` |
+| GCP | `<workspace-id>.<n>.gcp.databricks.com` |
 
 **Never hardcode the token.** Every snippet below reads it from an environment variable:
 
 ```bash
-export DATABRICKS_HOST="fe-sandbox-serverless-sandbox-x7sksm.cloud.databricks.com"
+export DATABRICKS_HOST="<workspace-host>"          # from Connection details
 export DATABRICKS_HTTP_PATH="/sql/1.0/warehouses/<warehouse_id>"
 export DATABRICKS_TOKEN="dapi..."
 ```
@@ -112,7 +120,7 @@ Configure a DSN in `~/.odbc.ini`:
 ```ini
 [Databricks]
 Driver          = /Library/simba/spark/lib/libsparkodbc_sbu.dylib
-Host            = fe-sandbox-serverless-sandbox-x7sksm.cloud.databricks.com
+Host            = <workspace-host>
 Port            = 443
 HTTPPath        = /sql/1.0/warehouses/<warehouse_id>
 SSL             = 1
@@ -167,7 +175,7 @@ options set=CLASSPATH "/opt/databricks/DatabricksJDBC42.jar";
 
 libname dbx jdbc
   driverclass="com.databricks.client.jdbc.Driver"
-  url="jdbc:databricks://fe-sandbox-serverless-sandbox-x7sksm.cloud.databricks.com:443/default;
+  url="jdbc:databricks://<workspace-host>:443/default;
        transportMode=http;ssl=1;
        httpPath=/sql/1.0/warehouses/<warehouse_id>;
        AuthMech=3;
