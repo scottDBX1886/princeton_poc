@@ -108,7 +108,7 @@ list is the full checklist.
 ## Persona 2 — Data Scientist / Advanced Analyst (DS-01 … DS-09)
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| DS-01 | SQL-based data exploration | DS-A | ✅ built & verified | — n/a |
+| DS-01 | SQL-based data exploration | DS-A | ✅ built & verified | 🟢 tested (3 NL prompts -> correct SQL, numbers match the notebook) |
 | DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) | — n/a |
 | DS-03 | Notebook environment — R | DS-B | 🟡 built (sparklyr); needs a classic cluster to run — not yet executed | — n/a |
 | DS-04 | Bring your own data — ad-hoc file upload | DS-B | ✅ built & verified (40 depts, 5 matched, per-user upload path) | — n/a |
