@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # DS-F / DS-07: Scheduling and operationalizing a notebook
 # MAGIC
@@ -18,8 +22,11 @@
 # MAGIC one-row-per-day, which is what makes the trend query below meaningful.
 
 # COMMAND ----------
+
 # MAGIC %md ## Context
+
 # COMMAND ----------
+
 import os
 import sys
 
@@ -32,11 +39,14 @@ OUT = f"{WORK}.ds_07_daily_summary"
 print(f"reading {GOLD} (read-only) | appending to {OUT}")
 
 # COMMAND ----------
+
 # MAGIC %md ## Compute today's summary
 # MAGIC `approx_percentile` rather than an exact percentile: on a multi-million-row fact the
 # MAGIC approximate version is dramatically cheaper and the difference is irrelevant for a
 # MAGIC daily trend metric.
+
 # COMMAND ----------
+
 summary = spark.sql(f"""
     SELECT
         current_date()                          AS run_date,
@@ -49,15 +59,21 @@ summary = spark.sql(f"""
         current_timestamp()                     AS computed_at
     FROM {GOLD}.enrollment_history
 """)
-summary.cache()
+# Do NOT add .cache() here. Serverless rejects it:
+#   [NOT_SUPPORTED_WITH_SERVERLESS] PERSIST TABLE is not supported on serverless compute
+# It runs fine interactively in a notebook, so this only surfaces when the notebook runs as
+# the scheduled JOB — which is the thing DS-07 is actually demonstrating.
 display(summary)
 
 # COMMAND ----------
+
 # MAGIC %md ## Write — create if absent, replace today's row if present
 # MAGIC `saveAsTable(mode="append")` alone would duplicate on re-run. Creating the table on
 # MAGIC first run and deleting the current `run_date` before appending makes the job safely
 # MAGIC repeatable, which matters because a scheduled job WILL be re-run manually during a demo.
+
 # COMMAND ----------
+
 if not spark.catalog.tableExists(OUT):
     summary.write.saveAsTable(OUT)
     print(f"created {OUT}")
@@ -68,10 +84,13 @@ else:
     print(f"replaced the row for {run_date} in {OUT}")
 
 # COMMAND ----------
+
 # MAGIC %md ## Verify + show the accumulating trend
 # MAGIC After several scheduled runs this is the operational artifact: a daily series a data
 # MAGIC scientist can chart or alert on, produced by a notebook nobody has to run by hand.
+
 # COMMAND ----------
+
 display(spark.sql(f"""
     SELECT run_date, total_enrollments, unique_students, avg_gpa, median_gpa, computed_at
     FROM {OUT}
@@ -80,8 +99,11 @@ display(spark.sql(f"""
 """))
 
 # COMMAND ----------
+
 # MAGIC %md ## Assertions
+
 # COMMAND ----------
+
 row = summary.first()
 
 # The summary must reflect the real fact table, not an empty or partial read.

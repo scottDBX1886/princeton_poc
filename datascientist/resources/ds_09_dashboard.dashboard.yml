@@ -1,0 +1,25 @@
+# DS-09 — AI/BI dashboard over the shared foundation.
+#
+# The second of the two visualization surfaces the scenario needs: the notebook
+# (09_visualizations.py) is where an analyst charts while exploring; this dashboard is the
+# durable artifact a stakeholder opens without ever seeing a notebook. Both read the same
+# governed tables, so there is no extract to drift out of date.
+#
+# Read-only over silver_dev / gold_dev, so the whole group can view it concurrently — no
+# per-person isolation needed (spec §3.1 rule 6).
+#
+# Auto-discovered by the root databricks.yml `include: "*/resources/*.yml"` glob; file_path
+# is relative to THIS file's directory.
+#
+# NOTE on the catalog: the dashboard JSON's queryLines hardcode `princeton_poc_dev` because
+# .lvdash.json is not variable-interpolated by the bundle — the same constraint BA-02 has.
+# For a different target the queries need updating, or the dashboard needs regenerating via
+# `databricks bundle generate dashboard`. Flagged rather than hidden, since everything else
+# in this persona resolves catalog + schema_suffix from widgets.
+resources:
+  dashboards:
+    ds_09_student_analytics:
+      display_name: "[${var.catalog}] Student Analytics (DS-09)"
+      file_path: ../src/dashboards/ds_09_student_analytics.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      parent_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}/dashboards
