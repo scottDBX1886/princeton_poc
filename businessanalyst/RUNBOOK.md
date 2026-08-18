@@ -21,7 +21,7 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 
 1. Create new "Visual Data prep".
 2. Enter the following prompt into the Genie Code chat on the canvas.
-    `Add gold_enrollment_course_inner and apply filter on "grade" for only values "C" and "C+"`
+  `Add gold_enrollment_course_inner and apply filter on "grade" for only values "C" and "C+"`
   1. Verify the filter condition applied correctly.
 
 **Expected outcome:** Data browseable through a visual interface; row-level filter applied without SQL; result set previewable.
@@ -33,9 +33,8 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 **What it proves:** an analyst subscribes to a pre-built dashboard for recurring delivery, or
 exports it on demand — no SQL.
 
-
-
 **How to test:** 
+
 ```
 1. Open dashbaord "[princeton_poc_dev] Workload Monitoring (E9 · SE-34)"
 2. In upper Right corner, click "Schedule"
@@ -51,37 +50,46 @@ exports it on demand — no SQL.
 12. Click "Create"
 13. On the newly created schedule for your user, hover over the schedule and on the far right, open menu and click "Run now".  Let this run and an email will be sent to you.
 ```
+
 **Expected outcome:** Report or file delivered at the scheduled time without analyst intervention on delivery day.
-
-
 
 ## BA-03 / BA-06 / BA-07 — Ad-hoc extract to CSV / Excel / pipe (Designer, from existing data)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Designer CSV/Excel download + Excel & pipe-delimited outputs to Volume — verified)
 
-**What it proves:** starting from an **existing** platform object, an analyst describes an extract
-in natural language, Designer builds it, and they download the result in three formats — no SQL.
+**What it proves:** Business analyst can easily add data objects, apply filters as-hoc and export data in CSV/EXCEL.  The same dataflow can be outputed to a shared consumable location in Excel/delimited flat file.
 
 **Demo flow:**
 
-1. **Start point — existing data:** in Lakeflow Designer, **Add data** → pick
-  `princeton_poc_dev.silver_dev.enrollment` (the foundation fact — already there, nothing to upload).
-2. **Prompt the Designer Genie agent** (paste, then edit the filter in plain English):
-  ```text
-   From the enrollment table, join to student, course, term, and department so each row shows
-   student name, course title, term year and season, grade, gpa_points, and department name.
-   Filter to the Johnson Department. Sort by year descending. This is for an ad-hoc extract I'll
-   download as CSV/Excel.
+### BA-03 - adhoc csv/excel download
+
+1. **Start point — existing dataflow:** In the designer data prep from the previous steps, select the ***Filter***
+2. On the **Output** data preview panel.  You will see a **Download** button, click the arrow to select either ***CSV/EXcel***
+3. Open downloaded file to confirm data.
+
+
+
+### BA-06  - shared excel output
+
+1. In the canvas, enter the following prompt
   ```
-3. Designer builds the join+filter flow. **Run**, then **Download** the result → CSV (BA-03) /
-  Excel (BA-06) / pipe-delimited (BA-07).
+   Add an output that saves the filtered data as EXCEL and outputs to /Volumes/princeton_poc_dev/landing_dev/files.  Please add my user name to file name.
+  ```
+2. Click the ***output_excel*** object, and click **Run**
+3. Once run is successful, open ***/Volumes/princeton_poc_dev/landing_dev/files*** and locate your newly created excel file.  You can click on it, to open a data preview
 
-**Pre-built fallback:** saved query `businessanalyst/src/queries/enrollment_export.sql` (same
-join, editable filter lines, 10k `LIMIT`) — run it in the SQL editor and **Download Results**.
-Walkthrough: `README_BA03.md`.
 
-**Expected outcome:** a filtered, human-readable extract (student name, course title, term, grade,
-GPA, department); the Johnson-Department filter returns a smaller set (verified). All three formats download cleanly.
+
+### BA-07 - shared delimited output
+
+1. Back in the canvas of the data prep, enter the following prompt
+  ```
+   Add an output that saves the filtered data as pipe (|) delimited file and save in /Volumes/princeton_poc_dev/landing_dev/files.  I want a single file in the volume with extension .txt
+  ```
+2. Once the new output is created, it will say something similiar to ***Single pipe-delimited file written to: /Volumes/princeton_poc_dev/landing_dev/files/scott_johnson_grade_c_filter.txt***
+3. Navigate to that volume and you will find the newly created .txt file.  When you click on the file, the data preview will show the pipe (|) delimiter
+
+**Expected outcome:** File downloaded successfully; data matches filter criteria; file opens correctly in Excel. Excel file opens with headers; column widths reasonable; data types preserved. File produced with correct delimiter; encoding and line endings suitable for external consumption.
 
 ## BA-04 — Upload + join + transform (Designer, from your own file)
 
