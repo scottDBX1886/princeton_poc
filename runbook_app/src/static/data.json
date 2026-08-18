@@ -1,0 +1,370 @@
+{
+  "title": "Princeton Data Platform POC — Interactive Runbook",
+  "subtitle": "Follow along, scenario by scenario. Each tab is one build object with the prompt to run and what to expect.",
+  "personas": [
+    {
+      "id": "engineer",
+      "name": "Software / Data Engineer",
+      "blurb": "Genie-generated Spark Declarative Pipelines and Assistant-generated notebooks. Each object is generated from a plain-English prompt and verified against a known-good baseline.",
+      "objects": [
+        {
+          "id": "E1",
+          "title": "Multi-format file ingestion",
+          "scenarios": "SE-04, SE-05, SE-06, SE-07",
+          "surface": "Genie → SDP pipeline",
+          "status": "tested",
+          "proves": "The platform natively ingests five file formats with real-world “gotchas”: CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel (targeting a named sheet), nested JSON, and XML with optional nodes.",
+          "setup": "Foundation source files are staged on the landing Volume. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion.",
+          "steps": [
+            "Create a new Lakeflow pipeline and open its editor.",
+            "Open the Assistant (sparkle) panel and paste the prompt below.",
+            "Put the generated code in the pipeline source; set default catalog = princeton_poc_dev and default schema = your wksp_<you>.",
+            "Run the pipeline and check the expected outcome."
+          ],
+          "prompt": "I'm building a Lakeflow Spark Declarative Pipeline (Python) that ingests five higher-ed source files into bronze streaming tables using Auto Loader. Write the pipeline for me.\n\nImportant: each source is staged in its OWN directory under /Volumes/princeton_poc_dev/landing_dev/files/ — Auto Loader reads a directory, not a single file — so point each streaming table at the directory. Create one @dp.table streaming table per source, reading with spark.readStream.format(\"cloudFiles\"), and let Auto Loader manage its own schema location and checkpoints (don't set them). Enable cloudFiles.inferColumnTypes on each.\n\nCreate these five tables in catalog princeton_poc_dev, schema wksp_<my_user>:\n\n1. e1_students_raw — dir students_csv/ — cloudFiles.format csv, header true, quote '\"', escape '\"' (a name field contains an embedded comma inside quotes; it must stay one field).\n2. e1_enrollments_raw — dir enrollments_pipe/ — cloudFiles.format csv, header true, sep \"|\".\n3. e1_financial_aid_raw — dir financial_aid_xlsx/ — cloudFiles.format excel, dataAddress \"AidDetail\" (read only that named sheet, not the first), headerRows 1. Excel via Auto Loader does NOT support schema evolution, so set cloudFiles.schemaEvolutionMode \"none\".\n4. e1_course_catalog_raw — dir course_catalog_json/ — cloudFiles.format json, multiLine true (nested objects/arrays).\n5. e1_faculty_raw — dir faculty_xml/ — cloudFiles.format xml, rowTag \"faculty\" (optional <tenure> node should come through as null, not drop the row).\n\nThe pipeline's target catalog + schema are set in the pipeline settings, so reference each table by its short name; don't hard-code the catalog inside the code.",
+          "outcome": "Five tables in your per-person wksp_<you> schema — e1_students_raw (2000), e1_enrollments_raw (2000), e1_financial_aid_raw (1000, from the AidDetail sheet only), e1_course_catalog_raw (10 depts), e1_faculty_raw (200). The row \"Doe, John\" proves the embedded comma didn't split (SE-04); the ~66/134 tenure-present/null split proves the optional XML node became null, not a dropped row (SE-07).",
+          "notes": [
+            "Native Excel read works (DBR 17.1+) via .option(\"dataAddress\", \"AidDetail\") — a bare sheet name.",
+            "Outputs go to a per-person schema (wksp_<current_user>) so ~20 people run it concurrently without colliding; the foundation stays read-only."
+          ],
+          "media": []
+        },
+        {
+          "id": "E3",
+          "title": "REST API ingestion — OAuth 2.0 + pagination + token refresh",
+          "scenarios": "SE-08",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "The platform ingests from a paginated REST API using OAuth 2.0 client-credentials, following pagination automatically and refreshing the token on expiry — with no manual intervention.",
+          "setup": "Mock API app princeton-mock-api is deployed and running; a service principal with CAN_USE on the app; its OAuth secret stored in UC secret scope princeton_poc_e3. Before running, confirm the app is up: databricks apps get princeton-mock-api should show RUNNING.",
+          "steps": [
+            "Open a new notebook and open the Assistant panel.",
+            "Paste the prompt below; replace <workspace-host> with your workspace URL.",
+            "Run the notebook and check the expected outcome."
+          ],
+          "prompt": "Write a notebook that ingests a paginated REST API served by the Databricks App named \"princeton-mock-api\", which sits behind the Databricks Apps SSO proxy. Get the app's base URL from `databricks apps get princeton-mock-api` (the \"url\" field), e.g. https://princeton-mock-api-<id>.<region>.databricksapps.com.\n\nThere are TWO SEPARATE sets of credentials — do not mix them up:\n  • Layer-1 (Apps SSO proxy): a SERVICE PRINCIPAL's client_id/client_secret, read from secret scope princeton_poc_e3. Used only to get a workspace OAuth token.\n  • Layer-2 (the app's own OAuth): the app's OWN demo credentials, which are literally client_id=\"princeton_poc_client\" and client_secret=\"poc_secret_change_me\" (these are the app's fixed demo creds, NOT the service principal's — pass them as literals).\n\nSteps:\n  1. POST https://<workspace-host>/oidc/v1/token with grant_type=client_credentials, scope=all-apis, using the SP client_id/client_secret from scope princeton_poc_e3. Take the returned access_token — call it PLATFORM_TOKEN.\n  2. POST {base_url}/oauth/token with grant_type=client_credentials and the APP's demo client_id/client_secret (\"princeton_poc_client\" / \"poc_secret_change_me\"), AND send header Authorization: Bearer PLATFORM_TOKEN (so the call clears the SSO proxy). Take the returned access_token — call it API_TOKEN.\n  3. GET {base_url}/enrollments with BOTH headers on every request:\n       Authorization: Bearer PLATFORM_TOKEN\n       X-API-Token: API_TOKEN            <-- the RAW token, NOT \"Bearer <token>\"\n     Pagination is PAGE-NUMBER based: send params page (start at 1) and page_size=1000. The JSON response has fields total, data (the rows), and next (the next page NUMBER, or null when done). Loop until next is null. On HTTP 401, re-run step 2 to refresh API_TOKEN and retry the same page. Use page_size=1000 (the API's max) so it's ~60 pages, not 600.\nWrite all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table e3_enrollments_from_api. Add a request timeout on every call. Assert the final row count equals the API's reported total. Never hardcode the SP secret (only the app's demo creds are literals).",
+          "outcome": "60,000 rows in wksp_<you>.e3_enrollments_from_api; ~600 pages; a token refresh occurs mid-run (300s TTL) with no manual step; final count == API total.",
+          "notes": [
+            "The SP + CAN_USE + secret-scope setup is a workspace-admin one-time task — also the answer to “how does an in-workspace pipeline call a gateway-protected internal API,” and doubles as PA-06 evidence.",
+            "SP credentials live only in the UC secret scope, never in notebook code."
+          ],
+          "media": []
+        },
+        {
+          "id": "E4",
+          "title": "Multi-source merge",
+          "scenarios": "SE-10",
+          "surface": "Genie → SDP pipeline",
+          "status": "tested",
+          "proves": "One pipeline reconciles three different source types on a common key — file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).",
+          "setup": "Requires E1 + E3 to have run into the same wksp schema (their Bronze outputs are the inputs — the correct medallion pattern).",
+          "steps": [
+            "Create a new Lakeflow pipeline and open the Assistant panel.",
+            "Paste the prompt below; substitute your wksp schema.",
+            "Set default catalog/schema and run the pipeline."
+          ],
+          "prompt": "Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:\n  - wksp_<my_user>.e1_students_raw            (file-sourced)\n  - wksp_<my_user>.e3_enrollments_from_api    (API-sourced)\n  - princeton_poc_dev.silver_dev.student      (DB-sourced)\nTag each output row with a source_system column showing which sources it matched (e.g. \"file+db+api\" vs \"api\"), so matched vs unmatched reconciliation is visible.",
+          "outcome": "e4_enrollment_reconciled — rows tagged file+db+api where the student is in the file sample, api otherwise (matched vs unmatched reconciliation is visible via source_system). ~3,939 fully-reconciled on the sample data.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "E5",
+          "title": "“Kitchen-sink” transformation pipeline",
+          "scenarios": "SE-11 … SE-20",
+          "surface": "Genie → SDP pipeline",
+          "status": "tested",
+          "proves": "Ten transformation capabilities in one pipeline — the platform's breadth for real ETL work: lookups, joins, string/date/null handling, cast validation with reject paths, running totals, pivots, last-record-in-group, and a grouped summary.",
+          "setup": "Reads from princeton_poc_dev.silver_dev. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E5 - Transformation kitchen-sink.",
+          "steps": [
+            "Create a new Lakeflow pipeline and open the Assistant panel.",
+            "Paste the prompt below; substitute your wksp schema.",
+            "Set default catalog/schema and run the pipeline."
+          ],
+          "prompt": "Generate a Lakeflow Spark Declarative Pipeline reading from princeton_poc_dev.silver_dev, writing materialized views to catalog princeton_poc_dev, schema wksp_<my_user>, that demonstrates:\n  - reference lookup enrichment with matched/unmatched handling\n  - inner, left, and full outer joins\n  - string manipulation (substring, concat, split, case)\n  - null + conditional logic (coalesce, if/then/else)\n  - parsing mixed-format date strings (use try_to_date / try_cast so bad values don't throw)\n  - casting with a reject path: use an expectation (expect_or_drop) to drop bad casts into the valid MV, and a separate MV that captures the rejected rows\n  - running totals per group (control-break)\n  - a pivot\n  - last-record-per-group\n  - a one-row-per-student summary\nName the lookup-enriched, one-row-per-student materialized view exactly `e5_student_enriched`, and give it a `standing` column derived from the student status (e.g. CASE WHEN status = 'graduated' THEN 'Alumnus' ELSE 'Active' END). Downstream steps (E7 target loading) read `e5_student_enriched` and filter on `standing`, so this name and column are a fixed contract even though the other MV names are free.",
+          "outcome": "Materialized views in wksp_<you>: e5_student_enriched (30000) with a standing column, e5_gpa_valid (~59988, bad casts dropped by the expectation), e5_gpa_rejects (the captured rejects, proving SE-16's reject path), running totals, a pivot, last-record-per-group, and a summary.",
+          "notes": [
+            "The prompt is deliberately language-agnostic — Genie may generate SQL or Python, and may split the work into a different number of MVs. Both are first-class SDP; what matters is that all ten patterns are covered.",
+            "The reject path is a declarative Expectation (@dp.expect_or_drop) — valid rows flow through with drop-metrics tracked automatically; a sibling MV captures the rejects.",
+            "try_to_date / try_cast (not to_date/cast, which throw in ANSI mode) parse the mixed-format dates and tolerate bad casts."
+          ],
+          "media": []
+        },
+        {
+          "id": "E6",
+          "title": "Change data capture + Slowly Changing Dimensions",
+          "scenarios": "SE-03, SE-21, SE-22, SE-23",
+          "surface": "Genie → SDP pipeline",
+          "status": "tested",
+          "proves": "Change-data-capture (new/changed/deleted) and both slowly-changing-dimension types, inferred automatically by diffing two snapshots — no hand-written CDC logic.",
+          "setup": "Run the E6 - snapshot setup notebook first — it builds student_snapshot_v1 (baseline) and student_snapshot_v2 (baseline + planted 10 inserts / 20 updates / 5 deletes) in your wksp schema. Then run the E6 pipeline.",
+          "steps": [
+            "Run the E6 snapshot-setup notebook (targets your wksp schema).",
+            "Create a new Lakeflow pipeline and open the Assistant panel.",
+            "Paste the prompt below; substitute your wksp schema, then run."
+          ],
+          "prompt": "Generate a Lakeflow SDP (Python) that uses apply_changes_from_snapshot to compare two student snapshots and infer inserts/updates/deletes. Feed the snapshots via a callable that returns wksp_<my_user>.student_snapshot_v1 as version 1, then wksp_<my_user>.student_snapshot_v2 as version 2, then None. keys = student_id. Build both:\n  - e6_student_scd1 : SCD Type 1 (latest state / overwrite)\n  - e6_student_scd2 : SCD Type 2 (full history with __START_AT / __END_AT)\nWrite to catalog princeton_poc_dev, schema wksp_<my_user>.",
+          "outcome": "e6_student_scd1 = 1005 (1000 − 5 deletes + 10 inserts); e6_student_scd2 = 1005 current + ~21 end-dated history rows. The known counts are the proof (SE-03/23 = detected changes; SE-21 = overwrite; SE-22 = history).",
+          "notes": [
+            "The snapshot-diff is isolation-safe — it writes to your wksp and never mutates the shared silver_dev foundation, so a concurrent group session is safe."
+          ],
+          "media": []
+        },
+        {
+          "id": "E7",
+          "title": "Target loading — UPSERT + multi-format export",
+          "scenarios": "SE-24, SE-25, SE-26, SE-27",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "Loading a database target with UPSERT + hard-delete, and exporting to CSV / pipe / Excel / JSON.",
+          "setup": "Requires E5's e5_student_enriched MV in your wksp schema. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E7 - Target loading.",
+          "steps": [
+            "Open a new notebook and open the Assistant panel.",
+            "Paste the prompt below; substitute your wksp schema.",
+            "Run the notebook and check the expected outcome."
+          ],
+          "prompt": "Write a notebook that, using catalog princeton_poc_dev and schema wksp_<my_user>:\n  1. Seeds a target table e7_student_target from a 500-row subset of e5_student_enriched.\n  2. MERGEs the full e5_student_enriched into e7_student_target on student_id (update matched, insert unmatched) — an UPSERT.\n  3. Hard-deletes alumni rows (standing = 'Alumnus') from the target.\n  4. Exports the target to CSV, pipe-delimited, JSON, and Excel under /Volumes/princeton_poc_dev/landing_dev/files/e7_exports/wksp_<my_user>/.\nUse native writers for CSV/pipe/JSON; write Excel with openpyxl in-memory.",
+          "outcome": "e7_student_target after UPSERT+delete (0 alumni remain, ~23,999 rows); four export artifacts under …/files/e7_exports/wksp_<you>/ (CSV, pipe, JSON, .xlsx).",
+          "notes": [
+            "A notebook (not SDP) is the honest fit: SE-24's UPSERT + hard-delete needs a batch MERGE + DELETE, and pipeline sinks are streaming/append-only with no CSV/JSON/Excel option. Excel write uses openpyxl in-memory."
+          ],
+          "media": []
+        },
+        {
+          "id": "SE-09",
+          "title": "SFTP file retrieval & ingestion",
+          "scenarios": "SE-09",
+          "surface": "SA-deployed job (walkthrough)",
+          "status": "walkthrough",
+          "proves": "The platform retrieves pattern-matched files from an SFTP server, stages them in a UC Volume, and ingests them via Auto Loader — all as orchestrated, git-versioned Lakeflow tasks, with NO standalone shell/bash script.",
+          "setup": "Job [princeton_poc_dev] SFTP ingest (SE-09) deployed to dev.",
+          "steps": [
+            "Run: databricks bundle run sftp_ingest -t dev --profile princeton_poc",
+            "Task retrieve pattern-matches financial_aid_*.csv and pulls 3 dated files to the landing Volume.",
+            "Task ingest runs Auto Loader into princeton_poc_dev.bronze_dev.sftp_financial_aid."
+          ],
+          "prompt": null,
+          "outcome": "3 files land on the Volume (financial_aid_20260728/29/30.csv); Bronze table = 600 rows (3 × 200). No shell script anywhere — retrieval is Python paramiko in a governed, scheduled Lakeflow task.",
+          "notes": [
+            "Parked upgrade path: the Lakeflow Connect SFTP connector (Public Preview) can replace the paramiko retrieval task with a fully managed connector."
+          ],
+          "media": []
+        },
+        {
+          "id": "E8",
+          "title": "Orchestration",
+          "scenarios": "SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35",
+          "surface": "Databricks Assistant → Lakeflow Job",
+          "status": "tested",
+          "proves": "The platform's job orchestration surface — task chaining, parallel execution, automated retry on failure, scheduling, external-command calls, and notifications — all in one Lakeflow Job.",
+          "setup": "Pre-built job [princeton_poc_dev] Orchestration Demo (E8) deployed to dev. It is isolation-safe — reads the shared foundation read-only and writes only to your per-person wksp schema.",
+          "steps": [
+            "Open the Databricks Assistant and paste the prompt below.",
+            "Let the Assistant create the serverless notebooks and wire the 7-task job.",
+            "Run the job and confirm each scenario in the outcome."
+          ],
+          "prompt": "Create a job with 7 tasks: a stage task, two parallel legs that both depend only on stage, a merge that depends on both legs, an external-command task, on the stage task enable \"retry-enabled\" task that simulates a transient failure, and a notification task, a paused daily cron schedule and job-level email notifications.\n\ncreate simple notebooks that execute on serverless for the tasks so the job can run. Make sure notebooks execute before adding to the job and fix any errors.",
+          "outcome": "Job TERMINATED SUCCESS. SE-28 chaining (dependency order) · SE-29 parallel (leg_a & leg_b overlap) · SE-30 retry (attempt 0 FAILED, attempt 1 SUCCESS) · SE-31 email notifications · SE-32 external command (subprocess) · SE-33 paused daily cron · SE-35 bulk pause from the Jobs UI.",
+          "notes": [
+            "Two things make this generation actually run: the retry is enabled on the stage task (a concrete task to attach the transient-failure sim to), and the explicit “create serverless notebooks … make sure they execute before adding … fix any errors” instruction.",
+            "The retry demo is an honest transient-failure simulation keyed to the run id — it really fails once and recovers on retry."
+          ],
+          "media": []
+        },
+        {
+          "id": "E9",
+          "title": "Workload monitoring dashboard",
+          "scenarios": "SE-34",
+          "surface": "Genie / Assistant → AI/BI dashboard",
+          "status": "tested",
+          "proves": "The platform's native observability surface across all three workload types — jobs, pipelines, and notebook runs — with run history, success rate, and durations, and no custom monitoring build. Databricks captures the telemetry into system tables automatically; the dashboard just reads it.",
+          "setup": "Run E8 first so there is fresh Jobs telemetry to visualize. AI/BI dashboard [princeton_poc_dev] Workload Monitoring (E9 · SE-34) is also deployed as a bundle resource.",
+          "steps": [
+            "Open Genie / the Assistant and paste the prompt below.",
+            "Genie generates the dashboard; if it emits a minor SQL error it fixes it in-loop.",
+            "Confirm the dashboard shows jobs, pipelines, and notebook runs side by side."
+          ],
+          "prompt": "Build an AI/BI dashboard over system.lakeflow.job_run_timeline, system.lakeflow.pipeline_update_timeline, and system.query.history (notebook-origin) showing run history, success rate, and durations across jobs, pipelines, and notebooks for my POC over the last 30 days.",
+          "outcome": "Dashboard ACTIVE with datasets populated from live data — the unified run table shows Jobs (incl. E8), Pipelines (E1/E4/E5/E6 updates), and Notebooks side by side. The success-% KPI and “runs by workload type & status” chart render.",
+          "notes": [
+            "Statuses are normalized across systems (FINISHED/SUCCEEDED/COMPLETED → Succeeded; ERROR/FAILED/TIMEDOUT → Failed).",
+            "Dashboards have no runtime variables — the notebook-scope warehouse id is baked into the dashboard JSON and regenerated per environment."
+          ],
+          "media": []
+        },
+        {
+          "id": "E10",
+          "title": "DevOps — source control, promotion, CI/CD, rollback",
+          "scenarios": "SE-36, SE-37, SE-38, SE-39",
+          "surface": "Git + CLI walkthrough",
+          "status": "walkthrough",
+          "proves": "The POC is engineered the way a production data platform is — versioned in Git, promoted across environments from one codebase, deployed by CI, and rollback-able. The repo + bundle + workflow are the deliverable; there's no notebook to run.",
+          "setup": "The repo, three bundle targets (dev/qa/prod, all validating), the CI workflow (.github/workflows/deploy.yml), and a known-good release tag.",
+          "steps": [
+            "git log --oneline | head   — SE-36: versioned history, one commit per object",
+            "databricks bundle validate -t dev  --profile princeton_poc   — SE-37: same code…",
+            "databricks bundle validate -t qa   --profile princeton_poc   — …three catalogs",
+            "databricks bundle validate -t prod --profile princeton_poc",
+            "git tag   — SE-39: a known-good tag to roll back to",
+            "Open the repo's Actions tab — SE-38: the validate job runs on every push/PR; deploy is a manual dispatch."
+          ],
+          "prompt": null,
+          "outcome": "git log shows the versioned build history; all three bundle validate calls return Validation OK! (same code, princeton_poc_dev / _test / princeton_poc); git tag lists the release tag; the Actions tab shows the CI runs. Rollback = git revert or deploy a prior tag, then bundle deploy.",
+          "notes": [
+            "Catalogs use UC default storage, so no storage_root / external location is needed per target (serverless workspaces).",
+            "The validate CI job catches configuration regressions before they reach an environment."
+          ],
+          "media": []
+        },
+        {
+          "id": "E11",
+          "title": "Governance — lineage, schema drift, data drift, AI docs",
+          "scenarios": "SE-40, SE-41, SE-42, SE-43",
+          "surface": "UI + SQL walkthrough",
+          "status": "walkthrough",
+          "proves": "Databricks' native governance surface over the POC data — lineage and schema-drift history are captured automatically (zero setup), while data-drift monitoring and AI-generated documentation are one-click actions. Nothing custom is built.",
+          "setup": "No build needed — lineage and Delta history are already populated by the POC's own pipeline/job runs.",
+          "steps": [
+            "SE-40 lineage: run the table_lineage query below — returns real Bronze→Silver→Gold→wksp chains.",
+            "SE-41 schema drift: create a small copy in your wksp, ALTER TABLE ADD COLUMN, then DESCRIBE HISTORY shows ADD COLUMNS at version 1.",
+            "SE-42 data drift: Catalog Explorer → gold_dev.enrollment_history → Monitoring → create a Snapshot monitor on gpa_points + grade → Refresh metrics.",
+            "SE-43 AI docs: Catalog Explorer → silver_dev.student → AI suggest a description + column comments, then search to discover them."
+          ],
+          "prompt": "-- SE-40 lineage (automatic): full medallion + downstream wksp chains\nSELECT source_table_full_name, target_table_full_name\nFROM system.access.table_lineage\nWHERE target_table_full_name LIKE 'princeton_poc_dev.%' AND source_table_full_name IS NOT NULL\nORDER BY target_table_full_name;\n\n-- SE-41 schema drift (automatic, isolation-safe — writes only your wksp)\nCREATE TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo AS\n  SELECT student_id, dept_id, status FROM princeton_poc_dev.silver_dev.student LIMIT 100;\nALTER TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo ADD COLUMN citizenship STRING;\nDESCRIBE HISTORY princeton_poc_dev.wksp_<you>.e11_drift_demo;   -- shows version 1 = ADD COLUMNS",
+          "outcome": "The lineage query returns real Bronze→Silver→Gold→wksp chains; the drift demo's DESCRIBE HISTORY shows ADD COLUMNS at version 1; a monitor produces profile/drift metrics on the fact; AI-suggested comments appear on the table.",
+          "notes": [
+            "SE-41 drifts a wksp copy, not the shared silver_dev (isolation model — the foundation is read-only for the group)."
+          ],
+          "media": []
+        }
+      ]
+    },
+    {
+      "id": "ba",
+      "name": "Business Analyst",
+      "blurb": "No-code / low-code only — the analyst never writes SQL. Genie, AI/BI dashboards, and Lakeflow Designer with its Genie agent. Everything that writes goes to the analyst's own wksp schema.",
+      "objects": [
+        {
+          "id": "BA-01",
+          "title": "No-code browse, filter, preview",
+          "scenarios": "BA-01",
+          "surface": "Lakeflow Designer (Visual Data prep) + Genie Code",
+          "status": "tested",
+          "proves": "An analyst discovers and filters the enrollment data with natural language and a visual interface — zero SQL.",
+          "setup": "Shared foundation data is available; no build required.",
+          "steps": [
+            "Create a new “Visual Data prep”.",
+            "Enter the prompt below into the Genie Code chat on the canvas.",
+            "Verify the filter condition applied correctly."
+          ],
+          "prompt": "Add gold_enrollment_course_inner and apply filter on \"grade\" for only values \"C\" and \"C+\"",
+          "outcome": "Data browseable through a visual interface; row-level filter applied without SQL; result set previewable.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "BA-02",
+          "title": "Scheduled report & subscription",
+          "scenarios": "BA-02",
+          "surface": "AI/BI dashboard (subscribe / export)",
+          "status": "walkthrough",
+          "proves": "An analyst subscribes to a pre-built dashboard for recurring delivery, or exports it on demand — no SQL.",
+          "setup": "A pre-built AI/BI dashboard is deployed and ACTIVE.",
+          "steps": [
+            "Open the dashboard “[princeton_poc_dev] Workload Monitoring (E9 · SE-34)”.",
+            "In the upper-right corner, click “Schedule”, then “+ Schedule”.",
+            "Leave the Schedule section as the default.",
+            "Click “Advanced settings”; on “Custom Email subject”, add your name to the end of the value.",
+            "Select a SQL warehouse, then check the “Subscribe” box.",
+            "Click “Attachments” → under “Include Pages” select “All pages”.",
+            "In “Include data”, select “avg job-task duration (min)” and “Run history — all workloads (last 30 days)”.",
+            "Click “Create”. On the new schedule, open the menu on the far right and click “Run now” — an email will be sent to you."
+          ],
+          "prompt": null,
+          "outcome": "Report or file delivered at the scheduled time without analyst intervention on delivery day.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "BA-03 / BA-06 / BA-07",
+          "title": "Ad-hoc extract to CSV / Excel / pipe",
+          "scenarios": "BA-03, BA-06, BA-07",
+          "surface": "Lakeflow Designer + Genie Code",
+          "status": "tested",
+          "proves": "Starting from an existing platform object, an analyst filters data and exports it in three formats — no SQL. The same dataflow can be output to a shared consumable location as Excel or a delimited flat file.",
+          "setup": "Continue from the BA-01 Visual Data prep canvas (the filtered gold_enrollment_course_inner flow).",
+          "steps": [
+            "BA-03 — ad-hoc CSV/Excel download: in the Designer data prep from the previous steps, select the Filter. On the Output data-preview panel, use the Download button's arrow to choose CSV or Excel. Open the downloaded file to confirm.",
+            "BA-06 — shared Excel output: in the canvas, enter the BA-06 prompt below. Click the output_excel object and click Run. Open the landing Volume and locate your Excel file.",
+            "BA-07 — shared delimited output: in the canvas, enter the BA-07 prompt below. The new output reports the file path written; navigate to the Volume and open the .txt to confirm the pipe delimiter."
+          ],
+          "prompt": "BA-06 (shared Excel output):\nAdd an output that saves the filtered data as EXCEL and outputs to /Volumes/princeton_poc_dev/landing_dev/files. Please add my user name to the file name.\n\nBA-07 (shared pipe-delimited output):\nAdd an output that saves the filtered data as pipe (|) delimited file and save in /Volumes/princeton_poc_dev/landing_dev/files. I want a single file in the volume with extension .txt",
+          "outcome": "File downloads correctly (CSV/Excel); the Excel file opens with headers and reasonable column widths; the pipe-delimited .txt is a single file with the correct delimiter, suitable for external distribution.",
+          "notes": [
+            "BA-07's “single .txt file” matters — an external recipient wants one file, not a directory of Spark part-files."
+          ],
+          "media": []
+        },
+        {
+          "id": "BA-04",
+          "title": "Upload + join a spreadsheet to platform data",
+          "scenarios": "BA-04",
+          "surface": "Lakeflow Designer (upload + drag Join)",
+          "status": "walkthrough",
+          "proves": "An analyst uploads their own spreadsheet and joins it to platform data, seeing matched and unmatched rows — no SQL.",
+          "setup": "Continue from the existing Visual Data prep canvas.",
+          "steps": [
+            "Open the Volume /Volumes/princeton_poc_dev/landing_dev/files/downloads/ and download students.csv to your local machine.",
+            "Open the Visual Data prep from previous work.",
+            "Drag the local students.csv onto the canvas; follow the upload wizard (Overwrite files with the same filename; Destination Volume = princeton_poc_dev.landing_dev; Upload). This creates a new data source object.",
+            "From the Operators panel, drag a Join transformation onto the canvas.",
+            "Drag gold_enrollment_course_inner to the left inbound port and students to the right inbound port of the Join.",
+            "Double-click the Join, select student_id for both as the join condition, choose Split Join, and click Apply.",
+            "Split Join shows matched and unmatched records from each dataset."
+          ],
+          "prompt": null,
+          "outcome": "Join produces a combined dataset; the analyst can see matched and unmatched rows; no scripting required.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "BA-05",
+          "title": "Light transform — rename / filter / derived field",
+          "scenarios": "BA-05",
+          "surface": "Lakeflow Designer + Genie Code",
+          "status": "tested",
+          "proves": "Starting from an existing object, an analyst applies light transforms (rename / filter / derived field) via a plain-English prompt — no SQL.",
+          "setup": "Continue from the existing Designer data prep flow.",
+          "steps": [
+            "In the existing Designer data prep flow, enter the prompt below.",
+            "Designer builds the rename/filter/derive flow; click Run.",
+            "Find the table in the catalog viewer to confirm."
+          ],
+          "prompt": "From the students data source, keep only active students. Rename the \"dob\" column to \"Birth Date\", derive a full_name column by concatenating first_name and last_name, and add an email_domain column extracted from the part of the email after the \"@\". Save the result as a table to princeton_poc_dev.wksp_<my_user>",
+          "outcome": "A transformed table in wksp_<you> (active-only) with a renamed Birth Date column and derived full_name and email_domain columns. Verified: ~1,210 active rows.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "BA-08",
+          "title": "Save & reuse a self-service workflow",
+          "scenarios": "BA-08",
+          "surface": "Lakeflow Designer (save flow)",
+          "status": "walkthrough",
+          "proves": "An analyst saves a Designer data-prep flow to reuse later without starting over — no developer involvement.",
+          "setup": "Continue from the existing Designer data prep flow.",
+          "steps": [
+            "In the existing Designer data prep flow, find the active tab at the top of the canvas (a name like “Visual data prep 2026-08-18 12:01:25”).",
+            "Double-click the name to edit it; replace it with designer_dataflow_<my_user>.",
+            "Click out or press Enter to confirm — this moves the flow from Drafts into your personal workspace folder (e.g. /Workspace/Users/<you>).",
+            "Navigate to your workspace folder and find the saved Visual Data prep flow."
+          ],
+          "prompt": null,
+          "outcome": "Saved workflow is reloadable; re-run produces consistent output; no developer involvement needed.",
+          "notes": [],
+          "media": []
+        }
+      ]
+    }
+  ]
+}

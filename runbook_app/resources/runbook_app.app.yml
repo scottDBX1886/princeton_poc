@@ -1,0 +1,8 @@
+resources:
+  apps:
+    runbook_app:
+      # App names are workspace-global — qa/prod override var.runbook_app_name to
+      # avoid colliding with dev's app (same pattern as the mock_api app).
+      name: ${var.runbook_app_name}
+      description: "Princeton POC — interactive runbook (Engineer + Business Analyst)"
+      source_code_path: ../src

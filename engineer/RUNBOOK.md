@@ -222,7 +222,7 @@ unattended. (3) SP credentials live only in the UC secret scope, never in notebo
 
 ## E4 — Multi-source merge (SE-10)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Genie→SDP; 60k, 3962 file+db+api — matches baseline)
 
 **What it proves:** one pipeline reconciles three different source *types* on a common key —
 file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).
