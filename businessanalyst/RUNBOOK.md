@@ -113,7 +113,7 @@ join it to platform data and transform it — no SQL.
 
 ## BA-05 / BA-08 — Light transform (Designer, from existing data) + save & reuse
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 BA-05 tested (Designer Genie prompt → gold_active_students_enriched, 1210 active rows) · BA-08 — n/a (save-flow is a manual UI action)
 
 **What it proves:** starting from an **existing** object, an analyst applies light transforms
 (rename / filter / derived field) via a Designer Genie-agent prompt, then **saves the flow as a
@@ -121,28 +121,26 @@ reusable workflow** (BA-08).
 
 **Demo flow:**
 
-1. **Start point — existing data:** Designer → **Add data** → `princeton_poc_dev.silver_dev.student`
-  (join `department` for the major name).
-2. **Prompt the Designer Genie agent:**
-  ```text
-   From the student table joined to department, keep only active students. Rename the department
-   name column to major, derive a full_name column by concatenating first_name and last_name, and
-   add an email_domain column extracted from the part of the email after the @. Save the result to
-   my own schema.
+1. **Start point — existing data:** Designer → Using the existing designer( data prep) flow.
+2. Enter the below **Prompt**
   ```
-3. Designer builds the rename/filter/derive flow. **Run.**
-4. **BA-08 — save & reuse:** **Save as** a workflow/job. Re-run any time (or schedule it); change
-  the filter/params to reuse on new data without rebuilding the canvas.
+   From the students data source, keep only active students. Rename the "dob" column to "Birth Date", derive a full_name column by concatenating first_name and last_name, and
+   add an email_domain column extracted from the part of the email after the "@". Save the result as a table to princeton_poc_dev.wksp_<myuser name>
+  ```
+3. Designer builds the rename/filter/derive flow. Click **Run.**
+4. Find the table in the catalog viewer to confirm.
 
-**Pre-built fallback:** the same `ba_budget_enrollment_join` job demonstrates the save-and-reuse
-pattern (parameters `upload_file`, `status_filter`, `catalog`, `schema_suffix`); re-run it or
-schedule it. Walkthrough: `README_BA04_BA08.md`.
+ ## BA-08 — save & reuse:** **Save Designer data prep flow to be used later without having to start over**
 
-**Expected outcome:** a transformed table in `wksp_<you>` (renamed + derived columns, active-only),
-and a saved workflow that re-runs on demand.
+**Demo flow:**
 
-**Notes:** (1) **Isolation** — Designer/fallback both write to the analyst's own `wksp_<user>`,
-not shared `silver_dev`, so ~20 analysts run concurrently. (2) **Join gotcha the Genie agent
-handles:** `enrollment` has no `dept_id` — a course's department is `course.dept_id`; the prompts
-state this so the agent joins correctly. (3) `countDistinct` in a Spark window is unsupported —
-the fallback job aggregates distinct students per dept separately and joins back.
+1. **Start point — existing data:** Designer → Using the existing designer( data prep) flow.
+2. At the top of the canvas, you will see the active tab with a name similiar to ***Visual data prep 2026-08-18 12:01:25***.
+3. Double click on the name to enter the **edit** mode, remove the existing name and enter ***designer_dataflow_<myuser_name>***
+4. Once done, click out of the box or hit enter to confirm the change.  This will move the designer flow from the drafts folder to your personal workspace folder i.e ***/Workspace/Users/scott.johnson@databricks.com***
+5. Navigate to your workspace folder and find the saved Visual Data prep flow.  
+
+
+
+**Expected outcome:** Saved workflow reloadable; re-run produces consistent output; no developer involvement needed.
+
