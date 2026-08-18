@@ -441,7 +441,7 @@ with a fully managed connector — the marquee no-code answer.
 
 ## E8 — Orchestration (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Genie created a live 7-task Lakeflow Job with serverless notebooks + retry/cron/email — runs green)
 
 **What it proves:** the platform's job orchestration surface — task chaining, parallel
 execution, automated retry on failure, scheduling, external-command calls, and
@@ -463,12 +463,24 @@ stage ──┬── leg_a ──┐
 databricks bundle run orchestration_demo -t dev --profile datamarket
 ```
 
-**Code path (Databricks Assistant — create the job directly):** *"Create a job with 7 tasks:
-a stage task, two parallel legs that both depend only on stage, a merge that depends on both
-legs, an external-command task, a retry-enabled task (max_retries) that simulates a transient
-failure, and a notification task — plus a paused daily cron schedule and job-level email
-notifications."*  (Lets the Assistant author a live Lakeflow Job you can run and verify
-directly, rather than emitting DAB YAML to deploy — the pre-built DAB job is the fallback.)
+**Code path (Databricks Assistant — create the job directly):**
+
+```text
+Create a job with 7 tasks: a stage task, two parallel legs that both depend only on stage,
+a merge that depends on both legs, an external-command task, on the stage task enable
+"retry-enabled" task that simulates a transient failure, and a notification task, a paused
+daily cron schedule and job-level email notifications.
+
+create simple notebooks that execute on serverless for the tasks so the job can run.
+Make sure notebooks execute before adding to the job and fix any errors.
+```
+
+Lets the Assistant author a **live Lakeflow Job** you can run and verify directly (rather than
+emitting DAB YAML to deploy). Two things make this generation actually run: (a) the retry is
+enabled **on the stage task** (a concrete task to attach the transient-failure sim to), and
+(b) the explicit *"create simple serverless notebooks … make sure they execute before adding
+… and fix any errors"* instruction — without it, Genie wires task references to notebooks that
+don't exist yet and the job fails to start. The pre-built DAB job is the fallback.
 
 **Pre-built fallback:** the `orchestration_demo` job itself
 (`engineer/resources/e8_orchestration.job.yml` + the 7 driver notebooks under

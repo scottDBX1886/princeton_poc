@@ -15,11 +15,11 @@ list is the full checklist.
 
 **Prompt tested? legend** (the *NL / Designer / Assistant prompt* — does generating from it produce a working object? this is the RFP's real ask, tracked separately from the pre-built object):
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
-**Last updated:** 2026-08-17
+**Last updated:** 2026-08-18
 
 **Summary — pre-built objects (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C: DS-01/02/03/04/05).**
 
-**Summary — prompt tested (the generate-from-prompt path):** re-verifying on the new `princeton_poc` workspace (reset 2026-08-17) — **25 🟢 tested** (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E9 SE-34), remaining prompt-bearing scenarios 🟡 written (E8 Engineer + BA). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, SE-10, E10, E11, all DS + PA.)
+**Summary — prompt tested (the generate-from-prompt path):** re-verifying on the new `princeton_poc` workspace (reset 2026-08-17) — **32 🟢 tested** — **entire Engineer prompt path complete** (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34), except parked E2. Remaining prompt-bearing scenarios 🟡 written are all **BA** (BA-01/03/04/05/06/07/08). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, SE-10, E10, E11, all DS + PA.)
 
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
@@ -78,14 +78,14 @@ list is the full checklist.
 ### 3.5 Orchestration & Job Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟡 written |
-| SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟡 written |
-| SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟡 written |
-| SE-31 | Bulk disable / pause of workloads | E8 | ✅ built & verified | 🟡 written |
-| SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟡 written |
-| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟡 written |
+| SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-31 | Bulk disable / pause of workloads | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) |
-| SE-35 | Calling external processes | E8 | ✅ built & verified | 🟡 written |
+| SE-35 | Calling external processes | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 
 ### 3.6 DevOps, CI/CD & Environment Promotion
 | ID | Scenario | Covered by | Status | Prompt tested? |
@@ -209,11 +209,11 @@ list is the full checklist.
 **Prompt tested? (generate-from-prompt path):**
 | Persona | 🟢 tested | 🟡 written, not tested | — n/a |
 |---------|-----------|------------------------|-------|
-| Engineer (SE) | 25 (SE-03…08, SE-10, SE-11–27, SE-34) | 7 (SE-28–33, SE-35) | 11 (SE-01/02/09, SE-36–43) |
+| Engineer (SE) | 32 (SE-03…08, SE-10, SE-11–35) | 0 | 11 (SE-01/02/09, SE-36–43) |
 | Data Scientist (DS) | 0 | 0 | 10* |
 | Business Analyst (BA) | 0 | 7 (BA-01/03/04/05/06/07/08) | 1 (BA-02) |
 | Admin (PA) | 0 | 0 | 25 |
-| **Total** | **25** | **14** | **47** |
+| **Total** | **32** | **7** | **47** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).
