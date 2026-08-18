@@ -16,10 +16,9 @@
           "proves": "The platform natively ingests five file formats with real-world “gotchas”: CSV with quoted/embedded delimiters, pipe-delimited text, multi-sheet Excel (targeting a named sheet), nested JSON, and XML with optional nodes.",
           "setup": "Foundation source files are staged on the landing Volume. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E1 - Multi-format file ingestion.",
           "steps": [
-            "Create a new Lakeflow pipeline and open its editor.",
-            "Open the Assistant (sparkle) panel and paste the prompt below.",
-            "Put the generated code in the pipeline source; set default catalog = princeton_poc_dev and default schema = your wksp_<you>.",
-            "Run the pipeline and check the expected outcome."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie generates the ingestion pipeline; run it.",
+            "Check the expected outcome — five bronze tables in your schema."
           ],
           "prompt": "I'm building a Lakeflow Spark Declarative Pipeline (Python) that ingests five higher-ed source files into bronze streaming tables using Auto Loader. Write the pipeline for me.\n\nImportant: each source is staged in its OWN directory under /Volumes/princeton_poc_dev/landing_dev/files/ — Auto Loader reads a directory, not a single file — so point each streaming table at the directory. Create one @dp.table streaming table per source, reading with spark.readStream.format(\"cloudFiles\"), and let Auto Loader manage its own schema location and checkpoints (don't set them). Enable cloudFiles.inferColumnTypes on each.\n\nCreate these five tables in catalog princeton_poc_dev, schema wksp_<my_user>:\n\n1. e1_students_raw — dir students_csv/ — cloudFiles.format csv, header true, quote '\"', escape '\"' (a name field contains an embedded comma inside quotes; it must stay one field).\n2. e1_enrollments_raw — dir enrollments_pipe/ — cloudFiles.format csv, header true, sep \"|\".\n3. e1_financial_aid_raw — dir financial_aid_xlsx/ — cloudFiles.format excel, dataAddress \"AidDetail\" (read only that named sheet, not the first), headerRows 1. Excel via Auto Loader does NOT support schema evolution, so set cloudFiles.schemaEvolutionMode \"none\".\n4. e1_course_catalog_raw — dir course_catalog_json/ — cloudFiles.format json, multiLine true (nested objects/arrays).\n5. e1_faculty_raw — dir faculty_xml/ — cloudFiles.format xml, rowTag \"faculty\" (optional <tenure> node should come through as null, not drop the row).\n\nThe pipeline's target catalog + schema are set in the pipeline settings, so reference each table by its short name; don't hard-code the catalog inside the code.",
           "outcome": "Five tables in your per-person wksp_<you> schema — e1_students_raw (2000), e1_enrollments_raw (2000), e1_financial_aid_raw (1000, from the AidDetail sheet only), e1_course_catalog_raw (10 depts), e1_faculty_raw (200). The row \"Doe, John\" proves the embedded comma didn't split (SE-04); the ~66/134 tenure-present/null split proves the optional XML node became null, not a dropped row (SE-07).",
@@ -38,9 +37,9 @@
           "proves": "The platform ingests from a paginated REST API using OAuth 2.0 client-credentials, following pagination automatically and refreshing the token on expiry — with no manual intervention.",
           "setup": "Mock API app princeton-mock-api is deployed and running; a service principal with CAN_USE on the app; its OAuth secret stored in UC secret scope princeton_poc_e3. Before running, confirm the app is up: databricks apps get princeton-mock-api should show RUNNING.",
           "steps": [
-            "Open a new notebook and open the Assistant panel.",
-            "Paste the prompt below; replace <workspace-host> with your workspace URL.",
-            "Run the notebook and check the expected outcome."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below (replace <workspace-host> with your workspace URL).",
+            "Genie generates the ingestion notebook; run it.",
+            "Check the expected outcome — 60,000 rows with an automatic token refresh."
           ],
           "prompt": "Write a notebook that ingests a paginated REST API served by the Databricks App named \"princeton-mock-api\", which sits behind the Databricks Apps SSO proxy. Get the app's base URL from `databricks apps get princeton-mock-api` (the \"url\" field), e.g. https://princeton-mock-api-<id>.<region>.databricksapps.com.\n\nThere are TWO SEPARATE sets of credentials — do not mix them up:\n  • Layer-1 (Apps SSO proxy): a SERVICE PRINCIPAL's client_id/client_secret, read from secret scope princeton_poc_e3. Used only to get a workspace OAuth token.\n  • Layer-2 (the app's own OAuth): the app's OWN demo credentials, which are literally client_id=\"princeton_poc_client\" and client_secret=\"poc_secret_change_me\" (these are the app's fixed demo creds, NOT the service principal's — pass them as literals).\n\nSteps:\n  1. POST https://<workspace-host>/oidc/v1/token with grant_type=client_credentials, scope=all-apis, using the SP client_id/client_secret from scope princeton_poc_e3. Take the returned access_token — call it PLATFORM_TOKEN.\n  2. POST {base_url}/oauth/token with grant_type=client_credentials and the APP's demo client_id/client_secret (\"princeton_poc_client\" / \"poc_secret_change_me\"), AND send header Authorization: Bearer PLATFORM_TOKEN (so the call clears the SSO proxy). Take the returned access_token — call it API_TOKEN.\n  3. GET {base_url}/enrollments with BOTH headers on every request:\n       Authorization: Bearer PLATFORM_TOKEN\n       X-API-Token: API_TOKEN            <-- the RAW token, NOT \"Bearer <token>\"\n     Pagination is PAGE-NUMBER based: send params page (start at 1) and page_size=1000. The JSON response has fields total, data (the rows), and next (the next page NUMBER, or null when done). Loop until next is null. On HTTP 401, re-run step 2 to refresh API_TOKEN and retry the same page. Use page_size=1000 (the API's max) so it's ~60 pages, not 600.\nWrite all rows to catalog princeton_poc_dev, schema wksp_<my_user>, table e3_enrollments_from_api. Add a request timeout on every call. Assert the final row count equals the API's reported total. Never hardcode the SP secret (only the app's demo creds are literals).",
           "outcome": "60,000 rows in wksp_<you>.e3_enrollments_from_api; ~600 pages; a token refresh occurs mid-run (300s TTL) with no manual step; final count == API total.",
@@ -59,9 +58,9 @@
           "proves": "One pipeline reconciles three different source types on a common key — file-sourced students (E1), API-sourced enrollments (E3), and a DB-sourced table (Silver).",
           "setup": "Requires E1 + E3 to have run into the same wksp schema (their Bronze outputs are the inputs — the correct medallion pattern).",
           "steps": [
-            "Create a new Lakeflow pipeline and open the Assistant panel.",
-            "Paste the prompt below; substitute your wksp schema.",
-            "Set default catalog/schema and run the pipeline."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie generates the reconciliation pipeline; run it.",
+            "Check the expected outcome — rows tagged by which sources matched."
           ],
           "prompt": "Generate a Lakeflow SDP materialized view named e4_enrollment_reconciled in catalog princeton_poc_dev, schema wksp_<my_user>, that reconciles three source types on student_id:\n  - wksp_<my_user>.e1_students_raw            (file-sourced)\n  - wksp_<my_user>.e3_enrollments_from_api    (API-sourced)\n  - princeton_poc_dev.silver_dev.student      (DB-sourced)\nTag each output row with a source_system column showing which sources it matched (e.g. \"file+db+api\" vs \"api\"), so matched vs unmatched reconciliation is visible.",
           "outcome": "e4_enrollment_reconciled — rows tagged file+db+api where the student is in the file sample, api otherwise (matched vs unmatched reconciliation is visible via source_system). ~3,939 fully-reconciled on the sample data.",
@@ -77,9 +76,9 @@
           "proves": "Ten transformation capabilities in one pipeline — the platform's breadth for real ETL work: lookups, joins, string/date/null handling, cast validation with reject paths, running totals, pivots, last-record-in-group, and a grouped summary.",
           "setup": "Reads from princeton_poc_dev.silver_dev. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E5 - Transformation kitchen-sink.",
           "steps": [
-            "Create a new Lakeflow pipeline and open the Assistant panel.",
-            "Paste the prompt below; substitute your wksp schema.",
-            "Set default catalog/schema and run the pipeline."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie generates the transformation pipeline; run it.",
+            "Check the expected outcome — the ten transform patterns and the reject path."
           ],
           "prompt": "Generate a Lakeflow Spark Declarative Pipeline reading from princeton_poc_dev.silver_dev, writing materialized views to catalog princeton_poc_dev, schema wksp_<my_user>, that demonstrates:\n  - reference lookup enrichment with matched/unmatched handling\n  - inner, left, and full outer joins\n  - string manipulation (substring, concat, split, case)\n  - null + conditional logic (coalesce, if/then/else)\n  - parsing mixed-format date strings (use try_to_date / try_cast so bad values don't throw)\n  - casting with a reject path: use an expectation (expect_or_drop) to drop bad casts into the valid MV, and a separate MV that captures the rejected rows\n  - running totals per group (control-break)\n  - a pivot\n  - last-record-per-group\n  - a one-row-per-student summary\nName the lookup-enriched, one-row-per-student materialized view exactly `e5_student_enriched`, and give it a `standing` column derived from the student status (e.g. CASE WHEN status = 'graduated' THEN 'Alumnus' ELSE 'Active' END). Downstream steps (E7 target loading) read `e5_student_enriched` and filter on `standing`, so this name and column are a fixed contract even though the other MV names are free.",
           "outcome": "Materialized views in wksp_<you>: e5_student_enriched (30000) with a standing column, e5_gpa_valid (~59988, bad casts dropped by the expectation), e5_gpa_rejects (the captured rejects, proving SE-16's reject path), running totals, a pivot, last-record-per-group, and a summary.",
@@ -99,9 +98,9 @@
           "proves": "Change-data-capture (new/changed/deleted) and both slowly-changing-dimension types, inferred automatically by diffing two snapshots — no hand-written CDC logic.",
           "setup": "Run the E6 - snapshot setup notebook first — it builds student_snapshot_v1 (baseline) and student_snapshot_v2 (baseline + planted 10 inserts / 20 updates / 5 deletes) in your wksp schema. Then run the E6 pipeline.",
           "steps": [
-            "Run the E6 snapshot-setup notebook (targets your wksp schema).",
-            "Create a new Lakeflow pipeline and open the Assistant panel.",
-            "Paste the prompt below; substitute your wksp schema, then run."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie generates the CDC/SCD pipeline; run it. (The two snapshots it reads are pre-staged for you — see Setup.)",
+            "Check the expected outcome — SCD Type 1 and Type 2 tables."
           ],
           "prompt": "Generate a Lakeflow SDP (Python) that uses apply_changes_from_snapshot to compare two student snapshots and infer inserts/updates/deletes. Feed the snapshots via a callable that returns wksp_<my_user>.student_snapshot_v1 as version 1, then wksp_<my_user>.student_snapshot_v2 as version 2, then None. keys = student_id. Build both:\n  - e6_student_scd1 : SCD Type 1 (latest state / overwrite)\n  - e6_student_scd2 : SCD Type 2 (full history with __START_AT / __END_AT)\nWrite to catalog princeton_poc_dev, schema wksp_<my_user>.",
           "outcome": "e6_student_scd1 = 1005 (1000 − 5 deletes + 10 inserts); e6_student_scd2 = 1005 current + ~21 end-dated history rows. The known counts are the proof (SE-03/23 = detected changes; SE-21 = overwrite; SE-22 = history).",
@@ -119,9 +118,9 @@
           "proves": "Loading a database target with UPSERT + hard-delete, and exporting to CSV / pipe / Excel / JSON.",
           "setup": "Requires E5's e5_student_enriched MV in your wksp schema. Pre-built notebook deployed to /Workspace/Shared/Princeton POC/1 - Engineer/E7 - Target loading.",
           "steps": [
-            "Open a new notebook and open the Assistant panel.",
-            "Paste the prompt below; substitute your wksp schema.",
-            "Run the notebook and check the expected outcome."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie generates the target-loading notebook; run it.",
+            "Check the expected outcome — UPSERT result plus four export files."
           ],
           "prompt": "Write a notebook that, using catalog princeton_poc_dev and schema wksp_<my_user>:\n  1. Seeds a target table e7_student_target from a 500-row subset of e5_student_enriched.\n  2. MERGEs the full e5_student_enriched into e7_student_target on student_id (update matched, insert unmatched) — an UPSERT.\n  3. Hard-deletes alumni rows (standing = 'Alumnus') from the target.\n  4. Exports the target to CSV, pipe-delimited, JSON, and Excel under /Volumes/princeton_poc_dev/landing_dev/files/e7_exports/wksp_<my_user>/.\nUse native writers for CSV/pipe/JSON; write Excel with openpyxl in-memory.",
           "outcome": "e7_student_target after UPSERT+delete (0 alumni remain, ~23,999 rows); four export artifacts under …/files/e7_exports/wksp_<you>/ (CSV, pipe, JSON, .xlsx).",
@@ -159,9 +158,9 @@
           "proves": "The platform's job orchestration surface — task chaining, parallel execution, automated retry on failure, scheduling, external-command calls, and notifications — all in one Lakeflow Job.",
           "setup": "Pre-built job [princeton_poc_dev] Orchestration Demo (E8) deployed to dev. It is isolation-safe — reads the shared foundation read-only and writes only to your per-person wksp schema.",
           "steps": [
-            "Open the Databricks Assistant and paste the prompt below.",
-            "Let the Assistant create the serverless notebooks and wire the 7-task job.",
-            "Run the job and confirm each scenario in the outcome."
+            "In the Databricks Assistant (sparkle panel), enter the prompt below.",
+            "Genie creates the serverless notebooks and wires the 7-task job; run it.",
+            "Check the expected outcome — each orchestration scenario proven per task."
           ],
           "prompt": "Create a job with 7 tasks: a stage task, two parallel legs that both depend only on stage, a merge that depends on both legs, an external-command task, on the stage task enable \"retry-enabled\" task that simulates a transient failure, and a notification task, a paused daily cron schedule and job-level email notifications.\n\ncreate simple notebooks that execute on serverless for the tasks so the job can run. Make sure notebooks execute before adding to the job and fix any errors.",
           "outcome": "Job TERMINATED SUCCESS. SE-28 chaining (dependency order) · SE-29 parallel (leg_a & leg_b overlap) · SE-30 retry (attempt 0 FAILED, attempt 1 SUCCESS) · SE-31 email notifications · SE-32 external command (subprocess) · SE-33 paused daily cron · SE-35 bulk pause from the Jobs UI.",
@@ -180,9 +179,9 @@
           "proves": "The platform's native observability surface across all three workload types — jobs, pipelines, and notebook runs — with run history, success rate, and durations, and no custom monitoring build. Databricks captures the telemetry into system tables automatically; the dashboard just reads it.",
           "setup": "Run E8 first so there is fresh Jobs telemetry to visualize. AI/BI dashboard [princeton_poc_dev] Workload Monitoring (E9 · SE-34) is also deployed as a bundle resource.",
           "steps": [
-            "Open Genie / the Assistant and paste the prompt below.",
-            "Genie generates the dashboard; if it emits a minor SQL error it fixes it in-loop.",
-            "Confirm the dashboard shows jobs, pipelines, and notebook runs side by side."
+            "In the Databricks Assistant / Genie, enter the prompt below.",
+            "Genie generates the dashboard (fixing any minor SQL error in-loop).",
+            "Check the expected outcome — jobs, pipelines, and notebook runs side by side."
           ],
           "prompt": "Build an AI/BI dashboard over system.lakeflow.job_run_timeline, system.lakeflow.pipeline_update_timeline, and system.query.history (notebook-origin) showing run history, success rate, and durations across jobs, pipelines, and notebooks for my POC over the last 30 days.",
           "outcome": "Dashboard ACTIVE with datasets populated from live data — the unified run table shows Jobs (incl. E8), Pipelines (E1/E4/E5/E6 updates), and Notebooks side by side. The success-% KPI and “runs by workload type & status” chart render.",
