@@ -59,6 +59,10 @@ summary = spark.sql(f"""
         current_timestamp()                     AS computed_at
     FROM {GOLD}.enrollment_history
 """)
+# Do NOT add .cache() here. Serverless rejects it:
+#   [NOT_SUPPORTED_WITH_SERVERLESS] PERSIST TABLE is not supported on serverless compute
+# It runs fine interactively in a notebook, so this only surfaces when the notebook runs as
+# the scheduled JOB — which is the thing DS-07 is actually demonstrating.
 display(summary)
 
 # COMMAND ----------
