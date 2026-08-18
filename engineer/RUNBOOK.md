@@ -497,7 +497,7 @@ to enable it for the customer POC.
 
 ## E9 — Workload monitoring dashboard (SE-34)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Genie generated the AI/BI dashboard; minor SQL errors were fixed in-loop by Genie → working dashboard across jobs/pipelines/notebooks)
 
 **What it proves:** the platform's native observability surface across **all three workload
 types — jobs, pipelines, and notebook runs** — run history, success rate, durations, and retry
