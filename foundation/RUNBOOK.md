@@ -20,14 +20,14 @@ target you built (dev = `princeton_poc_dev` / `_dev`).
 ```bash
 # 1. Deploy the bundle. Creates jobs/pipelines/dashboards/app only — it does NOT touch live tables,
 #    so this is always clean/green even on a brand-new workspace.
-databricks bundle validate -t dev --profile datamarket
-databricks bundle deploy   -t dev --profile datamarket
+databricks bundle validate -t dev --profile princeton_poc
+databricks bundle deploy   -t dev --profile princeton_poc
 
 # 2. Run the foundation job — one run does everything, in order:
 #    uc_setup      -> SQL CREATE CATALOG/SCHEMA/VOLUME on serverless (provisions UC default storage)
 #    generate_*/bronze_silver -> all tables + source files
 #    genie_setup   -> creates the Genie spaces from the now-existing tables (Genie API needs them to exist)
-databricks bundle run foundation_build -t dev --profile datamarket
+databricks bundle run foundation_build -t dev --profile princeton_poc
 ```
 
 > **Why Genie is a job task, not a deploy-time resource:** the Genie API validates its grounding
@@ -45,7 +45,7 @@ SELECT
 And confirm the five source **directories** landed (each format is a directory so Auto Loader
 can monitor it; the .xlsx lives inside `financial_aid_xlsx/`):
 ```bash
-databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile datamarket
+databricks fs ls dbfs:/Volumes/<catalog>/landing<sfx>/files --profile princeton_poc
 # expect dirs: students_csv, enrollments_pipe, financial_aid_xlsx, course_catalog_json, faculty_xml
 ```
 

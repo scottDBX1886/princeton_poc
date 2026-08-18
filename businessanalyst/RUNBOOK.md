@@ -20,7 +20,7 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 **Setup (SA, done):** shared, read-only Genie space **"Enrollment Explorer (BA-01)"** deployed as
 a **DAB `genie_spaces` resource** (`businessanalyst/resources/ba_genie.genie_space.yml` +
 serialized body `src/genie/enrollment_explorer.geniespace.json`) — **deployed & verified** (accepts
-questions). Open it: `databricks bundle summary -t dev --profile datamarket | grep -A2 ba_enrollment_explorer`.
+questions). Open it: `databricks bundle summary -t dev --profile princeton_poc | grep -A2 ba_enrollment_explorer`.
 
 **How to test:** open the Genie space → click a starter question (*"Show me enrollment counts by
 department"*) → refine in English (*"…for Fall 2024"*). Then Catalog Explorer →
@@ -42,7 +42,7 @@ resource (`businessanalyst/resources/ba_dashboard.dashboard.yml` +
 `src/dashboards/enrollment_by_department.lvdash.json`), **verified ACTIVE**. KPIs, top-15
 department bar, enrollment-by-year trend, dept×term detail table.
 
-**How to test:** `databricks bundle summary -t dev --profile datamarket | grep -A2 ba_enrollment`
+**How to test:** `databricks bundle summary -t dev --profile princeton_poc | grep -A2 ba_enrollment`
 → open the URL → **Schedule/Subscribe** (email/Slack, weekly), or **⋯ → Download** (CSV/Excel/PDF).
 Walkthrough: `README_BA02.md`.
 
@@ -108,7 +108,7 @@ join it to platform data and transform it — no SQL.
 **Pre-built fallback:** job **"BA Workflow — Budget-Enriched Enrollment"**
 (`businessanalyst/resources/ba_workflow.job.yml`) — **verified green (35,937 rows)**:
 ```bash
-databricks bundle run ba_budget_enrollment_join -t dev --profile datamarket
+databricks bundle run ba_budget_enrollment_join -t dev --profile princeton_poc
 ```
 
 **Expected outcome:** `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched with
