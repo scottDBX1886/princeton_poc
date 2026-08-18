@@ -17,7 +17,7 @@ list is the full checklist.
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
 **Last updated:** 2026-08-11
 
-**Summary — pre-built objects (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C: DS-01/02/03/04/05).**
+**Summary — pre-built objects (RFP scenario IDs):** 54 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/08) · 1 🟡 (DS-03, needs classic compute) · 31 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/G: DS-01/02/03/04/05/08).**
 
 **Summary — prompt tested (the generate-from-prompt path):** RESET 2026-08-17 for re-verification on the new `princeton_poc` workspace — 0 🟢 tested, all prompt-bearing scenarios back to 🟡 written (E1–E9 Engineer + BA). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, E10, E11, all DS + PA.)
 
@@ -116,7 +116,7 @@ list is the full checklist.
 | DS-06(a) | Connectivity from local environment (Python/R/SAS/SPSS) | DS-D | ⬜ | — n/a |
 | DS-06(b) | In-platform ML model training | DS-E | ⬜ | — n/a |
 | DS-07 | Scheduling/operationalizing a notebook or script | DS-F | ⬜ | — n/a |
-| DS-08 | Version control for analytical code | DS-G | ⬜ | — n/a |
+| DS-08 | Version control for analytical code | DS-G | ✅ built & verified (this repo's own history is the evidence — commits, PRs #36–39, workspace-authored fix 32270a8) | — n/a |
 | DS-09 | Visualization & charting within the platform | DS-H | ⬜ | — n/a |
 
 > **RFP anomaly:** DS-06 is duplicated in the RFP (used for both "local connectivity" and
@@ -201,10 +201,10 @@ list is the full checklist.
 | Persona | Total IDs | ✅ | 🟡 | ⬜ |
 |---------|-----------|----|----|----|
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
-| Data Scientist (DS) | 10* | 4 (DS-01/02/04/05) | 1 (DS-03) | 5 |
+| Data Scientist (DS) | 10* | 5 (DS-01/02/04/05/08) | 1 (DS-03) | 4 |
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
 | Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **53** | **1** | **32** |
+| **Total** | **86** | **54** | **1** | **31** |
 
 **Prompt tested? (generate-from-prompt path):**
 | Persona | 🟢 tested | 🟡 written, not tested | — n/a |
