@@ -93,36 +93,23 @@ exports it on demand — no SQL.
 
 ## BA-04 — Upload + join + transform (Designer, from your own file)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** — n/a (manual upload + drag Join / Split Join — verified on princeton_poc)
 
 **What it proves:** an analyst **uploads their own spreadsheet**, then has the Designer Genie agent
 join it to platform data and transform it — no SQL.
 
 **Demo flow:**
 
-1. **Start point — upload:** in Lakeflow Designer → **Add data** → **Upload file** →
-  `departments_budget_fy2025.csv` (columns: `dept_id, dept_name, budget_amount, approved_date`).
-   *(A pre-staged copy also lives at* `/Volumes/princeton_poc_dev/landing_dev/files/uploads/` *if a
-   live upload isn't convenient.)*
-2. **Prompt the Designer Genie agent:**
-  ```text
-   Join my uploaded budget file to the enrollment data: my file has dept_id and budget_amount;
-   join it through the course table (course.dept_id) to the enrollment fact, and join student to
-   get status. Keep only active students. Rename budget_amount to total_budget and dept_name to
-   department. Add a column budget_per_student = total_budget divided by the number of distinct
-   students in that department. Save the result to my own schema.
-  ```
-3. Designer builds upload→join→filter→rename→derive→write. **Run.**
+1. **Start point** - open volume: ***/Volumes/princeton_poc_dev/landing_dev/files/downloads/*** and **download** the file ***students.csv*** to your local desktop/downloads diretory
+2. **Open visual data prep from previous work**
+3. Open a local file explore to navigate to the downloaded ***students.csv*** file.  Left click and drag the file onto the data prep canvas.  Follow the wizard upload.  Select **Overwrite files with the same filename** and for **Destintation Volume**, select ***princeton_poc_dev.landing_dev***.  Then click **Upload**.  THis will create a new data source object.
+4. In the **Operators** panel on the left in the canvas, find the **Join** transformation, left click and drag onto the canvas.
+5. Drag the **gold_enrollment_course_inner** data output to the left inbound of the join and **students** to the right inbound data port of the join.
+6. Double click on the join to bring up the configuration panel, if not already visable.
+7. Select ***student_id*** for both data objects as the join condition.  Select ***Split Join***.  Then click **Apply**
+8. The ***Split Join*** will allow you to see matched records and un-matched records from each dataset respectively.
 
-**Pre-built fallback:** job **"BA Workflow — Budget-Enriched Enrollment"**
-(`businessanalyst/resources/ba_workflow.job.yml`) — **verified green (35,937 rows)**:
-
-```bash
-databricks bundle run ba_budget_enrollment_join -t dev --profile princeton_poc
-```
-
-**Expected outcome:** `wksp_<you>.ba_dept_budget_enrollment_summary` — enrollments enriched with
-department budget + derived `budget_per_student` (e.g. Leblanc Dept 1,169,659 → 1,094.16/student).
+**Expected outcome:** Join produces a combined dataset; analyst can see matched and unmatched rows; no scripting required.
 
 ## BA-05 / BA-08 — Light transform (Designer, from existing data) + save & reuse
 
