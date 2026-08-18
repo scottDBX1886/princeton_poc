@@ -1,0 +1,280 @@
+{
+  "datasets": [
+    {
+      "name": "kpi",
+      "displayName": "Headline metrics",
+      "queryLines": [
+        "SELECT count(*) AS total_enrollments,\n",
+        "       count(DISTINCT student_id) AS distinct_students,\n",
+        "       round(avg(gpa_points), 3) AS avg_gpa,\n",
+        "       sum(CASE WHEN gpa_points IS NULL THEN 1 ELSE 0 END) AS withdrawals\n",
+        "FROM princeton_poc_dev.gold_dev.enrollment_history\n"
+      ]
+    },
+    {
+      "name": "gpa_bands",
+      "displayName": "GPA distribution",
+      "queryLines": [
+        "SELECT CASE\n",
+        "         WHEN gpa_points >= 3.7 THEN 'A  (3.7-4.0)'\n",
+        "         WHEN gpa_points >= 3.3 THEN 'A- (3.3-3.7)'\n",
+        "         WHEN gpa_points >= 3.0 THEN 'B+ (3.0-3.3)'\n",
+        "         WHEN gpa_points >= 2.7 THEN 'B  (2.7-3.0)'\n",
+        "         WHEN gpa_points >= 2.0 THEN 'C  (2.0-2.7)'\n",
+        "         WHEN gpa_points IS NULL THEN 'W  (withdrawn)'\n",
+        "         ELSE 'D/F (below 2.0)'\n",
+        "       END AS gpa_band,\n",
+        "       count(*) AS enrollments\n",
+        "FROM princeton_poc_dev.gold_dev.enrollment_history\n",
+        "GROUP BY gpa_band\n",
+        "ORDER BY gpa_band\n"
+      ]
+    },
+    {
+      "name": "by_dept",
+      "displayName": "Enrollments by department",
+      "queryLines": [
+        "SELECT d.name AS department, d.division,\n",
+        "       count(*) AS enrollments,\n",
+        "       round(avg(eh.gpa_points), 3) AS avg_gpa\n",
+        "FROM princeton_poc_dev.gold_dev.enrollment_history eh\n",
+        "JOIN princeton_poc_dev.silver_dev.department d ON eh.dept_id = d.dept_id\n",
+        "GROUP BY d.name, d.division\n",
+        "ORDER BY enrollments DESC\n",
+        "LIMIT 15\n"
+      ]
+    },
+    {
+      "name": "trend",
+      "displayName": "Enrollment trend by term",
+      "queryLines": [
+        "SELECT t.term_id, concat(t.year, ' ', t.season) AS term_label,\n",
+        "       count(*) AS enrollments,\n",
+        "       round(avg(eh.gpa_points), 3) AS avg_gpa\n",
+        "FROM princeton_poc_dev.gold_dev.enrollment_history eh\n",
+        "JOIN princeton_poc_dev.silver_dev.term t ON eh.term_id = t.term_id\n",
+        "GROUP BY t.term_id, t.year, t.season\n",
+        "ORDER BY t.term_id\n"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "student_analytics",
+      "displayName": "Student Analytics",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "kpi-enrollments",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [{ "name": "total_enrollments", "expression": "`total_enrollments`" }],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "total_enrollments", "displayName": "Total enrollments" }
+              },
+              "frame": { "title": "Total enrollments", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 0, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-students",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [{ "name": "distinct_students", "expression": "`distinct_students`" }],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "distinct_students", "displayName": "Distinct students" }
+              },
+              "frame": { "title": "Distinct students", "showTitle": true }
+            }
+          },
+          "position": { "x": 2, "y": 0, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-gpa",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [{ "name": "avg_gpa", "expression": "`avg_gpa`" }],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": { "value": { "fieldName": "avg_gpa", "displayName": "Average GPA" } },
+              "frame": { "title": "Average GPA", "showTitle": true }
+            }
+          },
+          "position": { "x": 4, "y": 0, "width": 2 , "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-withdrawals",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi",
+                  "fields": [{ "name": "withdrawals", "expression": "`withdrawals`" }],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": { "value": { "fieldName": "withdrawals", "displayName": "Withdrawals" } },
+              "frame": { "title": "Withdrawals (grade W)", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 3, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "chart-gpa-bands",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "gpa_bands",
+                  "fields": [
+                    { "name": "gpa_band", "expression": "`gpa_band`" },
+                    { "name": "enrollments", "expression": "`enrollments`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "gpa_band", "scale": { "type": "categorical" }, "displayName": "GPA band" },
+                "y": { "fieldName": "enrollments", "scale": { "type": "quantitative" }, "displayName": "Enrollments" }
+              },
+              "frame": { "title": "GPA distribution", "showTitle": true }
+            }
+          },
+          "position": { "x": 2, "y": 3, "width": 4, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "chart-by-dept",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "by_dept",
+                  "fields": [
+                    { "name": "department", "expression": "`department`" },
+                    { "name": "enrollments", "expression": "`enrollments`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "enrollments", "scale": { "type": "quantitative" }, "displayName": "Enrollments" },
+                "y": { "fieldName": "department", "scale": { "type": "categorical" }, "displayName": "Department" }
+              },
+              "frame": { "title": "Top 15 departments by enrollment", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 9, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "chart-trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "trend",
+                  "fields": [
+                    { "name": "term_label", "expression": "`term_label`" },
+                    { "name": "enrollments", "expression": "`enrollments`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "term_label", "scale": { "type": "categorical" }, "displayName": "Term" },
+                "y": { "fieldName": "enrollments", "scale": { "type": "quantitative" }, "displayName": "Enrollments" }
+              },
+              "frame": { "title": "Enrollment trend by term", "showTitle": true }
+            }
+          },
+          "position": { "x": 3, "y": 9, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "table-dept-detail",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "by_dept",
+                  "fields": [
+                    { "name": "department", "expression": "`department`" },
+                    { "name": "division", "expression": "`division`" },
+                    { "name": "enrollments", "expression": "`enrollments`" },
+                    { "name": "avg_gpa", "expression": "`avg_gpa`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "department", "displayName": "Department" },
+                  { "fieldName": "division", "displayName": "Division" },
+                  { "fieldName": "enrollments", "displayName": "Enrollments" },
+                  { "fieldName": "avg_gpa", "displayName": "Avg GPA" }
+                ]
+              },
+              "frame": { "title": "Department detail", "showTitle": true }
+            }
+          },
+          "position": { "x": 0, "y": 15, "width": 6, "height": 6 }
+        }
+      ]
+    }
+  ]
+}
