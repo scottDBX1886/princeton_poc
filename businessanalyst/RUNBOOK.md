@@ -12,23 +12,20 @@ workflow job) cover BA-01…08. All read the shared foundation; the one object t
 
 ## BA-01 — No-code browse, filter, preview (Genie + Catalog Explorer)
 
-> **Built:** ✅ · **Prompt:** 🟡 written — not yet regenerated & verified
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Designer Visual Data prep + Genie Code filter — verified)
 
 **What it proves:** an analyst discovers and filters the enrollment data with natural language
 (Genie) and by browsing (Catalog Explorer) — zero SQL.
 
-**Setup (SA, done):** shared, read-only Genie space **"Enrollment Explorer (BA-01)"** deployed as
-a **DAB `genie_spaces` resource** (`businessanalyst/resources/ba_genie.genie_space.yml` +
-serialized body `src/genie/enrollment_explorer.geniespace.json`) — **deployed & verified** (accepts
-questions). Open it: `databricks bundle summary -t dev --profile princeton_poc | grep -A2 ba_enrollment_explorer`.
+**How to test:** 
+1. Create new "Visual Data prep".  
+2. Enter the following prompt into the Genie Code chat on the canvas.
+ ```
+    Add gold_enrollment_course_inner and apply filter on "grade" for only values "C" and "C+"
+ ```
+ 3. Verify the filter condition applied correctly.
 
-**How to test:** open the Genie space → click a starter question (*"Show me enrollment counts by
-department"*) → refine in English (*"…for Fall 2024"*). Then Catalog Explorer →
-`silver_dev.enrollment` → Sample Data. Walkthrough: `README_BA01.md`.
-
-**Expected outcome:** Genie returns grouped enrollment summaries (all sample questions verified to
-return live data); Catalog Explorer shows schema + sample rows. **Join gotcha** baked into the
-space instructions: enrollment has no `dept_id` — a course's department is `course.dept_id`.
+**Expected outcome:** Data browseable through a visual interface; row-level filter applied without SQL; result set previewable.
 
 ## BA-02 — Scheduled report & subscription (AI/BI dashboard)
 

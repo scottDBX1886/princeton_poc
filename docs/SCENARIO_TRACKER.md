@@ -19,7 +19,7 @@ list is the full checklist.
 
 **Summary — pre-built objects (RFP scenario IDs):** 53 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05) · 1 🟡 (DS-03, needs classic compute) · 32 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C: DS-01/02/03/04/05).**
 
-**Summary — prompt tested (the generate-from-prompt path):** re-verifying on the new `princeton_poc` workspace (reset 2026-08-17) — **32 🟢 tested** — **entire Engineer prompt path complete** (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34), except parked E2. Remaining prompt-bearing scenarios 🟡 written are all **BA** (BA-01/03/04/05/06/07/08). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, SE-10, E10, E11, all DS + PA.)
+**Summary — prompt tested (the generate-from-prompt path):** re-verifying on the new `princeton_poc` workspace (reset 2026-08-17) — **33 🟢 tested** — **entire Engineer prompt path complete** (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34), except parked E2 — plus **BA-01** (first BA prompt). Remaining prompt-bearing scenarios 🟡 written are all **BA** (BA-03/04/05/06/07/08). Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, SE-10, E10, E11, all DS + PA.)
 
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
@@ -127,7 +127,7 @@ list is the full checklist.
 ## Persona 3 — Business Analyst (BA-01 … BA-08)
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| BA-01 | No-code / low-code data browsing | BA-A | ✅ built & verified | 🟡 written |
+| BA-01 | No-code / low-code data browsing | BA-A | ✅ built & verified | 🟢 tested (princeton_poc: Designer Visual Data prep + Genie Code filter on gold_enrollment_course_inner, grade C/C+ — verified) |
 | BA-02 | Pre-built report or dataset subscription | BA-B | ✅ built & verified | — n/a |
 | BA-03 | Ad-hoc data extract to flat file or Excel | BA-C | ✅ built & verified | 🟡 written |
 | BA-04 | Upload and join a spreadsheet to platform data | BA-D | ✅ built & verified | 🟡 written |
@@ -211,9 +211,9 @@ list is the full checklist.
 |---------|-----------|------------------------|-------|
 | Engineer (SE) | 32 (SE-03…08, SE-10, SE-11–35) | 0 | 11 (SE-01/02/09, SE-36–43) |
 | Data Scientist (DS) | 0 | 0 | 10* |
-| Business Analyst (BA) | 0 | 7 (BA-01/03/04/05/06/07/08) | 1 (BA-02) |
+| Business Analyst (BA) | 1 (BA-01) | 6 (BA-03/04/05/06/07/08) | 1 (BA-02) |
 | Admin (PA) | 0 | 0 | 25 |
-| **Total** | **32** | **7** | **47** |
+| **Total** | **33** | **6** | **47** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).
