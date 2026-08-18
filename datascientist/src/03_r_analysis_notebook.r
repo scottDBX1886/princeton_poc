@@ -39,14 +39,24 @@
 # MAGIC The Python helper isn't importable from an R kernel, so the per-person schema is
 # MAGIC derived here with the same rule: `current_user()` with non-alphanumerics collapsed to
 # MAGIC underscores. Must stay in step with `_isolation.py:user_schema_name`.
+# MAGIC
+# MAGIC Catalog and suffix come from notebook widgets, exactly as the Python notebooks read
+# MAGIC them via `resolve_context()` — so this notebook runs unchanged on dev/qa/prod and in
+# MAGIC any workspace the bundle is deployed to. Nothing here is environment-specific.
 # COMMAND ----------
 library(sparklyr)
 library(dplyr)
 
 sc <- spark_connect(method = "databricks")
 
-catalog <- "princeton_poc_dev"
-suffix <- "_dev"
+# Widgets, not literals — the bundle passes catalog + schema_suffix per target, so this
+# notebook is portable across dev/qa/prod and across workspaces. Defaults mirror
+# _isolation.py so an interactive run with no widgets set still resolves.
+# In R, dbutils widgets are reached through the SparkR/Databricks bridge:
+dbutils.widgets.text("catalog", "princeton_poc_dev")
+dbutils.widgets.text("schema_suffix", "_dev")
+catalog <- dbutils.widgets.get("catalog")
+suffix <- dbutils.widgets.get("schema_suffix")
 
 current_user <- sdf_sql(sc, "SELECT current_user() AS u") %>% collect() %>% pull(u)
 user_schema <- paste0("wksp_", gsub("[^a-zA-Z0-9]", "_", current_user))
