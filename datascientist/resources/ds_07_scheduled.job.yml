@@ -1,0 +1,44 @@
+# DS-07 — a data scientist's notebook, operationalized as a scheduled job.
+#
+# The schedule lives here, in git, and deploys with the bundle: that IS the scenario. A
+# schedule clicked together in the Jobs UI would satisfy the letter of DS-07 but not its
+# point (reproducible, reviewable operationalization).
+#
+# Picked up automatically by the root databricks.yml `include: "*/resources/*.yml"` glob.
+# notebook_path is relative to THIS file's directory (datascientist/resources -> ../src/...).
+#
+# No `new_cluster` block: every job in this bundle runs serverless, so there is no
+# node_type_id to keep in step with the cloud provider. The phase-2 plan specified
+# `i3.xlarge`, which is AWS-only and would fail on Azure or GCP — exactly the kind of
+# environment-specific value this POC has to avoid, since it must port to whatever
+# workspace the customer stands up.
+resources:
+  jobs:
+    ds_07_scheduled_analysis:
+      name: "[${var.catalog}] DS-07 Scheduled daily analysis"
+      tags:
+        persona: data_scientist
+      # PAUSED on deploy. An unpaused daily schedule in a shared POC workspace starts
+      # firing for everyone the moment anyone deploys; the demo is to show the schedule,
+      # then either resume it or trigger a manual run. Flip to UNPAUSED deliberately.
+      schedule:
+        quartz_cron_expression: "0 0 9 * * ?"   # 09:00 daily
+        timezone_id: "America/New_York"          # Princeton local, not UTC
+        pause_status: PAUSED
+      # Surface failures without anyone watching the Jobs UI — part of "operationalized".
+      # Set a real address before the session; left empty so a deploy doesn't mail a stranger.
+      email_notifications:
+        on_failure: []
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+      tasks:
+        - task_key: daily_summary
+          notebook_task:
+            notebook_path: ../src/07_scheduled_analysis.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
