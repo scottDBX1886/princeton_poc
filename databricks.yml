@@ -14,13 +14,14 @@ variables:
   row_count:
     description: Rows in enrollment_history fact
     default: 5000000
+  mock_api_name:
+    description: Databricks App name for the SE-08 mock API. App names are workspace-global, so qa/prod override this to avoid colliding with dev's app.
+    default: "princeton-mock-api"
 
 targets:
   dev:
-    # DEFAULT build environment. Points at the `datamarket` workspace, which mirrors what the
-    # customer POC workspace will look like (metastore-managed storage, no external storage_root
-    # needed for catalog creation). When we stand up the ACTUAL customer POC, re-use this target
-    # and just update `profile`/host + `warehouse_id`.
+    # DEFAULT build environment. Points at the `princeton_poc` customer POC workspace
+    # (serverless, UC default storage — no external storage_root needed for catalog creation).
     #
     # Production mode (not development) so resource names are NOT auto-prefixed with dev_<user>_.
     # We isolate environments by catalog + schema_suffix, so schema names stay clean
@@ -28,30 +29,31 @@ targets:
     mode: production
     default: true
     workspace:
-      profile: datamarket
+      profile: princeton_poc
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_dev"
       schema_suffix: "_dev"
-      warehouse_id: "22544c5f43410646"   # Serverless Starter Warehouse (datamarket)
+      warehouse_id: "5d42098cbe21ce49"   # Serverless Starter Warehouse (princeton_poc)
   qa:
     mode: production
     workspace:
-      profile: datamarket
+      profile: princeton_poc
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc_test"
       schema_suffix: "_test"
-      warehouse_id: "22544c5f43410646"   # datamarket Serverless Starter Warehouse
+      warehouse_id: "5d42098cbe21ce49"   # princeton_poc Serverless Starter Warehouse
+      mock_api_name: "princeton-mock-api-test"   # app names are workspace-global; qa gets its own
   prod:
     mode: production
     workspace:
-      profile: datamarket
+      profile: princeton_poc
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog: "princeton_poc"
       schema_suffix: ""
-      warehouse_id: "22544c5f43410646"   # datamarket Serverless Starter Warehouse
+      warehouse_id: "5d42098cbe21ce49"   # princeton_poc Serverless Starter Warehouse
 
 include:
   # Persona-scoped resources. Each persona owns a top-level folder with its own
