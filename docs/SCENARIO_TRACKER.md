@@ -115,9 +115,9 @@ list is the full checklist.
 | DS-05 | Large dataset handling | DS-C | ✅ built & verified (5M rows -> 960 groups in 1.93s on Photon) | 🟢 tested (generated ran clean first time, 5M -> 960) |
 | DS-06(a) | Connectivity from local environment (Python/R/SAS/SPSS) | DS-D | ✅ built (reference guide; no run artifact by design) | — n/a |
 | DS-06(b) | In-platform ML model training | DS-E | ✅ built & verified (UC model v1 READY; 22.5% acc vs ~20% baseline — no leakage) | 🟢 tested (generated notebook trained + registered UC model; 3 prompt gaps fixed) |
-| DS-07 | Scheduling/operationalizing a notebook or script | DS-F | ✅ built & verified (5M enrollments summarised; idempotent, 1 row/date) | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
+| DS-07 | Scheduling/operationalizing a notebook or script | DS-F | ✅ built & verified (5M enrollments summarised; idempotent, 1 row/date) | 🟢 tested (generated notebook + job YAML; table-collision gap fixed) |
 | DS-08 | Version control for analytical code | DS-G | ✅ built & verified (this repo's own history — 15 DS commits, PRs #36-42, 2 browser-authored fixes, 1 recovered stranded commit) | — n/a |
-| DS-09 | Visualization & charting within the platform | DS-H | ✅ built & verified (3 notebook charts + AI/BI dashboard deployed; 2 views, 24 terms / 40 depts, foundation clean) | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
+| DS-09 | Visualization & charting within the platform | DS-H | ✅ built & verified (3 notebook charts + AI/BI dashboard deployed; 2 views, 24 terms / 40 depts, foundation clean) | 🟢 tested (generated both views clean — 24 terms / 40 depts) |
 
 > **RFP anomaly:** DS-06 is duplicated in the RFP (used for both "local connectivity" and
 > "in-platform ML"). Split here as DS-06(a)/(b); flag to Princeton in the read-out.

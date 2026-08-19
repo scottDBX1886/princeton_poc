@@ -61,6 +61,7 @@ prompt testing, and each is invisible until runtime:
 |---|---|
 | **Name real columns explicitly.** The department table is `(dept_id, name, division, building)` — the name column is `name`, not `department_name`. | DS-04's generation invented `department_name` from the prompt's phrase "keeping department name and division" and failed with `UNRESOLVED_COLUMN`. Prose that reads naturally to a human reads as a column name to a code generator. |
 | **Always write Delta with `mode("overwrite")` *and* `.option("overwriteSchema","true")`.** | DS-04's second failure: after fixing the column name, the re-run hit `DELTA_METADATA_MISMATCH` because the table already existed with the old schema. These notebooks are re-run constantly during a demo. |
+| **Suffix generated tables with `_prompt`.** | DS-07 collided with the pre-built `ds_07_daily_summary`, which already existed with `unique_students` where the prompt asked for "distinct students". The generation hit `DELTA_METADATA_MISMATCH`, then a `unionByName` failure, and burned two cycles recovering — and overwrote the baseline output in the process. Generated and pre-built must not share table names. |
 
 ---
 
@@ -122,6 +123,11 @@ Any Delta table you write, write with mode("overwrite") AND
 .option("overwriteSchema", "true"). These notebooks get re-run and edited; without
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
+
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
 
 1. Query <catalog>.gold<suffix>.enrollment_history for student_id, course_id, term_id, grade
    and gpa_points, filtering out rows where gpa_points IS NULL (those are withdrawals, grade
@@ -245,6 +251,11 @@ Any Delta table you write, write with mode("overwrite") AND
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
 
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
+
 1. My CSV lives at /Volumes/<catalog>/landing<suffix>/files/uploads/<my wksp_ name>/ — a
    PER-USER folder, not the shared landing root, because the root holds the foundation's own
    source files and ~20 of us are doing this at once. Create the folder if it doesn't exist. For
@@ -321,6 +332,11 @@ Any Delta table you write, write with mode("overwrite") AND
 .option("overwriteSchema", "true"). These notebooks get re-run and edited; without
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
+
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
 
 1. Report the scale first: row count, distinct students, terms and departments in
    <catalog>.gold<suffix>.enrollment_history, plus DESCRIBE DETAIL on it to show numFiles,
@@ -423,6 +439,11 @@ Any Delta table you write, write with mode("overwrite") AND
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
 
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
+
 1. Training data: join <catalog>.gold<suffix>.enrollment_history to silver student and term.
    Features: course_id, term_id, dept_id, term year, term season, student status, and student age.
    Target: the grade column. LIMIT 50000.
@@ -488,7 +509,7 @@ needs Princeton's own data with genuine signal.
 
 ## DS-07 — Scheduling / operationalizing a notebook
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the notebook + job schedule)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook + job YAML; 5M -> one row, idempotent. Hit a table-name collision with the pre-built output — prompt now requires a `_prompt` suffix)
 
 **What it proves:** an ad-hoc analysis becomes a governed, scheduled, monitored production job —
 the same notebook, no rewrite in another tool.
@@ -514,6 +535,11 @@ Any Delta table you write, write with mode("overwrite") AND
 .option("overwriteSchema", "true"). These notebooks get re-run and edited; without
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
+
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
 
 Then summarise <catalog>.gold<suffix>.enrollment_history into ONE row —
 current_date() as run_date, total enrollments, distinct students, distinct courses, average
@@ -593,7 +619,7 @@ Sharing analytical code is safe by default.
 
 ## DS-09 — Visualization and charting
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the chart queries + views)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook produced both views — 24 terms / 40 depts — clean, with the corrected column-name rule in place)
 
 **What it proves:** query → chart → shareable dashboard without leaving the platform.
 
@@ -618,6 +644,11 @@ Any Delta table you write, write with mode("overwrite") AND
 .option("overwriteSchema", "true"). These notebooks get re-run and edited; without
 overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
 type changes from the previous run.
+
+Suffix every table you create with "_prompt" — e.g. ds_07_daily_summary_prompt. The pre-built
+notebooks already own the unsuffixed names in this same schema, and their column names may differ
+from what you generate. Writing to the same table clashes on schema and destroys the pre-built
+output, which is the baseline we compare against.
 
 1. GPA distribution, for a bar chart: band gpa_points into A (>=3.7), A- (>=3.3), B+ (>=3.0),
    B (>=2.7), C (>=2.0), D/F (below 2.0), and W for gpa_points IS NULL. Withdrawals MUST be their
