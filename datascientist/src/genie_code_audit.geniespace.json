@@ -1,0 +1,48 @@
+{
+  "config": {
+    "sample_questions": [
+      {
+        "id": "8bd16a9a8d1a4f6bad6e2679b4c086af",
+        "question": [
+          "Which notebooks did I change in the last week, and when?"
+        ]
+      },
+      {
+        "id": "d8539f7806f34ff69b128903dd342633",
+        "question": [
+          "Who has modified notebooks in the last 7 days, and how many times each?"
+        ]
+      },
+      {
+        "id": "643594dc528e4a36a8359c10aca975ae",
+        "question": [
+          "Show notebook activity by action type over the last week"
+        ]
+      },
+      {
+        "id": "baa4192daae04fe9ad4b6f547fa304bf",
+        "question": [
+          "Which users deleted or renamed notebooks recently?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "system.access.audit"
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "content": [
+          "Audit trail over analytical code (DS-08). system.access.audit records every workspace action. Filter service_name='notebook' for notebook events; action_name values include modifyNotebook, createNotebook, deleteNotebook, renameNotebook, openNotebook, runCommand. The actor is user_identity.email. ALWAYS filter on event_date (a partition column) to bound the scan, e.g. event_date >= current_date() - INTERVAL 7 DAYS. request_params holds the notebook path or id. Answer with grouped summaries: who did what, how many times, and when it last happened."
+        ],
+        "id": "f1a25fbbd4ba4a2e874b7b38884194e6"
+      }
+    ]
+  },
+  "version": 2
+}

@@ -108,16 +108,16 @@ list is the full checklist.
 ## Persona 2 — Data Scientist / Advanced Analyst (DS-01 … DS-09)
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| DS-01 | SQL-based data exploration | DS-A | ✅ built & verified | — n/a |
-| DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) | — n/a |
-| DS-03 | Notebook environment — R | DS-B | 🟡 built (sparklyr); needs a classic cluster to run — not yet executed | — n/a |
-| DS-04 | Bring your own data — ad-hoc file upload | DS-B | ✅ built & verified (40 depts, 5 matched, per-user upload path) | — n/a |
-| DS-05 | Large dataset handling | DS-C | ✅ built & verified (5M rows -> 960 groups in 1.93s on Photon) | — n/a |
+| DS-01 | SQL-based data exploration | DS-A | ✅ built & verified | 🟢 tested (3 NL prompts -> correct SQL, numbers match the notebook) |
+| DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) | 🟢 tested (Assistant generated a notebook matching the pre-built output exactly) |
+| DS-03 | Notebook environment — R | DS-B | 🟡 built (sparklyr); needs a classic cluster to run — not yet executed | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
+| DS-04 | Bring your own data — ad-hoc file upload | DS-B | ✅ built & verified (40 depts, 5 matched, per-user upload path) | 🟢 tested (generated 40 depts / stale key excluded; 2 prompt gaps fixed) |
+| DS-05 | Large dataset handling | DS-C | ✅ built & verified (5M rows -> 960 groups in 1.93s on Photon) | 🟢 tested (generated ran clean first time, 5M -> 960) |
 | DS-06(a) | Connectivity from local environment (Python/R/SAS/SPSS) | DS-D | ✅ built (reference guide; no run artifact by design) | — n/a |
-| DS-06(b) | In-platform ML model training | DS-E | ✅ built & verified (UC model v1 READY; 22.5% acc vs ~20% baseline — no leakage) | — n/a |
-| DS-07 | Scheduling/operationalizing a notebook or script | DS-F | ✅ built & verified (5M enrollments summarised; idempotent, 1 row/date) | — n/a |
-| DS-08 | Version control for analytical code | DS-G | ✅ built & verified (this repo's own history — 15 DS commits, PRs #36-42, 2 browser-authored fixes, 1 recovered stranded commit) | — n/a |
-| DS-09 | Visualization & charting within the platform | DS-H | ✅ built & verified (3 notebook charts + AI/BI dashboard deployed; 2 views, 24 terms / 40 depts, foundation clean) | — n/a |
+| DS-06(b) | In-platform ML model training | DS-E | ✅ built & verified (UC model v1 READY; 22.5% acc vs ~20% baseline — no leakage) | 🟢 tested (generated notebook trained + registered UC model; 3 prompt gaps fixed) |
+| DS-07 | Scheduling/operationalizing a notebook or script | DS-F | ✅ built & verified (5M enrollments summarised; idempotent, 1 row/date) | 🟢 tested (generated notebook + job YAML; table-collision gap fixed) |
+| DS-08 | Version control for analytical code | DS-G | ✅ built & verified (this repo's own history — 15 DS commits, PRs #36-42, 2 browser-authored fixes, 1 recovered stranded commit) | 🟢 tested (Genie over system.access.audit — NL audit of notebook changes, partition-filtered SQL) |
+| DS-09 | Visualization & charting within the platform | DS-H | ✅ built & verified (3 notebook charts + AI/BI dashboard deployed; 2 views, 24 terms / 40 depts, foundation clean) | 🟢 tested (generated both views clean — 24 terms / 40 depts) |
 
 > **RFP anomaly:** DS-06 is duplicated in the RFP (used for both "local connectivity" and
 > "in-platform ML"). Split here as DS-06(a)/(b); flag to Princeton in the read-out.

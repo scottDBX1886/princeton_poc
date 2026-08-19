@@ -1,7 +1,7 @@
 # DS-09 — AI/BI dashboard over the shared foundation.
 #
 # The second of the two visualization surfaces the scenario needs: the notebook
-# (09_visualizations.py) is where an analyst charts while exploring; this dashboard is the
+# (ds_09_visualizations.py) is where an analyst charts while exploring; this dashboard is the
 # durable artifact a stakeholder opens without ever seeing a notebook. Both read the same
 # governed tables, so there is no extract to drift out of date.
 #

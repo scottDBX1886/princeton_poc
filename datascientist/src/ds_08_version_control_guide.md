@@ -20,13 +20,13 @@ file on a branch, not a workspace object with hidden revision history.
 ```
 /Workspace/Users/<you>/princeton_poc          <- Git folder, tracks a branch
   datascientist/src/
-    01_sql_genie_exploration.py       DS-01
-    02_python_pandas_notebook.py      DS-02
-    03_r_analysis_notebook.r          DS-03
-    04_byo_data_blend.py              DS-04
-    05_large_dataset_query.py         DS-05
-    06b_mlflow_training.py            DS-06(b)
-    07_scheduled_analysis.py          DS-07
+    ds_01_sql_genie_exploration.py       DS-01
+    ds_02_python_pandas_notebook.py      DS-02
+    ds_03_r_analysis_notebook.r          DS-03
+    ds_04_byo_data_blend.py              DS-04
+    ds_05_large_dataset_query.py         DS-05
+    ds_06b_mlflow_training.py            DS-06(b)
+    ds_07_scheduled_analysis.py          DS-07
     _isolation.py                     shared helper, imported by all of them
 ```
 
@@ -35,8 +35,8 @@ Two things to know before demonstrating:
 - **The clone is per-user.** Each person clones under their own `/Workspace/Users/<them>/`, so
   ~20 participants get independent working copies with no shared checkout to collide on.
   (Older docs say `/Repos/<user>/`; both exist, `/Workspace/Users/` is current.)
-- **Notebooks lose the extension in the workspace listing.** `05_large_dataset_query.py` on
-  disk shows as `05_large_dataset_query`, type NOTEBOOK. Git still sees the `.py`. Only
+- **Notebooks lose the extension in the workspace listing.** `ds_05_large_dataset_query.py` on
+  disk shows as `ds_05_large_dataset_query`, type NOTEBOOK. Git still sees the `.py`. Only
   surprising if you diff a workspace listing against the repo — which is how one real merge
   tangle started during this build.
 
@@ -194,7 +194,7 @@ DS-06(a) makes for laptop clients: governance sits at the data, not the tool.
 
 ## 8. What to show, in order
 
-1. Open `datascientist/src/05_large_dataset_query` in a Git folder → click the branch name →
+1. Open `datascientist/src/ds_05_large_dataset_query` in a Git folder → click the branch name →
    **History**. Real commits, real authors, mixed local and browser origins.
 2. Show `32270a8` — a bug found by running the notebook, fixed in the browser, committed from
    the Git panel.

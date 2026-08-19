@@ -39,7 +39,7 @@ summary. **Status:** ✅ built & verified · 🟡 partial/prereq only · ⬜ pla
 | **E9** — Workload monitoring | SE-34 | AI/BI dashboard over jobs + pipelines + notebook runs (system tables) | ✅ |
 | **E10** — DevOps / CI-CD | SE-36, SE-37, SE-38, SE-39 | Source control, env promotion, CI/CD, rollback | ✅ |
 | **E11** — Observability & governance | SE-40, SE-41, SE-42, SE-43 | Lineage, schema drift, data drift, auto-docs | ✅ |
-| **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ⬜ |
+| **DS-A … DS-H** — Data Scientist | DS-01 … DS-09 | SQL/NL exploration, notebooks (Py/R), BYO-data, large data, local connect, ML, scheduling, version control, viz | ✅ (DS-03 🟡 needs classic R cluster) |
 | **BA-A … BA-E** — Business Analyst | BA-01 … BA-08 | No-code browse (Genie), subscriptions (AI/BI), Designer + Genie-agent flows for extract/upload+join/transform, saved workflow | ✅ |
 | **PA-A … PA-F** — Platform Admin | PA-01 … PA-25 | Access mgmt, column/row security, compute/capacity, cost/chargeback | ⬜ |
 

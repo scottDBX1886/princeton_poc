@@ -44,6 +44,11 @@ SPACES = [
         "description": "NL exploration over the shared higher-ed data foundation (DS-01).",
         "body": f"{REPO_ROOT}/datascientist/src/genie_foundation.geniespace.json",
     },
+    {
+        "title": f"[{CATALOG}] Analytical Code Audit (DS-08)",
+        "description": "NL audit trail over notebook activity — who changed which notebook, when (DS-08).",
+        "body": f"{REPO_ROOT}/datascientist/src/genie_code_audit.geniespace.json",
+    },
 ]
 
 # COMMAND ----------
@@ -53,6 +58,10 @@ SPACES = [
 def retarget(body: dict) -> dict:
     for t in body.get("data_sources", {}).get("tables", []):
         parts = t["identifier"].split(".")
+        # Leave system tables alone — system.access.audit is not a per-target catalog and
+        # retargeting it would produce <catalog>.access<suffix>.audit, which does not exist.
+        if parts[0] == "system":
+            continue
         if len(parts) == 3:
             _, schema, table = parts
             base = schema[:-4] if schema.endswith("_dev") else schema  # silver_dev -> silver

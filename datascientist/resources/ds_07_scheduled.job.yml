@@ -38,7 +38,7 @@ resources:
       tasks:
         - task_key: daily_summary
           notebook_task:
-            notebook_path: ../src/07_scheduled_analysis.py
+            notebook_path: ../src/ds_07_scheduled_analysis.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
