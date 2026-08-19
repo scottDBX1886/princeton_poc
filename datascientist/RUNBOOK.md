@@ -16,6 +16,44 @@ run these concurrently without collision. Per-ID status:*
 
 ---
 
+## Naming convention — required in every generation prompt
+
+<a name="naming-convention"></a>
+
+Every prompt below opens with this block. It is not boilerplate: a generated notebook that gets
+it wrong **runs fine on dev and breaks on qa and prod**, which is the worst way to find out.
+The authority is [`foundation/src/00_uc_setup.py`](../foundation/src/00_uc_setup.py) — the task
+that actually creates the catalog and schemas.
+
+```text
+Read two notebook widgets: "catalog" (default princeton_poc_dev) and "schema_suffix"
+(default _dev). The schema_suffix VALUE already contains its leading underscore, so build
+schema names by direct concatenation with NO separator:
+
+    f"{catalog}.gold{suffix}"        correct   -> princeton_poc_dev.gold_dev
+    f"{catalog}.gold_{suffix}"       WRONG     -> princeton_poc_dev.gold__dev
+
+This matters because the bundle passes schema_suffix="_dev" for dev, "_test" for qa, and an
+EMPTY STRING for prod — where the schema is plainly "gold". Putting an underscore in the
+f-string yields "gold_" on prod and "gold__test" on qa: both nonexistent.
+
+The five foundation schemas all follow it: bronze{suffix}, silver{suffix}, gold{suffix},
+landing{suffix}, models{suffix}. So does the landing volume path:
+/Volumes/{catalog}/landing{suffix}/files/
+
+Write nothing to those schemas — they are the shared read-only foundation. Derive my private
+output schema instead: query current_user(), replace every non-alphanumeric character with an
+underscore, prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it in {catalog}. That is what lets
+~20 people run the same notebook at once without colliding.
+```
+
+**Why it's stated this explicitly:** the first prompt-tested generation (DS-02) produced
+`f"gold_{schema_suffix}"` with a widget default of `"dev"` — correct on dev by coincidence,
+broken on every other target. The prompt had said only "read the catalog and schema suffix from
+widgets", which wasn't enough.
+
+---
+
 ## DS-01 — SQL + Genie exploration
 
 > **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: all 3 NL prompts generated correct SQL and matched the notebook's numbers — verified)
@@ -49,7 +87,7 @@ results.` Output: `wksp_<user>.ds_01_dept_enrollment_rank` (20 rows).
 
 ## DS-02 — Python notebook environment (pandas)
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the pandas notebook)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: Assistant-generated notebook reproduced the pre-built output exactly — 9,711 rows, 6,975 students, 10-grade map, per-student rolling GPA — verified)
 
 **What it proves:** platform data moves into the Python ecosystem an analyst already knows,
 transforms with pandas, and writes back as a governed Delta table.
@@ -60,13 +98,17 @@ transforms with pandas, and writes back as a governed Delta table.
 ```text
 Write a PySpark + pandas notebook for a data scientist working in Databricks.
 
-Setup: derive my private output schema instead of hardcoding one — read current_user(), replace
-every non-alphanumeric character with an underscore, prefix "wksp_", and CREATE SCHEMA IF NOT
-EXISTS it in catalog princeton_poc_dev. Everything I write goes there; the foundation is
-read-only. Read the catalog and schema suffix from notebook widgets ("catalog", "schema_suffix")
-so this runs on dev, qa or prod unchanged.
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
 
-1. Query princeton_poc_dev.gold_dev.enrollment_history for student_id, course_id, term_id, grade
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+
+1. Query <catalog>.gold<suffix>.enrollment_history for student_id, course_id, term_id, grade
    and gpa_points, filtering out rows where gpa_points IS NULL (those are withdrawals, grade
    'W'), LIMIT 10000, and bring it into pandas with toPandas().
 
@@ -124,10 +166,13 @@ Write an R notebook for Databricks that analyses governed platform data.
 Use sparklyr, NOT SparkR — SparkR was removed in DBR 16.0 and this has to run on a current
 runtime. Connect with spark_connect(method = "databricks").
 
-Read the catalog and schema suffix from notebook widgets ("catalog" default princeton_poc_dev,
-"schema_suffix" default _dev) rather than hardcoding them. Derive my private output schema the
-same way the Python notebooks do: query current_user(), gsub every non-alphanumeric character to
-"_", prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so paste0(catalog, ".gold", suffix) — never
+add another "_". The bundle passes _dev / _test / "" (empty, for prod), so an extra underscore
+breaks qa and prod while passing on dev.
+
+Write nothing to the foundation schemas. Derive my private output schema from current_user():
+gsub every non-alphanumeric character to "_", prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 1. Query <catalog>.gold<suffix>.enrollment_history for gpa_points and grade where gpa_points IS
    NOT NULL, LIMIT 5000, and collect() it into a local R data frame.
@@ -170,9 +215,15 @@ data without a pipeline or an ETL request.
 ```text
 Write a PySpark notebook that blends a file I uploaded with governed platform data.
 
-Read catalog and schema suffix from notebook widgets. Derive my private schema from
-current_user() (non-alphanumerics to underscores, "wksp_" prefix) and CREATE SCHEMA IF NOT EXISTS
-it — the foundation is read-only.
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
+
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 1. My CSV lives at /Volumes/<catalog>/landing<suffix>/files/uploads/<my wksp_ name>/ — a
    PER-USER folder, not the shared landing root, because the root holds the foundation's own
@@ -232,8 +283,15 @@ aggregate, window — and *why* it was fast.
 Write a PySpark notebook that runs a heavy analytical query over a multi-million-row fact table
 and shows me why it was fast.
 
-Read catalog and schema suffix from widgets; derive my private wksp_ schema from current_user()
-for the one table this writes.
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
+
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 1. Report the scale first: row count, distinct students, terms and departments in
    <catalog>.gold<suffix>.enrollment_history, plus DESCRIBE DETAIL on it to show numFiles,
@@ -321,7 +379,15 @@ autolog to an experiment, register in Unity Catalog, load back for inference.
 Write a notebook that trains a classifier on governed Databricks data, logs it to MLflow, and
 registers it in Unity Catalog.
 
-Read catalog and schema suffix from widgets; derive my private wksp_ schema from current_user().
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
+
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 1. Training data: join <catalog>.gold<suffix>.enrollment_history to silver student and term.
    Features: course_id, term_id, dept_id, term year, term season, student status, and student age.
@@ -389,8 +455,17 @@ the same notebook, no rewrite in another tool.
 Write a notebook that computes a daily enrollment summary, plus the Databricks Asset Bundle job
 YAML that runs it on a schedule.
 
-Notebook: read catalog and schema suffix from widgets, derive my private wksp_ schema from
-current_user(), and summarise <catalog>.gold<suffix>.enrollment_history into ONE row —
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
+
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+
+Then summarise <catalog>.gold<suffix>.enrollment_history into ONE row —
 current_date() as run_date, total enrollments, distinct students, distinct courses, average
 gpa_points, median via approx_percentile, a count of rows where gpa_points IS NULL (withdrawals),
 and current_timestamp(). Write it to ds_07_daily_summary in my wksp_ schema.
@@ -479,7 +554,15 @@ Sharing analytical code is safe by default.
 Write a PySpark notebook with three chart-ready queries over governed enrollment data, plus the
 views an AI/BI dashboard can read.
 
-Read catalog and schema suffix from widgets; derive my private wksp_ schema from current_user().
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.gold{suffix}", never f"gold_{suffix}". The bundle passes _dev / _test / "" (empty, for
+prod), so an underscore in the f-string breaks qa and prod while passing on dev. Same for the
+volume path: /Volumes/{catalog}/landing{suffix}/files/.
+
+Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
+output schema from current_user(): replace every non-alphanumeric character with an underscore,
+prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 1. GPA distribution, for a bar chart: band gpa_points into A (>=3.7), A- (>=3.3), B+ (>=3.0),
    B (>=2.7), C (>=2.0), D/F (below 2.0), and W for gpa_points IS NULL. Withdrawals MUST be their

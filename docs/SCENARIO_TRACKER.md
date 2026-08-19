@@ -109,7 +109,7 @@ list is the full checklist.
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
 | DS-01 | SQL-based data exploration | DS-A | ✅ built & verified | 🟢 tested (3 NL prompts -> correct SQL, numbers match the notebook) |
-| DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
+| DS-02 | Notebook environment — Python | DS-B | ✅ built & verified (pandas round-trip, 9711 rows) | 🟢 tested (Assistant generated a notebook matching the pre-built output exactly) |
 | DS-03 | Notebook environment — R | DS-B | 🟡 built (sparklyr); needs a classic cluster to run — not yet executed | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
 | DS-04 | Bring your own data — ad-hoc file upload | DS-B | ✅ built & verified (40 depts, 5 matched, per-user upload path) | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
 | DS-05 | Large dataset handling | DS-C | ✅ built & verified (5M rows -> 960 groups in 1.93s on Photon) | 🟡 written (Assistant prompt in datascientist/RUNBOOK.md) |
