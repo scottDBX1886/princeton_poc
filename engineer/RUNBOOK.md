@@ -469,7 +469,9 @@ databricks bundle run orchestration_demo -t dev --profile princeton_poc
 Create a job with 7 tasks: a stage task, two parallel legs that both depend only on stage,
 a merge that depends on both legs, an external-command task, on the stage task enable
 "retry-enabled" task that simulates a transient failure, and a notification task, a paused
-daily cron schedule and job-level email notifications.
+daily cron schedule and job-level email notifications on success, on failure, AND on an SLA /
+duration breach (add a health rule on run duration so a run that exceeds the expected time
+triggers a duration-warning email).
 
 create simple notebooks that execute on serverless for the tasks so the job can run.
 Make sure notebooks execute before adding to the job and fix any errors.
