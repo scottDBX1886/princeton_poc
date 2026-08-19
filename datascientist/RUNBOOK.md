@@ -593,7 +593,7 @@ rather than duplicates — an assertion proves one row per date. A demo will alw
 
 ## DS-08 — Version control for analytical code
 
-> **Built:** ✅ · **Prompt:** — n/a (walkthrough; the evidence is this repo's own history)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: Genie space over `system.access.audit` — both NL prompts generated correct partition-filtered SQL and returned real notebook-change history)
 
 **What it proves:** analytical code is versioned, reviewable, and reproducible — notebooks, not
 just pipelines.
@@ -614,6 +614,30 @@ commit in `main`.**
 **Also show:** notebook permissions and *data* permissions are independent. `CAN_VIEW` on a
 notebook grants no `SELECT` — a restricted recipient reads the code and gets `PERMISSION_DENIED`.
 Sharing analytical code is safe by default.
+
+### No-code path — audit the code, in natural language
+
+There is no notebook to *generate* for DS-08, so the prompt path is a different question: can a
+data scientist interrogate the **audit trail over analytical code** without SQL? Genie space
+`[princeton_poc_dev] Analytical Code Audit (DS-08)`, grounded on `system.access.audit`, created by
+the `genie_setup` task of `foundation_build`.
+
+| Prompt | Verified result |
+|---|---|
+| `Which notebooks did I change in the last week, and when?` | 40 notebooks, with last-modified times — SQL correctly used `current_user()` |
+| `Who has modified notebooks in the last 7 days, and how many times each?` | Per-user modification counts across the workspace |
+| `Show notebook activity by action type over the last week` | grouped by `action_name` |
+| `Which users deleted or renamed notebooks recently?` | `deleteNotebook` / `renameNotebook` events |
+
+Both tested prompts generated correct SQL — `service_name='notebook'`, the actor from
+`user_identity.email`, and critically an **`event_date` partition filter** to bound the scan. The
+space's instructions require that filter; without it a query over `system.access.audit` scans
+tens of millions of rows.
+
+**Why this closes the loop on DS-08.** Version control answers *what changed and who reviewed it*;
+the audit trail answers *who touched it in the workspace, and when* — including actions that never
+reach a commit. Together they are the full accountability story for analytical code, and both are
+queryable rather than requiring an admin to pull logs.
 
 ---
 
