@@ -494,18 +494,54 @@ each scenario:
   Volume makes it fail once then recover, so the retry policy is exercised and the job still ends green).
 - **SE-31 notification** — job-level `email_notifications` fire on success/failure; the `notify` task emits a completion payload.
 - **SE-32 external command** — `external_call` runs a subprocess and branches on its output.
-- **SE-33 schedule / SE-35 bulk pause** — a daily cron (`0 0 2 * * ?`) is attached but **PAUSED**;
+- **SE-30 schedule** — a daily cron (`0 0 2 * * ?`) is attached but **PAUSED**;
   unpause/pause from the Jobs UI (kept paused so concurrent POC users don't get surprise 2am runs).
+- **SE-33 SLA breach** — a `health` rule on `RUN_DURATION_SECONDS` drives
+  `on_duration_warning_threshold_exceeded`, so the job alerts on failure, success, **and** an
+  SLA/duration breach (the three conditions the RFP asks for).
 
 Outputs in `wksp_<you>`: `e8_students_stage`, `e8_by_dept`, `e8_by_status`, `e8_summary`.
 
 **Notes:** (1) The retry demo is an **honest** transient-failure simulation — it really fails
 and really recovers on retry, rather than a task hard-coded to pass; the marker is keyed to
 `{{job.run_id}}` so every fresh run repeats the fail-once-then-succeed cycle. (2) On serverless
-there's no shell task type, so SE-32's "external command" runs via a Python `subprocess` — the
+there's no shell task type, so SE-35's "external command" runs via a Python `subprocess` — the
 same call-an-external-process-and-act-on-its-output pattern, minus a dedicated shell task.
 (3) A Slack/Teams webhook post is stubbed (commented) in `e8_notify.py`; wire a UC secret scope
-to enable it for the customer POC.
+to enable it for the customer POC. (4) **SE-31 (bulk pause of all workloads) is a separate
+object — see E8b below**, because it's a fleet-wide maintenance-window control, not a
+single-job schedule toggle.
+
+## E8b — Bulk disable / pause of workloads (SE-31)
+
+> **Built:** ✅ · **Prompt:** — n/a (admin script — a maintenance-window operation, not a generated object)
+
+**What it proves:** the platform can **suspend every scheduled Engineer workload in one
+operation** (a maintenance window) and re-enable them afterward — the fleet-wide control SE-31
+asks for, distinct from pausing a single job's schedule.
+
+**Setup (SA, done):** notebook `engineer/src/e8/e8_bulk_pause.py` deployed with the bundle.
+Uses the Jobs API (auto-authenticated on serverless) — no extra credentials.
+
+**How to test:**
+```
+1. Open the notebook E8 - bulk pause (engineer/src/e8/e8_bulk_pause.py).
+2. Set the "action" widget to "pause" and Run all.
+3. It lists every scheduled Engineer job (name carries an (E#)/(SE-#) tag), pauses each in one
+   pass, and prints a before/after count. DS / BA / PA jobs are excluded by the name filter.
+4. Re-run with action = "resume" to restore every schedule.
+```
+
+**Expected outcome:** all matched scheduled Engineer jobs flip to PAUSED in a single run
+(verified: 3 scheduled → 0 unpaused), no jobs fire during the window, and `resume` restores
+them. The before/after counts printed by the notebook are the proof.
+
+**Notes:** (1) Scope is **Engineer-only by design** — the include filter matches an `(E#)` or
+`(SE-#)` scenario tag in the job name, so Data Scientist, Business Analyst, and Platform-Admin
+schedules are never touched (a different owner runs those maintenance windows). (2) Idempotent —
+it only updates jobs whose schedule is in the opposite state, so re-running is safe. (3) This is
+the honest native answer to "pause everything": Databricks has no single-button fleet pause, and
+an admin script over the Jobs API is exactly how a platform admin runs a maintenance window.
 
 ## E9 — Workload monitoring dashboard (SE-34)
 

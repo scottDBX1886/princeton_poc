@@ -81,9 +81,9 @@ list is the full checklist.
 | SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-31 | Bulk disable / pause of workloads | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-31 | Bulk disable / pause of workloads | E8b (bulk_pause) | ✅ built & verified | 🟢 tested (princeton_poc: e8_bulk_pause.py paused all scheduled Engineer jobs in one operation, verified 3→0 unpaused; resume restores. DS/BA/PA out of scope by design) |
 | SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 job-level email on success/failure + SLA breach via health rule RUN_DURATION_SECONDS + on_duration_warning_threshold_exceeded) |
 | SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) |
 | SE-35 | Calling external processes | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 

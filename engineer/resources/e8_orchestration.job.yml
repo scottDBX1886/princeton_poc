@@ -1,29 +1,43 @@
-# E8 — Orchestration job (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
+# E8 — Orchestration job (SE-28, SE-29, SE-30, SE-32, SE-33, SE-35)
 #
 # One job that demonstrates the whole orchestration surface an Oracle/Informatica engineer
 # expects, isolation-safe for concurrent group runs (reads the shared foundation, writes only
 # to the caller's wksp_<user>):
 #   SE-28 task chaining        -> the depends_on DAG (stage -> legs -> merge -> external -> retry -> notify)
 #   SE-29 parallel execution   -> leg_a / leg_b both depend only on stage, so they overlap
-#   SE-30 automated retry       -> retry_demo: max_retries fails-once-then-succeeds (run_id marker)
-#   SE-31 alerting/notification -> job-level email_notifications + the notify task
-#   SE-32 external command      -> external_call runs a subprocess and branches on its output
-#   SE-33 scheduling            -> trigger.pause_status PAUSED daily cron (unpause to activate)
-#   SE-35 bulk pause            -> the job is paused by default; pause/resume from the Jobs UI
+#   SE-30 scheduled execution  -> schedule.pause_status PAUSED daily cron (unpause to activate)
+#   SE-32 automated retry      -> retry_demo: max_retries fails-once-then-succeeds (run_id marker)
+#   SE-33 alerting             -> email_notifications on success/failure + SLA breach (health rule)
+#   SE-35 external command     -> external_call runs a subprocess and branches on its output
+#
+# SE-31 (bulk pause of ALL workloads) is a SEPARATE object — see src/e8/e8_bulk_pause.py, which
+# pauses/resumes every scheduled princeton_poc job in one operation (a maintenance window).
 resources:
   jobs:
     orchestration_demo:
       name: "[${var.catalog}] Orchestration Demo (E8)"
 
-      # SE-31 — job-level notifications (no code; fires on state changes). Recipient is the
-      # deploying user's principal; swap/extend for the customer POC.
+      # SE-33 — job-level notifications (no code; fires on state changes). Covers all three
+      # conditions the RFP asks for: failure, success, AND SLA breach (the health rule below
+      # drives on_duration_warning_threshold_exceeded). Recipient is the deploying user's
+      # principal; swap/extend for the customer POC.
       email_notifications:
         on_success:
           - ${workspace.current_user.userName}
         on_failure:
           - ${workspace.current_user.userName}
+        on_duration_warning_threshold_exceeded:
+          - ${workspace.current_user.userName}
 
-      # SE-33 — scheduled execution. PAUSED so ~20 concurrent runbook users don't get
+      # SE-33 — SLA breach: warn when a run exceeds its expected duration. RUN_DURATION_SECONDS
+      # over the threshold fires on_duration_warning_threshold_exceeded above.
+      health:
+        rules:
+          - metric: RUN_DURATION_SECONDS
+            op: GREATER_THAN
+            value: 1800
+
+      # SE-30 — scheduled execution. PAUSED so ~20 concurrent runbook users don't get
       # surprise 2am runs during the POC; unpausing in the Jobs UI activates the schedule.
       schedule:
         quartz_cron_expression: "0 0 2 * * ?"

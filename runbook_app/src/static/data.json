@@ -171,6 +171,29 @@
           "media": []
         },
         {
+          "id": "E8b",
+          "title": "Bulk disable / pause of workloads",
+          "scenarios": "SE-31",
+          "surface": "Admin notebook (Jobs API) — maintenance window",
+          "status": "walkthrough",
+          "proves": "The platform can suspend every scheduled Engineer workload in one operation (a maintenance window) and re-enable them afterward — the fleet-wide control SE-31 asks for, distinct from pausing a single job's schedule.",
+          "setup": "Notebook engineer/src/e8/e8_bulk_pause.py is deployed with the bundle and uses the Jobs API (auto-authenticated on serverless — no extra credentials).",
+          "steps": [
+            "Open the E8 - bulk pause notebook.",
+            "Set the action widget to \"pause\" and Run all — it lists every scheduled Engineer job, pauses each in one pass, and prints a before/after count.",
+            "Re-run with action = \"resume\" to restore every schedule.",
+            "Data Scientist, Business Analyst, and Platform-Admin jobs are excluded by the name filter — Engineer workloads only."
+          ],
+          "prompt": null,
+          "outcome": "All matched scheduled Engineer jobs flip to PAUSED in a single run (verified: 3 scheduled → 0 unpaused); no jobs fire during the window; resume restores them. The printed before/after counts are the proof.",
+          "notes": [
+            "Scope is Engineer-only by design — the filter matches an (E#) or (SE-#) tag in the job name, so DS/BA/PA schedules are never touched.",
+            "Idempotent — only updates jobs whose schedule is in the opposite state, so re-running is safe.",
+            "The honest native answer to 'pause everything': Databricks has no single-button fleet pause, and an admin script over the Jobs API is exactly how a platform admin runs a maintenance window."
+          ],
+          "media": []
+        },
+        {
           "id": "E9",
           "title": "Workload monitoring dashboard",
           "scenarios": "SE-34",
@@ -615,9 +638,9 @@
           {
             "id": "SE-31",
             "name": "Bulk disable / pause of workloads",
-            "object": "E8",
+            "object": "E8b",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "na"
           },
           {
             "id": "SE-32",
