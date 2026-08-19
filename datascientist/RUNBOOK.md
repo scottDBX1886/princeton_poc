@@ -52,6 +52,16 @@ underscore, prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it in {catalog}. Tha
 broken on every other target. The prompt had said only "read the catalog and schema suffix from
 widgets", which wasn't enough.
 
+### Two more rules, both learned from a failed generation
+
+Every prompt below carries these for the same reason — each one cost a debugging cycle during
+prompt testing, and each is invisible until runtime:
+
+| Rule | Why |
+|---|---|
+| **Name real columns explicitly.** The department table is `(dept_id, name, division, building)` — the name column is `name`, not `department_name`. | DS-04's generation invented `department_name` from the prompt's phrase "keeping department name and division" and failed with `UNRESOLVED_COLUMN`. Prose that reads naturally to a human reads as a column name to a code generator. |
+| **Always write Delta with `mode("overwrite")` *and* `.option("overwriteSchema","true")`.** | DS-04's second failure: after fixing the column name, the re-run hit `DELTA_METADATA_MISMATCH` because the table already existed with the old schema. These notebooks are re-run constantly during a demo. |
+
 ---
 
 ## DS-01 — SQL + Genie exploration
@@ -107,6 +117,11 @@ volume path: /Volumes/{catalog}/landing{suffix}/files/.
 Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
 
 1. Query <catalog>.gold<suffix>.enrollment_history for student_id, course_id, term_id, grade
    and gpa_points, filtering out rows where gpa_points IS NULL (those are withdrawals, grade
@@ -204,7 +219,7 @@ cluster, and `spark_write_table` on a three-part UC name may need adjusting.
 
 ## DS-04 — Bring your own data (ad-hoc upload + blend)
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the blend notebook)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook produced 40 depts / 4 matched / stale key excluded — 2 prompt gaps found and fixed, see below)
 
 **What it proves:** an analyst brings a file the platform has never seen and joins it to governed
 data without a pipeline or an ETL request.
@@ -225,6 +240,11 @@ Write nothing to bronze/silver/gold — that is the shared read-only foundation.
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
+
 1. My CSV lives at /Volumes/<catalog>/landing<suffix>/files/uploads/<my wksp_ name>/ — a
    PER-USER folder, not the shared landing root, because the root holds the foundation's own
    source files and ~20 of us are doing this at once. Create the folder if it doesn't exist. For
@@ -238,7 +258,11 @@ prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
 3. Aggregate the platform side: join <catalog>.gold<suffix>.enrollment_history to
    <catalog>.silver<suffix>.department on dept_id, and count enrollments plus distinct students
-   per department, keeping department name and division.
+   per department.
+
+   Use the ACTUAL column names — the department table is (dept_id, name, division, building).
+   The department's name column is literally `name`, NOT `department_name`. Alias it in the
+   SELECT if you want a friendlier label, but group by `name`.
 
 4. LEFT join the platform side to my uploaded file on dept_id — platform on the left. Every real
    department must survive; the ones absent from my file get NULL benchmarks. Write the result to
@@ -271,7 +295,7 @@ which holds the foundation's own source files.
 
 ## DS-05 — Large-dataset handling
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the heavy-query + profiling notebook)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook ran clean first time — 5,000,000 -> 960 rows, avoided all three invented-SQL traps)
 
 **What it proves:** a heavy analytical query over the multi-million-row fact — full scan, join,
 aggregate, window — and *why* it was fast.
@@ -292,6 +316,11 @@ volume path: /Volumes/{catalog}/landing{suffix}/files/.
 Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
 
 1. Report the scale first: row count, distinct students, terms and departments in
    <catalog>.gold<suffix>.enrollment_history, plus DESCRIBE DETAIL on it to show numFiles,
@@ -389,6 +418,11 @@ Write nothing to bronze/silver/gold — that is the shared read-only foundation.
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
+
 1. Training data: join <catalog>.gold<suffix>.enrollment_history to silver student and term.
    Features: course_id, term_id, dept_id, term year, term season, student status, and student age.
    Target: the grade column. LIMIT 50000.
@@ -464,6 +498,11 @@ volume path: /Volumes/{catalog}/landing{suffix}/files/.
 Write nothing to bronze/silver/gold — that is the shared read-only foundation. Derive my private
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
+
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
 
 Then summarise <catalog>.gold<suffix>.enrollment_history into ONE row —
 current_date() as run_date, total enrollments, distinct students, distinct courses, average
@@ -564,6 +603,11 @@ Write nothing to bronze/silver/gold — that is the shared read-only foundation.
 output schema from current_user(): replace every non-alphanumeric character with an underscore,
 prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
 
+Any Delta table you write, write with mode("overwrite") AND
+.option("overwriteSchema", "true"). These notebooks get re-run and edited; without
+overwriteSchema, the second run fails with DELTA_METADATA_MISMATCH the moment a column name or
+type changes from the previous run.
+
 1. GPA distribution, for a bar chart: band gpa_points into A (>=3.7), A- (>=3.3), B+ (>=3.0),
    B (>=2.7), C (>=2.0), D/F (below 2.0), and W for gpa_points IS NULL. Withdrawals MUST be their
    own band — if they fall into the ELSE branch they get reported as failing grades, which is
@@ -574,8 +618,11 @@ prefix "wksp_", and CREATE SCHEMA IF NOT EXISTS it.
    ordering is also wrong — 'A' before 'Below C' is luck, not intent.
 
 2. Enrollments by department, for a bar chart: join the fact to silver department, count
-   enrollments and distinct students, average gpa_points, keep name and division, top 15 by
-   enrollment.
+   enrollments and distinct students, average gpa_points, top 15 by enrollment.
+
+   Use the ACTUAL column names — department is (dept_id, name, division, building). The name
+   column is literally `name`, NOT `department_name`; alias it for display if you like, but
+   group by `name`.
 
 3. Enrollment trend by term, for a line chart: join the fact to silver term, count enrollments and
    average gpa_points per term. Build a term_label like "2018 Fall" so the axis is readable, but
