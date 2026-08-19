@@ -277,7 +277,10 @@ demonstrates:
   - inner, left, and full outer joins
   - string manipulation (substring, concat, split, case)
   - null + conditional logic (coalesce, if/then/else)
-  - parsing mixed-format date strings (use try_to_date / try_cast so bad values don't throw)
+  - parsing mixed-format date strings (use try_to_date / try_cast so bad values don't throw),
+    extracting date parts, calculating date differences, AND converting a timestamp between
+    time zones (the source is date-only, so stamp a UTC load timestamp and convert it to
+    US/Eastern and US/Pacific with from_utc_timestamp)
   - casting with a reject path: use an expectation (expect_or_drop) to drop bad casts into
     the valid MV, and a separate MV that captures the rejected rows
   - running totals per group (control-break)

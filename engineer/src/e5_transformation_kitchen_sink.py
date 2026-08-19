@@ -82,9 +82,10 @@ se14 = (student
 print("SE-14 null emails replaced:", se14.filter(F.col("email_was_null")).count())
 
 # COMMAND ----------
-# MAGIC %md ## SE-15 — Date handling (parse mixed formats, extract parts, diffs)
+# MAGIC %md ## SE-15 — Date handling (parse mixed formats, extract parts, diffs, tz-convert)
 # MAGIC dob arrives as mixed strings (ISO / MM/DD/YYYY / DD.MM.YYYY). Coalesce over
-# MAGIC multiple to_date patterns parses all three natively (no UDF).
+# MAGIC multiple to_date patterns parses all three natively (no UDF). The foundation is
+# MAGIC date-only, so time-zone conversion is shown on a real UTC load timestamp.
 # COMMAND ----------
 se15 = (student.withColumn("dob_parsed",
             # try_to_date returns NULL on format mismatch (to_date throws in ANSI mode),
@@ -94,9 +95,14 @@ se15 = (student.withColumn("dob_parsed",
                        F.expr("try_to_date(dob, 'dd.MM.yyyy')")))
         .withColumn("birth_year", F.year("dob_parsed"))
         .withColumn("birth_dow", F.date_format("dob_parsed", "EEEE"))
-        .withColumn("age_years", F.floor(F.datediff(F.current_date(), F.col("dob_parsed")) / 365.25)))
+        .withColumn("age_years", F.floor(F.datediff(F.current_date(), F.col("dob_parsed")) / 365.25))
+        # SE-15 time-zone conversion: stamp a UTC load time and convert it between zones.
+        .withColumn("load_ts_utc", F.current_timestamp())
+        .withColumn("load_ts_eastern", F.from_utc_timestamp(F.col("load_ts_utc"), "America/New_York"))
+        .withColumn("load_ts_pacific", F.from_utc_timestamp(F.col("load_ts_utc"), "America/Los_Angeles")))
 print("SE-15 dob parse failures (should be 0):", se15.filter(F.col("dob_parsed").isNull()).count())
-se15.select("dob", "dob_parsed", "birth_year", "birth_dow", "age_years").show(3, truncate=False)
+se15.select("dob", "dob_parsed", "birth_year", "birth_dow", "age_years",
+            "load_ts_utc", "load_ts_eastern", "load_ts_pacific").show(3, truncate=False)
 
 # COMMAND ----------
 # MAGIC %md ## SE-16 — Type casting & validation (valid → typed; invalid → reject path)

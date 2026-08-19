@@ -53,7 +53,7 @@ list is the full checklist.
 | SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
 | SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
 | SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, all 10 patterns) — tz-conversion added to pre-built + prompt (from_utc_timestamp on a UTC load ts → Eastern/Pacific); pending a re-gen check to confirm Genie emits it |
 | SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
 | SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
 | SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |

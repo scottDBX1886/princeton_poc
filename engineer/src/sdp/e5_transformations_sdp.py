@@ -37,9 +37,9 @@ def e5_student_enriched():
                 "dept_match", "aid_amount", "standing", "status"))
 
 
-# SE-15 — date handling: parse mixed formats, extract parts, age
+# SE-15 — date handling: parse mixed formats, extract parts, calculate diffs, convert time zones
 @dp.materialized_view(name="e5_student_dates",
-                      comment="SE-15 parse mixed dob formats (try_to_date), extract parts, age")
+                      comment="SE-15 parse mixed dob formats (try_to_date), extract parts, age, tz-convert a load timestamp")
 def e5_student_dates():
     return (spark.read.table(f"{SILVER}.student")
         .withColumn("dob_parsed", F.coalesce(
@@ -49,7 +49,13 @@ def e5_student_dates():
         .withColumn("birth_year", F.year("dob_parsed"))
         .withColumn("birth_dow", F.date_format("dob_parsed", "EEEE"))
         .withColumn("age_years", F.floor(F.datediff(F.current_date(), F.col("dob_parsed")) / 365.25))
-        .select("student_id", "dob", "dob_parsed", "birth_year", "birth_dow", "age_years"))
+        # SE-15 time-zone conversion: the foundation is date-only, so stamp a real UTC load
+        # timestamp and convert it between zones — the load-time-in-local-zone pattern.
+        .withColumn("load_ts_utc", F.current_timestamp())
+        .withColumn("load_ts_eastern", F.from_utc_timestamp(F.col("load_ts_utc"), "America/New_York"))
+        .withColumn("load_ts_pacific", F.from_utc_timestamp(F.col("load_ts_utc"), "America/Los_Angeles"))
+        .select("student_id", "dob", "dob_parsed", "birth_year", "birth_dow", "age_years",
+                "load_ts_utc", "load_ts_eastern", "load_ts_pacific"))
 
 
 # SE-16 — cast validation. Valid rows only: expectation drops rows whose gpa fails to cast.
