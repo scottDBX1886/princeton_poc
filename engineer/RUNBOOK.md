@@ -441,7 +441,7 @@ with a fully managed connector — the marquee no-code answer.
 
 ## E8 — Orchestration (SE-28, SE-29, SE-30, SE-31, SE-32, SE-33, SE-35)
 
-> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Genie created a live 7-task Lakeflow Job with serverless notebooks + retry/cron/email — runs green)
+> **Built:** ✅ · **Prompt:** 🟢 tested (princeton_poc: Genie created a live 7-task Lakeflow Job with serverless notebooks, parallel legs, max_retries, paused cron, and 3-way email incl. SLA/duration health rule — runs green)
 
 **What it proves:** the platform's job orchestration surface — task chaining, parallel
 execution, automated retry on failure, scheduling, external-command calls, and
