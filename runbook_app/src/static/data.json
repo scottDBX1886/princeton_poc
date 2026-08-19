@@ -365,5 +365,544 @@
         }
       ]
     }
-  ]
+  ],
+  "home": {
+    "summary": {
+      "built": "58 of 86 RFP scenario IDs built & verified (Engineer + Business Analyst complete; Data Scientist nearly complete; Platform Administrator planned).",
+      "prompt": "37 of the generate-from-prompt scenarios verified on the live environment — the entire Engineer and Business Analyst prompt paths, 0 pending.",
+      "legendBuilt": "Built: ✅ built & verified · 🟡 built, needs classic compute · ⬜ planned",
+      "legendPrompt": "Prompt: 🟢 generated & verified · — walkthrough / not a prompt · ⏸ parked"
+    },
+    "groups": [
+      {
+        "persona": "Software / Data Engineer",
+        "section": "Data Source Connectivity & Ingestion",
+        "rows": [
+          {
+            "id": "SE-01",
+            "name": "Relational DB — full extract",
+            "object": "E2",
+            "built": "planned",
+            "prompt": "parked"
+          },
+          {
+            "id": "SE-02",
+            "name": "Relational DB — custom SQL (joins/agg/window/proc)",
+            "object": "E2",
+            "built": "planned",
+            "prompt": "parked"
+          },
+          {
+            "id": "SE-03",
+            "name": "Incremental / CDC ingestion from a DB source",
+            "object": "E6",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-04",
+            "name": "Flat-file ingestion — CSV & delimited",
+            "object": "E1",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-05",
+            "name": "Excel workbook ingestion (named sheet)",
+            "object": "E1",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-06",
+            "name": "Semi-structured — JSON (nested)",
+            "object": "E1",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-07",
+            "name": "Semi-structured — XML (optional nodes)",
+            "object": "E1",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-08",
+            "name": "REST API — authenticated + paginated",
+            "object": "E3",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-09",
+            "name": "SFTP file retrieval & ingestion",
+            "object": "own job",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-10",
+            "name": "Multi-source pipeline on a single canvas",
+            "object": "E4",
+            "built": "done",
+            "prompt": "tested"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "Data Transformation",
+        "rows": [
+          {
+            "id": "SE-11",
+            "name": "Lookup / reference data enrichment",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-12",
+            "name": "Join — inner/left/full",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-13",
+            "name": "String manipulation",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-14",
+            "name": "Null detection & conditional logic",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-15",
+            "name": "Date & time handling",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-16",
+            "name": "Type casting & validation (reject path)",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-17",
+            "name": "Aggregation & running totals",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-18",
+            "name": "Pivot — rows↔columns",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-19",
+            "name": "Last-record-in-group",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-20",
+            "name": "Record loop / grouped iteration",
+            "object": "E5",
+            "built": "done",
+            "prompt": "tested"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "SCD & Change Capture",
+        "rows": [
+          {
+            "id": "SE-21",
+            "name": "Type 1 SCD — overwrite",
+            "object": "E6",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-22",
+            "name": "Type 2 SCD — history preservation",
+            "object": "E6",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-23",
+            "name": "Change capture — new/changed/deleted",
+            "object": "E6",
+            "built": "done",
+            "prompt": "tested"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "Target Loading",
+        "rows": [
+          {
+            "id": "SE-24",
+            "name": "Insert/update/delete to a DB target (UPSERT)",
+            "object": "E7",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-25",
+            "name": "Flat-file output — CSV / delimited",
+            "object": "E7",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-26",
+            "name": "Excel workbook output",
+            "object": "E7",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-27",
+            "name": "JSON file output",
+            "object": "E7",
+            "built": "done",
+            "prompt": "tested"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "Orchestration & Job Management",
+        "rows": [
+          {
+            "id": "SE-28",
+            "name": "Sequential job chaining (+ variables)",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-29",
+            "name": "Parallel job execution",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-30",
+            "name": "Scheduled execution (cron)",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-31",
+            "name": "Bulk disable / pause of workloads",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-32",
+            "name": "Automated retry on failure",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-33",
+            "name": "Failure & completion alerting",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-34",
+            "name": "Job monitoring dashboard",
+            "object": "E9",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "SE-35",
+            "name": "Calling external processes",
+            "object": "E8",
+            "built": "done",
+            "prompt": "tested"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "DevOps, CI/CD & Promotion",
+        "rows": [
+          {
+            "id": "SE-36",
+            "name": "Source control integration",
+            "object": "E10",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-37",
+            "name": "Promotion across environments",
+            "object": "E10",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-38",
+            "name": "CI/CD pipeline integration",
+            "object": "E10",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-39",
+            "name": "Rollback of a failed deployment",
+            "object": "E10",
+            "built": "done",
+            "prompt": "na"
+          }
+        ]
+      },
+      {
+        "persona": "Software / Data Engineer",
+        "section": "Observability & Governance",
+        "rows": [
+          {
+            "id": "SE-40",
+            "name": "Data lineage — end-to-end",
+            "object": "E11",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-41",
+            "name": "Schema drift detection",
+            "object": "E11",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-42",
+            "name": "Data drift / anomaly detection",
+            "object": "E11",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "SE-43",
+            "name": "Automated documentation",
+            "object": "E11",
+            "built": "done",
+            "prompt": "na"
+          }
+        ]
+      },
+      {
+        "persona": "Data Scientist",
+        "section": "Analysis & Environments",
+        "rows": [
+          {
+            "id": "DS-01",
+            "name": "SQL-based data exploration",
+            "object": "DS-A",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-02",
+            "name": "Notebook environment — Python",
+            "object": "DS-B",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-03",
+            "name": "Notebook environment — R",
+            "object": "DS-B",
+            "built": "partial",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-04",
+            "name": "Bring your own data — file upload",
+            "object": "DS-B",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-05",
+            "name": "Large dataset handling",
+            "object": "DS-C",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-06(a)",
+            "name": "Local environment connectivity (Python/R/SAS/SPSS)",
+            "object": "DS-D",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-06(b)",
+            "name": "In-platform ML model training",
+            "object": "DS-E",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-07",
+            "name": "Scheduling / operationalizing a notebook",
+            "object": "DS-F",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-08",
+            "name": "Version control for analytical code",
+            "object": "DS-G",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "DS-09",
+            "name": "Visualization & charting",
+            "object": "DS-H",
+            "built": "done",
+            "prompt": "na"
+          }
+        ]
+      },
+      {
+        "persona": "Business Analyst",
+        "section": "Self-Service Analytics",
+        "rows": [
+          {
+            "id": "BA-01",
+            "name": "No-code / low-code data browsing",
+            "object": "BA-A",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "BA-02",
+            "name": "Pre-built report or dataset subscription",
+            "object": "BA-B",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "BA-03",
+            "name": "Ad-hoc data extract to flat file or Excel",
+            "object": "BA-C",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "BA-04",
+            "name": "Upload and join a spreadsheet",
+            "object": "BA-D",
+            "built": "done",
+            "prompt": "na"
+          },
+          {
+            "id": "BA-05",
+            "name": "Light transformation — rename/filter/derive",
+            "object": "BA-D",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "BA-06",
+            "name": "Output to Excel workbook",
+            "object": "BA-C",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "BA-07",
+            "name": "Output to flat file for distribution",
+            "object": "BA-C",
+            "built": "done",
+            "prompt": "tested"
+          },
+          {
+            "id": "BA-08",
+            "name": "Reuse & save a self-service workflow",
+            "object": "BA-E",
+            "built": "done",
+            "prompt": "na"
+          }
+        ]
+      },
+      {
+        "persona": "Platform Administrator",
+        "section": "Governance, Compute & Cost",
+        "rows": [
+          {
+            "id": "PA-01…06",
+            "name": "User/group access, roles, credentials, audit",
+            "object": "PA-A",
+            "built": "planned",
+            "prompt": ""
+          },
+          {
+            "id": "PA-07/08",
+            "name": "Column-level security — masking & restriction",
+            "object": "PA-B",
+            "built": "planned",
+            "prompt": ""
+          },
+          {
+            "id": "PA-09/10",
+            "name": "Row-level security — attribute & dynamic",
+            "object": "PA-C",
+            "built": "planned",
+            "prompt": ""
+          },
+          {
+            "id": "PA-11/12",
+            "name": "Security policy testing & audit",
+            "object": "PA-D",
+            "built": "planned",
+            "prompt": ""
+          },
+          {
+            "id": "PA-13…18",
+            "name": "Compute & capacity management",
+            "object": "PA-E",
+            "built": "planned",
+            "prompt": ""
+          },
+          {
+            "id": "PA-19…25",
+            "name": "Cost tracking & chargeback",
+            "object": "PA-F",
+            "built": "planned",
+            "prompt": ""
+          }
+        ]
+      }
+    ]
+  }
 }
