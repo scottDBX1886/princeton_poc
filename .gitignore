@@ -4,3 +4,27 @@ __pycache__/
 .env
 /tmp/
 .DS_Store
+
+# ── Customer-facing exclusions (internal working artifacts) ──
+# These are internal-only and should not ship in a customer-facing repo.
+# IMPORTANT: they are ALREADY in git history — .gitignore only stops FUTURE tracking.
+# The actual removal (git rm --cached) + history purge is a PARKED action item; see CLEANUP.md.
+
+# Internal build process — specs, plans, design docs
+docs/superpowers/
+
+# Internal status/coverage tracker (prompt-test bookkeeping; shows what isn't done)
+docs/SCENARIO_TRACKER.md
+
+# Stale internal deployment notes (references retired storage_root + internal profiles)
+docs/CONFIG.md
+
+# Internal drafts
+docs/training_agenda_email.html
+
+# Agent / tooling config
+.isaac/
+
+# Princeton's own source doc (marked CONFIDENTIAL — Do Not Distribute) + our extract of it
+Princeton University RFP POC Vendor Platform test scenarios.docx
+princeton_scenarios_extracted.txt
