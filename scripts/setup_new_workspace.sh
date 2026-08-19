@@ -20,6 +20,7 @@ PROFILE="${1:?usage: setup_new_workspace.sh <profile> [target]}"
 TARGET="${2:-dev}"
 SCOPE="princeton_poc_e3"
 APP="princeton-mock-api"
+RUNBOOK_APP="princeton-poc-runbook"
 SP_DISPLAY="princeton-poc-e3-ingest"
 CATALOG="princeton_poc_dev"      # fixed by the bundle target vars (notebooks hardcode it)
 FILES="/Workspace/Shared/.bundle/princeton_poc/${TARGET}/files"   # deployed source root
@@ -78,6 +79,15 @@ print((sv or w)[0]['id'] if (sv or w) else '')")
 [ -n "$WAREHOUSE_ID" ] || die "no SQL warehouse found on $PROFILE"
 ok "warehouse $WAREHOUSE_ID · test schema $CATALOG.$WS_SCHEMA"
 
+# E9's dashboard bakes the warehouse id into its .lvdash.json (dashboards have no runtime
+# vars), so regenerate it with THIS workspace's warehouse BEFORE deploy uploads it. Otherwise
+# the notebook-runs panel would still point at whatever warehouse the file was last built for.
+if [ -f engineer/src/e9/build_dashboard.py ]; then
+  python3 engineer/src/e9/build_dashboard.py --warehouse "$WAREHOUSE_ID" >/dev/null \
+    && ok "regenerated E9 dashboard for warehouse $WAREHOUSE_ID" \
+    || warn "E9 dashboard regen failed — notebook panel may scope to the wrong warehouse"
+fi
+
 # ---------------------------------------------------------------------------
 say "2/9  Pre-create UC namespace on default storage (SQL on serverless)"
 # The SDP pipelines validate their target catalog at DEPLOY time, but the catalog is
@@ -120,6 +130,14 @@ APP_STATE=$(echo "$APP_JSON" | python3 -c "import json,sys;print((json.load(sys.
 APP_SP=$(echo "$APP_JSON"   | python3 -c "import json,sys;print(json.load(sys.stdin).get('service_principal_client_id',''))")
 APP_URL=$(echo "$APP_JSON"  | python3 -c "import json,sys;print(json.load(sys.stdin).get('url',''))")
 ok "app $APP: $APP_STATE"
+
+# Interactive runbook app — deployed by the bundle, but (like the mock API) needs an explicit
+# run to start serving. App names are workspace-global but this is a distinct workspace, so no
+# collision with any other environment.
+databricks bundle run runbook_app -t "$TARGET" --profile "$PROFILE" >/dev/null 2>&1 || true
+RUNBOOK_URL=$(databricks apps get "$RUNBOOK_APP" --profile "$PROFILE" -o json 2>/dev/null \
+  | python3 -c "import json,sys;print(json.load(sys.stdin).get('url',''))" 2>/dev/null || echo "")
+[ -n "$RUNBOOK_URL" ] && ok "runbook app: $RUNBOOK_URL" || warn "runbook app not started (run: databricks bundle run runbook_app -t $TARGET)"
 
 # ---------------------------------------------------------------------------
 say "6/9  Ingest SP + minted secret → scope $SCOPE"
@@ -196,6 +214,8 @@ cat <<EOF
   E6 scd1       $scd1        (expect 1005)
   E7 target     $e7rows      (expect 23999)
   mock API      $APP_STATE   $APP_URL
+  runbook app   $RUNBOOK_URL
   ingest SP     $SP_APPID    (secret in scope $SCOPE)
 Next → prompt-test scenarios in the UI (Genie/Designer): see engineer/RUNBOOK.md
+      open the interactive runbook app (URL above) to follow along.
 EOF
