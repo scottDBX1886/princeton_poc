@@ -387,6 +387,133 @@
           "media": []
         }
       ]
+    },
+    {
+      "id": "pa",
+      "name": "Platform Administrator",
+      "blurb": "Compute & capacity management (PA-E, PA-13–18) — COMPLETE. Admin walkthroughs plus the built PA-17 capacity dashboard. Manual scale (PA-13) and pause/resume (PA-16) shown live; PA-15 and PA-18 are guided conversations on how Databricks compute isolation & prioritization work.",
+      "objects": [
+        {
+          "id": "PA-13",
+          "title": "Scale compute up / down (manual)",
+          "scenarios": "PA-13",
+          "surface": "SQL Warehouses UI / CLI",
+          "status": "walkthrough",
+          "proves": "An administrator manually increases compute capacity for a heavy workload, then scales it back down — without interrupting active workloads.",
+          "setup": "A classic/pro SQL warehouse (manual scaling is a classic/pro operation; serverless auto-manages size).",
+          "steps": [
+            "Execute the SQL Timed Loop Demo notebook (a ~60-second query loop for testing).",
+            "While it runs, resize the active compute UP — show running queries are not interrupted.",
+            "View the increased cluster/node count live in the UI.",
+            "Resize DOWN and watch the cluster/node count drop in real time."
+          ],
+          "prompt": null,
+          "outcome": "Warehouse resizes live; running queries aren't interrupted; scale-down reclaims the clusters.",
+          "notes": [
+            "On serverless, compute size is auto-managed — reframe as \"the platform handles this for you\" rather than a manual resize."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-14",
+          "title": "Auto-scaling configuration",
+          "scenarios": "PA-14",
+          "surface": "SQL Warehouses UI / CLI + load notebook",
+          "status": "walkthrough",
+          "proves": "The platform automatically adds clusters when query concurrency causes queuing, and removes them when idle.",
+          "setup": "A classic/pro SQL warehouse with min/max clusters > 1. Autoscaling is triggered by QUEUED concurrent queries — not by one big query.",
+          "steps": [
+            "Open the SQL warehouse (Serverless Starter Warehouse) in one tab.",
+            "Open and execute the PA_14_AUTO_SCALE_UP_DOWN notebook (concurrent load).",
+            "Watch the warehouse scale from 1 to 3 clusters while the notebook runs.",
+            "After ~2-3 minutes idle, watch the clusters scale back down."
+          ],
+          "prompt": null,
+          "outcome": "Cluster count rises under concurrent load and falls when idle; scaling events are logged. Queuing shows as waiting_at_capacity_duration_ms.",
+          "notes": [
+            "Autoscaling is horizontal (adds clusters), triggered by queued queries. A single heavy query never queues, so it never triggers scale-up — you need concurrency."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-15",
+          "title": "Compute isolation — workload separation",
+          "scenarios": "PA-15",
+          "surface": "Multiple SQL warehouses",
+          "status": "walkthrough",
+          "proves": "Different workloads (pipelines, analyst queries, notebooks) run on separate compute so a heavy job on one can't starve another.",
+          "setup": "Two warehouses (or serverless job compute + a SQL warehouse). Jobs/queries pinned to a specific warehouse_id.",
+          "steps": [
+            "This is a guided conversation on how Databricks compute isolation works — separate warehouses / serverless job compute per workload class, so a heavy analyst query can't starve a production pipeline."
+          ],
+          "prompt": null,
+          "outcome": "Two workloads on two warehouses run without interfering; assignments are visible.",
+          "notes": [
+            "The POC already models this — foundation jobs run on serverless, analytics on the SQL warehouse."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-16",
+          "title": "Pause & resume compute",
+          "scenarios": "PA-16",
+          "surface": "SQL Warehouses UI / CLI",
+          "status": "walkthrough",
+          "proves": "Compute can be paused during an idle window and resumed on demand without data loss or reconfiguration.",
+          "setup": "A classic/pro SQL warehouse (stop/start). Serverless scales to zero automatically as its form of pause.",
+          "steps": [
+            "Stop the warehouse if it's running.",
+            "Execute any query — show the warehouse/cluster starts automatically on demand.",
+            "Highlight the idle-timeout setting on the warehouse and discuss serverless idle behavior."
+          ],
+          "prompt": null,
+          "outcome": "Warehouse stops and starts cleanly; a query after resume runs without reconfiguration.",
+          "notes": [
+            "Serverless: show the auto-stop (idle timeout) + on-demand cold start instead of manual stop/start."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-17",
+          "title": "Capacity dashboard & utilization monitoring",
+          "scenarios": "PA-17",
+          "surface": "AI/BI dashboard (system.query.history)",
+          "status": "tested",
+          "proves": "A single dashboard showing current compute utilization, historical usage trends, queue depth, and throttling events — so an admin can spot peak vs. underutilized windows. This is the one built item in PA-E.",
+          "setup": "Deployed with the bundle: [princeton_poc] PA-17 Capacity & Utilization (ACTIVE). Reads system.query.history — any query activity populates it.",
+          "steps": [
+            "Open the dashboard [princeton_poc] PA-17 Capacity & Utilization (Dashboards → search PA-17).",
+            "Read the KPIs (total queries, avg + p95 duration, throttled count) and the hourly volume line — call out a peak hour vs. an idle window.",
+            "Show the Throttled Queries KPI + per-user table — the RFP's queue-depth / throttling signal.",
+            "To make throttling non-zero, run the PA-14 load notebook first, then refresh."
+          ],
+          "prompt": null,
+          "outcome": "Dashboard ACTIVE; shows query volume + latency trend, per-user load, performance-tier split, and the queue/throttle metric; admin identifies peak vs idle windows.",
+          "notes": [
+            "The RFP's \"queue depth / throttling\" maps to waiting_at_capacity_duration_ms — a native signal, no custom instrumentation.",
+            "Distinct from E9 (Workload Monitoring), which tracks job/pipeline RUNS; PA-17 tracks warehouse UTILIZATION."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-18",
+          "title": "Workload prioritization & queuing",
+          "scenarios": "PA-18",
+          "surface": "Warehouse separation",
+          "status": "walkthrough",
+          "proves": "High-priority workloads aren't delayed by lower-priority activity during contention.",
+          "setup": "A dedicated higher-capacity warehouse for priority/SLA workloads; priority jobs pinned to it via warehouse_id.",
+          "steps": [
+            "This is a guided conversation on workload prioritization — a dedicated higher-capacity warehouse for priority/SLA workloads; prioritization is warehouse-level, not per-query."
+          ],
+          "prompt": null,
+          "outcome": "Priority workload completes ahead of lower-priority load during contention.",
+          "notes": [
+            "Honest framing: Databricks doesn't expose per-query priority in standard SQL — prioritization is warehouse-level. Note as a partial/workaround in the vendor response if Princeton expects per-query priority."
+          ],
+          "media": []
+        }
+      ]
     }
   ],
   "home": {

@@ -168,7 +168,7 @@ list is the full checklist.
 | PA-15 | Compute isolation — workload separation | PA-E | ✅ verified (walkthrough) | — n/a |
 | PA-16 | Pause & resume compute resources | PA-E | ✅ verified (walkthrough) | — n/a |
 | PA-17 | Capacity dashboard & utilization monitoring | PA-E | ✅ built & verified (AI/BI dashboard over system.query.history; ACTIVE on princeton_poc, incl. queue/throttle signal) | — n/a |
-| PA-18 | Workload prioritization & queuing | PA-E | 🟡 walkthrough written (warehouse-level; not per-query) | — n/a |
+| PA-18 | Workload prioritization & queuing | PA-E | ✅ verified (walkthrough/conversation; warehouse-level prioritization, not per-query) | — n/a |
 
 ### 6.4 Cost Tracking & Chargeback
 | ID | Scenario | Covered by | Status | Prompt tested? |

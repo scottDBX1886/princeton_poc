@@ -196,18 +196,6 @@ achieved by **warehouse separation** (a dedicated higher-capacity warehouse for 
 workloads) rather than per-query priority hints. Job-level: pin priority jobs to the reserved
 warehouse via `warehouse_id`.
 
-**[SA TO FILL] — steps to test:**
-1.
-2.
-3.
-
-**Expected outcome (SA to confirm):** priority workload completes ahead of lower-priority load
-during contention; queuing visible via `waiting_at_capacity_duration_ms` in the PA-17 dashboard.
-
-**Notes:** _(Honest framing — Databricks doesn't expose per-query priority in standard SQL;
-prioritization is warehouse-level. SA: confirm this is acceptable to Princeton or note as a
-partial/workaround in the vendor response.)_
-
 ---
 
 _PA-A/B/C/D and PA-F entries: to be added as those objects land._
