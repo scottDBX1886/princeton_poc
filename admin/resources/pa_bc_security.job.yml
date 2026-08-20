@@ -1,0 +1,44 @@
+# PA-B + PA-C — column-level and row-level security (PA-07 … PA-10).
+#
+# One job, two tasks, sequenced: masks first, then row filters. They compose — with both applied a
+# faculty reader sees fewer ROWS and masked COLUMNS within them — and running them in order makes
+# that stackable behaviour visible rather than accidental.
+#
+# Prereqs (not enforced by depends_on, since they are separate jobs):
+#   1. pa_admin_demo_setup — creates admin_demo + the sensitive table copies
+#   2. pa_a_identity_access — establishes the role -> account-group mapping the policies branch on
+#
+# Every policy targets admin_demo, never the shared foundation: ALTER TABLE ... SET MASK / SET ROW
+# FILTER mutate the table object, so applying either to silver would change what all ~20 session
+# participants see (spec §3.1 rule 4). Both notebooks assert the foundation stayed clean.
+#
+# Auto-discovered by the root databricks.yml `include: "*/resources/*.yml"` glob; notebook_path is
+# relative to THIS file's directory. Serverless, like every other job in the bundle.
+resources:
+  jobs:
+    pa_bc_security_policies:
+      name: "[${var.catalog}] PA-B/PA-C — Column masking + row-level security (PA-07…10)"
+      tags:
+        persona: platform_admin
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: column_masking
+          notebook_task:
+            notebook_path: ../src/pa_b_column_masking.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+
+        - task_key: row_filters
+          depends_on:
+            - task_key: column_masking
+          notebook_task:
+            notebook_path: ../src/pa_c_row_filters.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
