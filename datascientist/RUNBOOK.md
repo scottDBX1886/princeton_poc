@@ -169,14 +169,26 @@ derived value *equals* the fact's own `gpa_points`. A five-grade map (A/B/C/D/F 
 
 ## DS-03 — R notebook environment (sparklyr)
 
-> **Built:** 🟡 written, not executed · **Prompt:** 🟡 written (Assistant — generate the R notebook)
+> **Built:** 🟡 code review only · **Prompt:** 🟡 written (Assistant — generate the R notebook)
+>
+> **This scenario is presented as reviewed code, not a live run — by decision, not omission.**
+> There is no classic compute in the POC environment and serverless has no R kernel, so DS-03
+> cannot execute here. Walk the code and state the constraint plainly; don't promise a run.
 
 **What it proves:** the platform is a first-class R environment — connect, query governed tables,
 run native R statistics, write back as Delta.
 
-**⚠️ Needs a classic cluster with an R kernel.** Serverless has no R. Uses **`sparklyr`**, not
-`SparkR` — SparkR was removed in DBR 16.0, and available runtimes here are 15.4 / 16.4 / 17.3 /
-18.1 / 18.2.
+**Why it can't run here.** R needs a classic cluster with an R kernel; serverless supports
+Python/SQL/Scala only. The POC environment has no classic compute, so this is the one DS scenario
+demonstrated by code review.
+
+The code uses **`sparklyr`**, not `SparkR` — SparkR was removed in DBR 16.0, and the runtimes
+available here are 15.4 / 16.4 / 17.3 / 18.1 / 18.2. Anyone reviewing it should see the current
+supported R interface, not a deprecated one.
+
+**What to say to the customer:** R is fully supported on Databricks — it needs classic compute
+rather than serverless, which is a compute-type choice, not a capability gap. If Princeton wants R
+in their own environment, they provision a classic cluster and this notebook runs unchanged.
 
 <details>
 <summary><strong>Code path (Databricks Assistant — generate the R notebook)</strong> — click to expand the copy-paste prompt</summary>
@@ -212,8 +224,12 @@ gsub every non-alphanumeric character to "_", prefix "wksp_", and CREATE SCHEMA 
 
 </details>
 
-**How to test the pre-built path:** attach `ds_03_r_analysis_notebook.r` to a classic cluster,
-Run All.
+**How to review:** open `ds_03_r_analysis_notebook.r` and walk the four sections — connect via
+`spark_connect(method = "databricks")`, query the governed table through `sdf_sql()`, run base-R
+statistics (`summary`, `quantile`, `sd`, `table`) on the collected frame, and write the metrics back
+as Delta with `sdf_copy_to()` + `spark_write_table()`.
+
+If a classic cluster ever becomes available: attach and Run All. Expected —
 
 **Expected outcome:** `PASS: DS-03 R analysis — 5000 rows summarised, mean GPA ~3.08, 6 metrics
 persisted to Delta.` Output: `wksp_<user>.ds_03_r_summary` (6 metric rows).
@@ -395,6 +411,11 @@ with a broadcast join.` Output: `wksp_<user>.ds_05_query_metrics` (1 timing row)
 
 **What it proves:** analysts work from their own machine in the tool they already use, and Unity
 Catalog governs the **connection** — row filters and column masks apply identically from a laptop.
+
+**Now also covers Databricks Connect** — running PySpark from a local IDE against remote
+Databricks compute, per Scott's note. That is the stronger demo for a data-science team: it is the
+full DataFrame API in VS Code / PyCharm, executing on the cluster, not SQL over a wire. Section 6 of
+the guide.
 
 **How to test:** follow [`src/ds_06a_connectivity_guide.md`](src/ds_06a_connectivity_guide.md).
 Read the live host and HTTP path from **SQL Warehouse → Connection details**; the guide
