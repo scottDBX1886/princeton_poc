@@ -14,7 +14,15 @@ Status: [`docs/SCENARIO_TRACKER.md`](../docs/SCENARIO_TRACKER.md).
 rather than individuals, scopes permissions down to a single object, and can answer "who could read
 this" *and* "who actually did" in SQL.
 
-**Build status:** one build object — `admin/src/pa_a_identity_access.py`, deployed as job
+**Artifacts:**
+- `admin/src/pa_a_identity_access.py` — the executable, asserted path (deployed as a job)
+- `admin/src/pa_a_identity_setup.sql` — the same grants as reviewable SQL, for a DBA who wants to
+  audit the access model without reading PySpark
+- `admin/src/pa_a_audit_queries.sql` — the PA-05 query set as standalone SQL: current grants, who
+  changed a permission, **who actually read** the sensitive tables, denials, and SP activity
+- `admin/PA_A_IDENTITY_STRATEGY.md` — the two procedures that are policy rather than code
+
+**Build status:** the executable object is `admin/src/pa_a_identity_access.py`, deployed as job
 `[<catalog>] PA-A — Identity & access (PA-01…06)`. Strategy and the two procedures that are policy
 rather than code (onboarding, credential rotation) are in
 [`PA_A_IDENTITY_STRATEGY.md`](PA_A_IDENTITY_STRATEGY.md).
