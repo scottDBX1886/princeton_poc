@@ -173,13 +173,13 @@ list is the full checklist.
 ### 6.4 Cost Tracking & Chargeback
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-19 | Spend dashboard — overall platform cost | PA-F | ⬜ | — n/a |
-| PA-20 | Cost distribution by user or department | PA-F | ⬜ | — n/a |
-| PA-21 | Cost distribution by pipeline or workload | PA-F | ⬜ | — n/a |
-| PA-22 | Budget alerts & spending limits | PA-F | ⬜ | — n/a |
-| PA-23 | Spend forecasting | PA-F | ⬜ | — n/a |
-| PA-24 | Query & job cost estimation | PA-F | ⬜ | — n/a |
-| PA-25 | Cost optimization recommendations | PA-F | ⬜ | — n/a |
+| PA-19 | Spend dashboard — overall platform cost | PA-F | ✅ verified (Usage Dashboard V2: spend over time by product/SKU, exportable) | — n/a |
+| PA-20 | Cost distribution by user or department | PA-F | ✅ verified (Usage Dashboard tag matching on custom_tags; depends on tagging) | — n/a |
+| PA-21 | Cost distribution by pipeline or workload | PA-F | ✅ verified (Usage Dashboard by usage_metadata/pipeline tag; depends on tagging) | — n/a |
+| PA-22 | Budget alerts & spending limits | PA-F | ✅ verified (walkthrough: native account-console Budget + alert) | — n/a |
+| PA-23 | Spend forecasting | PA-F | ✅ verified (Usage Dashboard AI_FORECAST, ≥30-day horizon + 90% CI) | — n/a |
+| PA-24 | Query & job cost estimation | PA-F | 🟡 partial (EXPLAIN COST pre-run estimate + post-run actuals; no native per-query $ preview — lakemeter-oss optional) | — n/a |
+| PA-25 | Cost optimization recommendations | PA-F | ✅ built & verified (Genie space over system.billing+compute; NL cost Q&A, flags idle/oversized warehouses w/ savings) | — n/a |
 
 ---
 

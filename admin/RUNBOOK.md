@@ -198,4 +198,124 @@ warehouse via `warehouse_id`.
 
 ---
 
-_PA-A/B/C/D and PA-F entries: to be added as those objects land._
+---
+
+# PA-F — Cost Tracking & Chargeback (PA-19 … PA-25)
+
+**What this group proves:** the platform gives an administrator financial accountability — total
+spend, attribution by user/team/pipeline, forecasting, budget alerts, pre-run estimation, and
+optimization guidance — all from native cost surfaces (`system.billing.*`, `system.compute.*`).
+
+**Build status:** PA-19/20/21/23 are covered by the stock **Workspace Usage Dashboard V2**
+(AI/BI, ships with UC-enabled workspaces). PA-22 is an admin-console **budget** walkthrough.
+PA-25 is a built **Genie space** (cost-optimization assistant). PA-24 is an honest **partial**
+(native pre-run estimation is limited — EXPLAIN COST + post-run actuals).
+
+> **Attribution depends on tagging.** PA-20/21 slice cost by `custom_tags` / `usage_metadata`.
+> The dashboard is fully capable, but the *quality* of user/dept/pipeline attribution depends on
+> Princeton applying tags to clusters, warehouses, and jobs. State this plainly — it's a customer
+> process input, not a platform gap.
+
+---
+
+## PA-19 / PA-20 / PA-21 / PA-23 — Spend, attribution, forecasting (Usage Dashboard)
+
+**RFP asks:** PA-19 overall spend by cost driver (compute/storage/transfer) over time, exportable ·
+PA-20 cost by user/department · PA-21 cost by pipeline/workload · PA-23 spend forecasting (≥30-day horizon).
+
+**Platform capability:** the stock **Workspace Usage Dashboard V2** (AI/BI, over
+`system.billing.usage` + `system.billing.list_prices`) covers all four:
+- **PA-19** — Usage Overview page: spend over time by product/SKU; compute vs storage vs egress are
+  distinct SKUs; export via the dashboard ⋯ menu (CSV/PDF).
+- **PA-20** — Tag Matching page: explodes `custom_tags` to attribute cost by department/cost-center.
+- **PA-21** — group by `usage_metadata` keys (job/pipeline id) or a `project`/`pipeline` tag.
+- **PA-23** — Forecast: uses `AI_FORECAST()` with a configurable horizon (≥30 days) + 90% confidence band.
+
+**Steps to test:**
+1. Open **Workspace Usage Dashboard V2** (Dashboards → search "Usage").
+2. PA-19: on Usage Overview, show total spend over time and the product/SKU breakdown; export.
+3. PA-20: Tag Matching page → pick a tag key (e.g. `department`) → show cost per value.
+4. PA-21: group by a pipeline/job tag or `usage_metadata` key.
+5. PA-23: show the forecast line + confidence band projecting ≥30 days out.
+
+**Expected outcome:** spend trend + cost-driver breakdown (PA-19), per-tag attribution (PA-20/21),
+and a 30-day+ forecast (PA-23) — all from native billing system tables.
+
+**Notes:** PA-20/21 attribution is only as complete as the tags applied to compute/jobs. Verify
+compute/storage/transfer appear as separate SKUs when demoing PA-19.
+
+---
+
+## PA-22 — Budget alerts & spending limits
+
+**RFP asks:** *"configure a budget threshold so an alert fires when projected or actual spend
+approaches or exceeds a defined limit. Alert fires before the limit is breached; notification
+includes current spend, projected spend, and threshold value."*
+
+**Platform capability:** native **Budgets** in the account/usage console — set a spend threshold
+with a period + optional filters (workspace, tag, SKU) and email recipients; Databricks alerts on
+actual/forecasted spend against the budget.
+
+**Steps to test (walkthrough):**
+1. Account console → **Usage → Budgets → Create budget**.
+2. Set a period (e.g. monthly), an amount, optional filters (workspace/tag), and alert email(s).
+3. Save — show the budget tracking actual vs. threshold; alerts fire as spend approaches the limit.
+
+**Expected outcome:** a budget with an alert threshold; notification includes current + projected
+spend vs. the limit. No build — admin-console configuration.
+
+---
+
+## PA-24 — Query & job cost estimation (PARTIAL)
+
+**RFP asks:** *"before executing a large query or pipeline run, show whether the platform can
+provide an estimated cost or resource consumption preview. Estimate reasonably aligned with actual
+post-run cost."*
+
+**Honest coverage — PARTIAL.** Databricks is primarily a *post-run actuals* platform; there is no
+native per-query "this will cost $X" preview. The demonstrable answer:
+- **`EXPLAIN COST <query>`** — returns the optimizer's plan **with cost/statistics estimates**
+  (estimated row counts + sizes per plan node) *before* execution — the native pre-run resource-shape signal.
+- **Query Profile** (post-run) — actual time/rows/memory, which align with the EXPLAIN COST plan.
+- **`system.billing.usage`** (post-run) — actual $ cost, closing the estimate-vs-actual loop.
+
+**Steps to test:**
+1. Run `EXPLAIN COST <a heavy query>` in the SQL editor → show the estimated statistics per plan node.
+2. Execute the query → open **Query Profile** → show actual rows/time/memory align with the estimate.
+3. Look the query up in `system.query.history` / `system.billing.usage` → show actual cost.
+
+**Expected outcome:** EXPLAIN COST gives a pre-run resource/statistics estimate; Query Profile +
+billing confirm actuals align. Frame PA-24 as **Partial** in the vendor response.
+
+**Note:** for *forward workload* cost planning (size a hypothetical pipeline before writing SQL),
+**Lakemeter OSS** (`github.com/databrickslabs/lakemeter-oss`, a Databricks Labs app) provides
+pre-run workload estimates with SKU breakdowns. Mentioned as an option; not deployed in this POC.
+
+---
+
+## PA-25 — Cost optimization recommendations (Genie space)  ⭐ BUILD ITEM
+
+**RFP asks:** *"show whether the platform provides automated recommendations for reducing spend —
+identifying unused resources, oversized compute, or redundant storage. At least one actionable
+recommendation surfaced with an estimated savings value."*
+
+**Build:** a **Genie space** — *[princeton_poc] PA-25 Cost Optimization Assistant*
+(`admin/src/pa_f_cost_genie.json`) — grounded on `system.billing.usage`, `system.billing.list_prices`,
+and `system.compute.warehouse_events`. Admins ask cost questions in natural language; Genie
+generates the SQL, returns spend/attribution, and flags idle/oversized warehouses with savings.
+Verified on princeton_poc: "total spend by product last 30 days" → SQL $8.18, JOBS $1.04, DLT
+$0.25, APPS $0.10, PredictiveOpt $0.07 (correct USD via the list_prices join).
+
+**Steps to test / demo:**
+1. Open the Genie space **[princeton_poc] PA-25 Cost Optimization Assistant**.
+2. Ask a starter question: *"What is our total spend in the last 30 days broken down by product?"*
+3. Ask an optimization question: *"Which warehouses look idle or underutilized, and what could we save?"* — Genie queries `system.compute.warehouse_events` and surfaces oversized/idle warehouses.
+4. Ask an attribution question: *"Break spend down by custom tag."*
+
+**Expected outcome:** Genie answers each in natural language with correct SQL over the billing/compute
+system tables, and surfaces at least one actionable optimization with an estimated $ figure.
+
+**Notes:** (1) Also mention **Predictive Optimization** (GA) — automated OPTIMIZE/VACUUM on UC
+managed tables — for the RFP's "redundant storage" angle. (2) Honest framing: the Genie space makes
+cost analysis *conversational*, but the recommendations are analyst-initiated (AI-mediated query),
+not a fully-automated recommendation engine — note as such in the vendor response.

@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {"id": "10000000000000000000000000000001", "question": ["What is our total Databricks spend in the last 30 days, broken down by product?"]},
+      {"id": "10000000000000000000000000000002", "question": ["Which SKUs are driving the most cost this month?"]},
+      {"id": "10000000000000000000000000000003", "question": ["Show daily spend over the last 30 days so I can see the trend."]},
+      {"id": "10000000000000000000000000000004", "question": ["Which warehouses look idle or underutilized, and roughly what could we save?"]},
+      {"id": "10000000000000000000000000000005", "question": ["Break spend down by the custom tags applied to usage (e.g. department or cost center)."]}
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {"identifier": "system.billing.list_prices"},
+      {"identifier": "system.billing.usage"},
+      {"identifier": "system.compute.warehouse_events"}
+    ]
+  },
+  "instructions": {
+    "example_question_sqls": [
+      {
+        "id": "20000000000000000000000000000001",
+        "question": ["Total spend by product over the last 30 days"],
+        "sql": [
+          "SELECT u.billing_origin_product AS product,\n",
+          "       ROUND(SUM(u.usage_quantity * p.pricing.default), 2) AS est_usd\n",
+          "FROM system.billing.usage u\n",
+          "LEFT JOIN system.billing.list_prices p\n",
+          "  ON u.sku_name = p.sku_name\n",
+          "  AND u.usage_end_time >= p.price_start_time\n",
+          "  AND (p.price_end_time IS NULL OR u.usage_end_time < p.price_end_time)\n",
+          "WHERE u.usage_date >= date_sub(current_date(), 30)\n",
+          "GROUP BY u.billing_origin_product\n",
+          "ORDER BY est_usd DESC"
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000002",
+        "question": ["Daily spend trend over the last 30 days"],
+        "sql": [
+          "SELECT u.usage_date,\n",
+          "       ROUND(SUM(u.usage_quantity * p.pricing.default), 2) AS est_usd\n",
+          "FROM system.billing.usage u\n",
+          "LEFT JOIN system.billing.list_prices p\n",
+          "  ON u.sku_name = p.sku_name\n",
+          "  AND u.usage_end_time >= p.price_start_time\n",
+          "  AND (p.price_end_time IS NULL OR u.usage_end_time < p.price_end_time)\n",
+          "WHERE u.usage_date >= date_sub(current_date(), 30)\n",
+          "GROUP BY u.usage_date\n",
+          "ORDER BY u.usage_date"
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000003",
+        "question": ["Spend by custom tag (department / cost center)"],
+        "sql": [
+          "SELECT tag.key AS tag_key, tag.value AS tag_value,\n",
+          "       ROUND(SUM(u.usage_quantity * p.pricing.default), 2) AS est_usd\n",
+          "FROM system.billing.usage u\n",
+          "LATERAL VIEW explode(u.custom_tags) AS tag\n",
+          "LEFT JOIN system.billing.list_prices p\n",
+          "  ON u.sku_name = p.sku_name\n",
+          "  AND u.usage_end_time >= p.price_start_time\n",
+          "  AND (p.price_end_time IS NULL OR u.usage_end_time < p.price_end_time)\n",
+          "WHERE u.usage_date >= date_sub(current_date(), 30)\n",
+          "GROUP BY tag.key, tag.value\n",
+          "ORDER BY est_usd DESC"
+        ]
+      },
+      {
+        "id": "20000000000000000000000000000004",
+        "question": ["Which warehouses scaled up the most (oversized / autoscaling pressure)?"],
+        "sql": [
+          "SELECT warehouse_id,\n",
+          "       COUNT(*) AS event_count,\n",
+          "       MAX(cluster_count) AS max_clusters,\n",
+          "       SUM(CASE WHEN event_type = 'SCALED_UP' THEN 1 ELSE 0 END) AS scale_up_events\n",
+          "FROM system.compute.warehouse_events\n",
+          "WHERE event_time >= date_sub(current_date(), 30)\n",
+          "GROUP BY warehouse_id\n",
+          "ORDER BY scale_up_events DESC"
+        ]
+      }
+    ],
+    "text_instructions": [
+      {
+        "id": "30000000000000000000000000000001",
+        "content": [
+          "You are a cost-optimization assistant for a Databricks PLATFORM ADMINISTRATOR. Answer questions about spend, cost attribution, and opportunities to reduce cost, using the billing and compute system tables.\n",
+          "\n",
+          "COST IN DOLLARS: system.billing.usage records usage_quantity in DBUs (usage_unit). To express cost in USD, join to system.billing.list_prices on sku_name where the usage falls within the price validity window, and multiply usage_quantity * p.pricing.default. Always prefer showing estimated USD when the user asks about cost or spend.\n",
+          "\n",
+          "COST DRIVERS (PA-19): billing_origin_product and sku_name are the major cost drivers (compute vs storage vs data transfer/egress). SKUs containing STORAGE are storage; SKUs containing EGRESS or INTER_REGION are data transfer; the rest are compute.\n",
+          "\n",
+          "ATTRIBUTION (PA-20 / PA-21): cost is attributed via custom_tags (a map) — explode it to break spend down by department, cost center, team, project, or pipeline. usage_metadata carries job/pipeline identifiers when present. If custom_tags is empty, tell the user attribution requires tags to be applied to clusters/warehouses/jobs — the platform can slice by any tag once it is set.\n",
+          "\n",
+          "OPTIMIZATION (PA-25): to find savings, look for idle or oversized compute. system.compute.warehouse_events (event_type, cluster_count, event_time) shows scaling behavior — warehouses with many SCALED_UP events or a high max cluster_count may be oversized; warehouses with no recent events may be idle. When you flag one, estimate the savings in plain terms (e.g. fewer clusters x DBU rate x hours). Be honest that these are analyst-surfaced recommendations, not fully automated.\n",
+          "\n",
+          "TIME DEFAULTS: 'this month' or 'recent' = usage_date >= date_sub(current_date(), 30). Use usage_date for daily grouping.\n",
+          "\n",
+          "Keep answers concise and admin-focused: lead with the number, then the breakdown, then a recommendation if the question is about optimization."
+        ]
+      }
+    ]
+  }
+}

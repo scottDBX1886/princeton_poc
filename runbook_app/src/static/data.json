@@ -391,7 +391,7 @@
     {
       "id": "pa",
       "name": "Platform Administrator",
-      "blurb": "Compute & capacity management (PA-E, PA-13–18) — COMPLETE. Admin walkthroughs plus the built PA-17 capacity dashboard. Manual scale (PA-13) and pause/resume (PA-16) shown live; PA-15 and PA-18 are guided conversations on how Databricks compute isolation & prioritization work.",
+      "blurb": "Compute & capacity (PA-E, PA-13–18) and Cost & chargeback (PA-F, PA-19–25). Admin walkthroughs plus two built items: the PA-17 capacity dashboard and the PA-25 cost-optimization Genie space. Spend/attribution/forecast come from the native Usage Dashboard; PA-24 is an honest partial.",
       "objects": [
         {
           "id": "PA-13",
@@ -510,6 +510,144 @@
           "outcome": "Priority workload completes ahead of lower-priority load during contention.",
           "notes": [
             "Honest framing: Databricks doesn't expose per-query priority in standard SQL — prioritization is warehouse-level. Note as a partial/workaround in the vendor response if Princeton expects per-query priority."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-19",
+          "title": "Spend dashboard — overall platform cost",
+          "scenarios": "PA-19",
+          "surface": "AI/BI Usage Dashboard V2",
+          "status": "tested",
+          "proves": "Total platform cost over time, broken down by major cost drivers (compute, storage, data transfer), exportable for finance.",
+          "setup": "Stock Workspace Usage Dashboard V2 (over system.billing.usage + list_prices), ships with UC-enabled workspaces.",
+          "steps": [
+            "Open Workspace Usage Dashboard V2 (Dashboards → search \"Usage\").",
+            "On Usage Overview, show total spend over time and the product/SKU breakdown (compute vs storage vs egress are distinct SKUs).",
+            "Export via the dashboard ⋯ menu (CSV/PDF)."
+          ],
+          "prompt": null,
+          "outcome": "Spend trend + cost-driver breakdown over the selected period; exportable.",
+          "notes": [
+            "Verify compute/storage/transfer appear as separate SKUs when demoing."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-20",
+          "title": "Cost distribution by user or department",
+          "scenarios": "PA-20",
+          "surface": "AI/BI Usage Dashboard V2 (tag matching)",
+          "status": "tested",
+          "proves": "Attribute compute/storage cost to users, teams, or departments via tags.",
+          "setup": "Usage Dashboard V2 Tag Matching page explodes custom_tags.",
+          "steps": [
+            "Open the Usage Dashboard Tag Matching page.",
+            "Pick a tag key (e.g. department / cost_center).",
+            "Show cost per tag value."
+          ],
+          "prompt": null,
+          "outcome": "Cost attributed per department/team/user tag.",
+          "notes": [
+            "Attribution quality depends on tags being applied to clusters/warehouses/jobs — a customer process input, not a platform gap."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-21",
+          "title": "Cost distribution by pipeline or workload",
+          "scenarios": "PA-21",
+          "surface": "AI/BI Usage Dashboard V2",
+          "status": "tested",
+          "proves": "Track compute cost per pipeline or job; group multi-pipeline projects.",
+          "setup": "Group by usage_metadata (job/pipeline id) or a pipeline/project tag.",
+          "steps": [
+            "In the Usage Dashboard, group spend by a pipeline/job tag or usage_metadata key.",
+            "Show per-pipeline cost; group by a project tag for an initiative-level view."
+          ],
+          "prompt": null,
+          "outcome": "Cost per pipeline/workload, groupable by project.",
+          "notes": [
+            "Same tagging dependency as PA-20."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-22",
+          "title": "Budget alerts & spending limits",
+          "scenarios": "PA-22",
+          "surface": "Account console — Budgets",
+          "status": "walkthrough",
+          "proves": "An alert fires when projected or actual spend approaches/exceeds a defined limit.",
+          "setup": "Native Budgets in the account/usage console.",
+          "steps": [
+            "Account console → Usage → Budgets → Create budget.",
+            "Set a period, amount, optional filters (workspace/tag), and alert email(s).",
+            "Save — show it tracking actual vs threshold; alerts fire as spend approaches the limit."
+          ],
+          "prompt": null,
+          "outcome": "A budget with an alert threshold; notification includes current + projected spend vs. the limit.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "PA-23",
+          "title": "Spend forecasting",
+          "scenarios": "PA-23",
+          "surface": "AI/BI Usage Dashboard V2 (AI_FORECAST)",
+          "status": "tested",
+          "proves": "Project future platform cost from current usage, ≥30-day horizon.",
+          "setup": "Usage Dashboard forecast dataset uses AI_FORECAST() with a 90% confidence band.",
+          "steps": [
+            "Open the Usage Dashboard forecast view.",
+            "Show the forecast line + confidence band projecting ≥30 days out."
+          ],
+          "prompt": null,
+          "outcome": "A ≥30-day spend forecast with a 90% confidence interval.",
+          "notes": [
+            "Forecast accuracy improves with several months of history."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-24",
+          "title": "Query & job cost estimation",
+          "scenarios": "PA-24",
+          "surface": "EXPLAIN COST + Query Profile (partial)",
+          "status": "walkthrough",
+          "proves": "A pre-run resource/cost estimate that aligns with post-run actuals. Honest partial — Databricks is primarily post-run actuals; EXPLAIN COST gives the native pre-run estimate.",
+          "setup": "Native EXPLAIN COST + Query Profile + system.billing.usage. No build.",
+          "steps": [
+            "Run EXPLAIN COST <a heavy query> in the SQL editor — show estimated statistics (rows/sizes) per plan node BEFORE execution.",
+            "Execute the query → open Query Profile → show actual rows/time/memory align with the estimate.",
+            "Look the query up in system.billing.usage → show actual $ cost."
+          ],
+          "prompt": null,
+          "outcome": "EXPLAIN COST gives a pre-run estimate; Query Profile + billing confirm actuals align. Framed Partial in the vendor response.",
+          "notes": [
+            "No native per-query \"$X\" preview. For forward workload planning, Lakemeter OSS (Databricks Labs app) gives pre-run workload estimates — noted as an option, not deployed."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-25",
+          "title": "Cost optimization recommendations",
+          "scenarios": "PA-25",
+          "surface": "Genie space (system.billing + system.compute)",
+          "status": "tested",
+          "proves": "Admins ask cost-optimization questions in natural language; the platform surfaces spend, attribution, and idle/oversized-warehouse savings.",
+          "setup": "Built Genie space [princeton_poc] PA-25 Cost Optimization Assistant, grounded on system.billing.usage, list_prices, and system.compute.warehouse_events. Verified live.",
+          "steps": [
+            "Open the Genie space [princeton_poc] PA-25 Cost Optimization Assistant.",
+            "Ask: \"What is our total spend in the last 30 days broken down by product?\"",
+            "Ask: \"Which warehouses look idle or underutilized, and what could we save?\"",
+            "Ask: \"Break spend down by custom tag.\""
+          ],
+          "prompt": null,
+          "outcome": "Genie answers each in natural language with correct SQL over the billing/compute system tables, and flags at least one optimization with an estimated $ figure. (Verified: spend by product returned SQL $8.18, JOBS $1.04, ...)",
+          "notes": [
+            "Also mention Predictive Optimization (GA) — automated OPTIMIZE/VACUUM — for the RFP's \"redundant storage\" angle.",
+            "Honest framing: conversational analysis, analyst-initiated (AI-mediated), not a fully-automated recommendation engine."
           ],
           "media": []
         }
@@ -1056,9 +1194,10 @@
           {
             "id": "PA-19…25",
             "name": "Cost tracking & chargeback",
-            "object": "PA-F",
-            "built": "planned",
-            "prompt": ""
+            "object": "PA-25",
+            "built": "done",
+            "prompt": "na",
+            "objectLabel": "PA-F"
           }
         ]
       }
