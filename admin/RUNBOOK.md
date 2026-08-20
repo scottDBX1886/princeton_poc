@@ -17,15 +17,6 @@ compute — the operational controls a platform team needs for performance, cost
 **admin walkthroughs** (UI / CLI actions, no generated artifact). This runbook gives the RFP ask
 + context for each; the SA fills in the exact click/CLI steps against the target workspace.
 
-> ⚠️ **Compute-type note (read first — it shapes several scenarios).** The POC workspace today
-> has a **serverless SQL warehouse** (`Serverless Starter Warehouse`, Small, 10-min auto-stop).
-> Serverless behaves differently from classic/pro SQL warehouses for several PA-E scenarios:
-> - **Manual cluster-size scaling (PA-13)** and **pause/resume (PA-16)** are classic/pro-warehouse
->   operations. On serverless, compute is auto-managed (spins up on demand, scales to zero when
->   idle) — so the "manual scale" and "pause" stories are demonstrated on a **classic/pro SQL
->   warehouse** (create one for the demo) OR reframed as "serverless auto-manages this for you."
-> - **[SA decide]** which framing to use per scenario, and whether to stand up a classic warehouse
->   for the PA-13/16 demos. Both are legitimate; the honest answer depends on what Princeton runs.
 
 **Prereq for PA-17 dashboard:** some query history must exist. Running the E-persona pre-builts
 (or any queries) on the workspace populates `system.query.history`, which the dashboard reads.
@@ -34,31 +25,26 @@ compute — the operational controls a platform team needs for performance, cost
 
 ## PA-13 — Scaling compute up/down (manual)
 
+
 **RFP asks:** *"an administrator manually increases compute capacity to handle a heavy workload,
 then scales it back down afterward. Scale operation completes without interrupting active
 workloads; new capacity reflected in monitoring; scale-down reclaims resources."*
 
-**Platform capability:** classic/pro SQL warehouse **cluster size** (XS→S→M→L→XL) and
-**min/max clusters** are changed live from the SQL Warehouses UI or CLI; resize applies without
-dropping running queries.
+**Demo flow: - Databricks Demo**
+1.  Execute ***SQL Timed Loop Demo*** notebook.  This will execute a 60 sec loop for our testing
+2.  Resize the actively running compute to increase cluster capacity while the notebook is running to show no interruption.
+3.  View the total running clusters/nodes in the UI
+4.  REsize the cluster to reduce the number of clusters/nodes and view the reduction real time in the UI 
 
-**Reference commands (classic/pro warehouse):**
-```bash
-databricks warehouses list --profile princeton_poc
-databricks warehouses update --id <WAREHOUSE_ID> --cluster-size L --profile princeton_poc   # scale up
-databricks warehouses update --id <WAREHOUSE_ID> --cluster-size S --profile princeton_poc   # scale down
-databricks warehouses get --id <WAREHOUSE_ID> --profile princeton_poc                       # confirm new size
-```
 
-**[SA TO FILL] — steps to test:**
-1.
-2.
-3.
+**Reference Links:**
+***https://docs.databricks.com/api/warehouses/v1/warehouse***
+***https://docs.databricks.com/api/clusters/v2/cluster***
 
-**Expected outcome (SA to confirm):** warehouse resizes live; the capacity dashboard (PA-17)
+**Expected outcome:** warehouse resizes live; the capacity dashboard (PA-17)
 reflects the new size / higher throughput; scaling back down reclaims the clusters.
 
-**Notes:** _(SA — note whether you demoed on a classic warehouse or reframed for serverless.)_
+
 
 ---
 
@@ -68,25 +54,17 @@ reflects the new size / higher throughput; scaling back down reclaims the cluste
 threshold and down during idle. Auto-scale triggers under load; scale-down after idle; scaling
 events logged with timestamps and trigger reasons."*
 
-**Platform capability:** a classic/pro SQL warehouse takes **min/max cluster** bounds — Databricks
-adds clusters as query concurrency/queuing rises and removes them when idle (transparent, no
-per-query config). Serverless does this automatically with no configuration.
 
-**Reference command:**
-```bash
-databricks warehouses update --id <WAREHOUSE_ID> --min-num-clusters 2 --max-num-clusters 8 --profile princeton_poc
-```
+**Steps to test:**
+1. Open the SQL warehouse ***Serverless Starter Warehouse*** in a tab
+2. Open notebook ***PA_14_AUTO_SCALE_UP_DOWN***
+3. Execute the notebook
+4. Monitor the SQL Warehouse to show clusters scale from 1 to 3 while notebook is running
+5. Monitor the SQL Warehouse to show the clusters scale down after about 2-3 mins
 
-**[SA TO FILL] — steps to test:**
-1.
-2.
-3.
-
-**Expected outcome (SA to confirm):** under concurrent load the cluster count rises toward max;
+**Expected outcome:** under concurrent load the cluster count rises toward max;
 after the idle window it drops back toward min; the scaling is visible in the warehouse monitoring
-tab. _(On serverless: show that autoscaling + scale-to-zero is automatic.)_
-
-**Notes:**
+tab.
 
 ---
 
@@ -96,20 +74,12 @@ tab. _(On serverless: show that autoscaling + scale-to-zero is automatic.)_
 notebooks) assigned to separate compute pools to prevent contention. Analyst query consuming heavy
 resources does not degrade production throughput; assignments visible in admin console."*
 
-**Platform capability:** separate **SQL warehouses** (and/or serverless job compute) per workload
-class; jobs/dashboards/queries are pinned to a specific `warehouse_id`. A heavy analyst query on
-warehouse A cannot starve a pipeline on warehouse B.
+**Steps to test:**
+1.  This will just be a conversation around how compute works.  
 
-**[SA TO FILL] — steps to test:**
-1.
-2.
-3.
-
-**Expected outcome (SA to confirm):** two workloads on two warehouses run without interfering;
+**Expected outcome:** two workloads on two warehouses run without interfering;
 warehouse assignment is visible per job/query.
 
-**Notes:** _(The POC already models this — foundation jobs run on serverless, the SQL warehouse
-serves analytics. SA: decide whether to add a second warehouse to make isolation explicit.)_
 
 ---
 
@@ -119,24 +89,15 @@ serves analytics. SA: decide whether to add a second warehouse to make isolation
 demand before workloads begin. Paused and resumed without data loss or reconfiguration;
 pause/resume events visible in logs."*
 
-**Platform capability:** classic/pro SQL warehouses **stop/start** on command and **auto-stop**
-after an idle timeout; serverless scales to zero automatically (its form of "pause").
 
-**Reference commands (classic/pro warehouse):**
-```bash
-databricks warehouses stop  --id <WAREHOUSE_ID> --profile princeton_poc   # pause
-databricks warehouses start --id <WAREHOUSE_ID> --profile princeton_poc   # resume
-```
 
-**[SA TO FILL] — steps to test:**
-1.
-2.
-3.
+**Steps to test:**
+1.  Stop warehouse if running
+2.  Execute asny query to show that the cluster/warehouse will start automatically.
+3.  Highlight the idle timeout on the warehouses and talk about serverless idle time.
 
-**Expected outcome (SA to confirm):** warehouse stops and starts cleanly; a query after resume
-runs without reconfiguration. _(Serverless: show the 10-min auto-stop + on-demand cold start.)_
-
-**Notes:**
+**Expected outcome:** warehouse stops and starts cleanly; a query after resume
+runs without reconfiguration. 
 
 ---
 
@@ -186,29 +147,37 @@ WHERE start_time >= current_timestamp() - INTERVAL 7 DAYS
 GROUP BY 1 ORDER BY 1;
 ```
 
-**Build path:** deploy as an AI/BI dashboard resource (`admin/resources/pa_e_capacity_dashboard.*`)
-or generate via Genie/Assistant with the prompt below.
+**Build status:** ✅ **BUILT & deployed** — `admin/src/pa_e_capacity_dashboard.json` +
+`admin/resources/pa_e_capacity_dashboard.dashboard.yml` (deploys with the bundle). Verified live
+on princeton_poc: dashboard **[princeton_poc] PA-17 Capacity & Utilization**, ACTIVE, all dataset
+queries tested against `system.query.history` before deploy.
+
+**Build path:** deploys as an AI/BI dashboard resource with `bundle deploy`, or regenerate via
+Genie/Assistant with the prompt below.
 
 <details>
-<summary><strong>Genie / Assistant prompt (generate the dashboard)</strong></summary>
+<summary><strong>Genie / Assistant prompt (regenerate the dashboard)</strong></summary>
 
 ```text
-Build an AI/BI dashboard over system.query.history for the last 7 days showing compute
-utilization and capacity: daily query count and average + p95 total_duration_ms by
-compute.warehouse_id; average waiting_at_capacity_duration_ms and a count of throttled queries
+Build an AI/BI dashboard over system.query.history for the last 30 days showing compute
+utilization and capacity: total query count, average + p95 total_duration_ms; hourly query
+volume as a line (peaks vs idle windows); a count of throttled queries
 (where waiting_at_capacity_duration_ms > 0) as the queue-depth/throttling signal; query count and
-avg duration per executed_by user; and a performance-tier distribution bucketing total_duration_ms
+avg duration per executed_by user in a table; and a performance-tier bar bucketing total_duration_ms
 into Fast (<1s), Medium (1-5s), Slow (>5s).
 ```
 </details>
 
-**[SA TO FILL] — steps to test / demo the dashboard:**
-1.
-2.
-3.
+**Steps to test / demo:**
+1. Open the dashboard **[princeton_poc] PA-17 Capacity & Utilization** (Dashboards → search PA-17).
+2. Read the four KPIs (total queries, avg + p95 duration, throttled count) and the hourly volume
+   line — point out a peak hour vs. an idle window (utilization + historical trend).
+3. Show the **Throttled Queries** KPI + per-user table's Throttled column — that's the RFP's
+   "queue depth / throttling events." (To make it non-zero, run the PA-14 concurrent-load notebook
+   first, then refresh — queued queries appear as throttled.)
 
-**Expected outcome (SA to confirm):** dashboard ACTIVE; shows query volume + latency trend,
-per-user load, perf-tier split, and the queue/throttle metric; admin can spot peak vs idle windows.
+**Expected outcome:** dashboard ACTIVE; shows query volume + latency trend, per-user load,
+perf-tier split, and the queue/throttle metric; admin can spot peak vs idle windows.
 
 **Notes:** the RFP's "queue depth / throttling events" maps to `waiting_at_capacity_duration_ms`
 (time a query waited because the warehouse was at capacity) — a real native signal, no custom

@@ -1,0 +1,203 @@
+{
+  "datasets": [
+    {
+      "name": "ds_queries",
+      "displayName": "Query history (30d)",
+      "queryLines": [
+        "SELECT\n",
+        "  statement_id,\n",
+        "  executed_by,\n",
+        "  statement_type,\n",
+        "  execution_status,\n",
+        "  compute.warehouse_id AS warehouse_id,\n",
+        "  start_time,\n",
+        "  total_duration_ms,\n",
+        "  waiting_at_capacity_duration_ms,\n",
+        "  waiting_for_compute_duration_ms,\n",
+        "  read_rows,\n",
+        "  CASE WHEN total_duration_ms < 1000 THEN '1 Fast (<1s)'\n",
+        "       WHEN total_duration_ms < 5000 THEN '2 Medium (1-5s)'\n",
+        "       ELSE '3 Slow (>5s)' END AS performance_tier,\n",
+        "  CASE WHEN waiting_at_capacity_duration_ms > 0 THEN 1 ELSE 0 END AS was_throttled\n",
+        "FROM system.query.history\n",
+        "WHERE start_time >= date_sub(current_date(), 30)\n",
+        "  AND compute.warehouse_id IS NOT NULL"
+      ],
+      "columns": [
+        {"displayName": "Total Queries", "description": "Count of queries", "expression": "COUNT(`statement_id`)"},
+        {"displayName": "Avg Duration (ms)", "description": "Mean total duration", "expression": "AVG(`total_duration_ms`)"},
+        {"displayName": "P95 Duration (ms)", "description": "95th percentile total duration", "expression": "PERCENTILE(`total_duration_ms`, 0.95)"},
+        {"displayName": "Throttled Queries", "description": "Queries that waited at capacity (queue depth signal)", "expression": "SUM(`was_throttled`)"},
+        {"displayName": "Avg Queue Wait (ms)", "description": "Mean time waiting at capacity", "expression": "AVG(`waiting_at_capacity_duration_ms`)"}
+      ]
+    },
+    {
+      "name": "ds_hourly",
+      "displayName": "Hourly utilization (7d)",
+      "queryLines": [
+        "SELECT\n",
+        "  date_trunc('HOUR', start_time) AS hour,\n",
+        "  compute.warehouse_id AS warehouse_id,\n",
+        "  COUNT(*) AS query_count,\n",
+        "  ROUND(AVG(total_duration_ms)) AS avg_duration_ms,\n",
+        "  SUM(CASE WHEN waiting_at_capacity_duration_ms > 0 THEN 1 ELSE 0 END) AS throttled\n",
+        "FROM system.query.history\n",
+        "WHERE start_time >= date_sub(current_date(), 7)\n",
+        "  AND compute.warehouse_id IS NOT NULL\n",
+        "GROUP BY 1, 2\n",
+        "ORDER BY 1"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "capacity",
+      "displayName": "Capacity & Utilization",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# PA-17 — Compute Capacity & Utilization Monitoring\n",
+                "Warehouse query volume, latency, per-user load, and **queue depth / throttling** (`waiting_at_capacity_duration_ms`) over the last 30 days. Use it to spot peak vs. underutilized windows and any capacity contention."
+              ]
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 12, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "kpi-total",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [{"name": "measure(Total Queries)", "expression": "MEASURE(`Total Queries`)"}], "disaggregated": false}}],
+            "spec": {"version": 2, "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "measure(Total Queries)", "displayName": "Total Queries"}},
+              "frame": {"title": "Total Queries (30d)", "showTitle": true}}
+          },
+          "position": {"x": 0, "y": 2, "width": 3, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [{"name": "measure(Avg Duration (ms))", "expression": "MEASURE(`Avg Duration (ms)`)"}], "disaggregated": false}}],
+            "spec": {"version": 2, "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "measure(Avg Duration (ms))", "formatTemplate": "{{ @formatted }} ms", "displayName": "Avg"}},
+              "frame": {"title": "Avg Query Duration", "showTitle": true}}
+          },
+          "position": {"x": 3, "y": 2, "width": 3, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-p95",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [{"name": "measure(P95 Duration (ms))", "expression": "MEASURE(`P95 Duration (ms)`)"}], "disaggregated": false}}],
+            "spec": {"version": 2, "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "measure(P95 Duration (ms))", "formatTemplate": "{{ @formatted }} ms", "displayName": "P95"}},
+              "frame": {"title": "P95 Query Duration", "showTitle": true}}
+          },
+          "position": {"x": 6, "y": 2, "width": 3, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-throttled",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [{"name": "measure(Throttled Queries)", "expression": "MEASURE(`Throttled Queries`)"}], "disaggregated": false}}],
+            "spec": {"version": 2, "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "measure(Throttled Queries)", "displayName": "Throttled"}},
+              "frame": {"title": "Throttled Queries (queue depth)", "showTitle": true}}
+          },
+          "position": {"x": 9, "y": 2, "width": 3, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "sec-trend",
+            "multilineTextboxSpec": {"lines": ["## Utilization over time"]}
+          },
+          "position": {"x": 0, "y": 5, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "volume-trend",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_hourly",
+              "fields": [
+                {"name": "hour", "expression": "`hour`"},
+                {"name": "sum(query_count)", "expression": "SUM(`query_count`)"}
+              ], "disaggregated": false}}],
+            "spec": {"version": 3, "widgetType": "line",
+              "frame": {"title": "Hourly Query Volume (7d) — peaks vs. idle windows", "showTitle": true},
+              "encodings": {
+                "x": {"fieldName": "hour", "scale": {"type": "temporal"}, "displayName": "Hour"},
+                "y": {"fieldName": "sum(query_count)", "scale": {"type": "quantitative"}, "displayName": "Queries"}
+              }}
+          },
+          "position": {"x": 0, "y": 6, "width": 8, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "perf-tier",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [
+                {"name": "performance_tier", "expression": "`performance_tier`"},
+                {"name": "measure(Total Queries)", "expression": "MEASURE(`Total Queries`)"}
+              ], "disaggregated": false}}],
+            "spec": {"version": 3, "widgetType": "bar",
+              "frame": {"title": "Query Performance Tiers", "showTitle": true},
+              "encodings": {
+                "x": {"fieldName": "performance_tier", "scale": {"type": "categorical"}, "displayName": "Tier"},
+                "y": {"fieldName": "measure(Total Queries)", "scale": {"type": "quantitative"}, "displayName": "Queries"},
+                "color": {"fieldName": "performance_tier", "scale": {"type": "categorical",
+                  "mappings": [
+                    {"value": "1 Fast (<1s)", "color": "#99DDB4"},
+                    {"value": "2 Medium (1-5s)", "color": "#FFDD4A"},
+                    {"value": "3 Slow (>5s)", "color": "#FF7054"}
+                  ]}}
+              }}
+          },
+          "position": {"x": 8, "y": 6, "width": 4, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "sec-detail",
+            "multilineTextboxSpec": {"lines": ["## Workload by user"]}
+          },
+          "position": {"x": 0, "y": 12, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "user-table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "ds_queries",
+              "fields": [
+                {"name": "executed_by", "expression": "`executed_by`"},
+                {"name": "measure(Total Queries)", "expression": "MEASURE(`Total Queries`)"},
+                {"name": "measure(Avg Duration (ms))", "expression": "MEASURE(`Avg Duration (ms)`)"},
+                {"name": "measure(Throttled Queries)", "expression": "MEASURE(`Throttled Queries`)"}
+              ], "disaggregated": false}}],
+            "spec": {"version": 2, "widgetType": "table",
+              "frame": {"title": "Query Load by User (30d)", "showTitle": true},
+              "encodings": {"columns": [
+                {"fieldName": "executed_by", "displayName": "User"},
+                {"fieldName": "measure(Total Queries)", "displayName": "Queries"},
+                {"fieldName": "measure(Avg Duration (ms))", "displayName": "Avg ms"},
+                {"fieldName": "measure(Throttled Queries)", "displayName": "Throttled"}
+              ]}}
+          },
+          "position": {"x": 0, "y": 13, "width": 12, "height": 6}
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {"light": "#FCFCFC", "dark": "#1F272D"},
+      "widgetBackgroundColor": {"light": "#FFFFFF", "dark": "#11171C"},
+      "fontColor": {"light": "#11171C", "dark": "#E8ECF0"},
+      "selectionColor": {"light": "#2272B4", "dark": "#8ACAFF"},
+      "visualizationColors": ["#094074", "#3C6997", "#5ADBFF", "#FFDD4A", "#FE9000", "#99DDB4", "#FF7054"],
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
+}

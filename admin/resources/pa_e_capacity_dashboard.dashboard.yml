@@ -1,0 +1,17 @@
+# PA-17 — Compute Capacity & Utilization dashboard (Platform Admin PA-E)
+#
+# AI/BI dashboard over system.query.history: query volume, latency (avg/p95),
+# performance tiers, per-user load, and the queue-depth/throttling signal
+# (waiting_at_capacity_duration_ms). Distinct from E9 (which tracks job/pipeline
+# RUNS for the Engineer); this is warehouse UTILIZATION for the admin.
+#
+# Serialized body: ../src/pa_e_capacity_dashboard.json. The dataset queries use
+# fully-qualified system.query.history, so no per-target catalog/schema rewrite
+# is needed. Warehouse id is set per-target via var.warehouse_id.
+resources:
+  dashboards:
+    pa_e_capacity:
+      display_name: "[${var.catalog}] PA-17 Capacity & Utilization"
+      warehouse_id: ${var.warehouse_id}
+      serialized_dashboard: ../src/pa_e_capacity_dashboard.json
+      parent_path: /Workspace/Shared/princeton_poc/admin
