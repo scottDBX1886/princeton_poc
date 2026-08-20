@@ -212,6 +212,278 @@ offer. Full 5-step procedure, plus the audit query to confirm it, in
 by a UUID grantee (SP application IDs are UUIDs, so they stand out from user and group grantees).
 
 
+---
+
+# PA-B / PA-C / PA-D — Data security policies & inventory (PA-07 … PA-12)
+
+**What this group proves:** Oracle FGAC's column- and row-level controls, in Unity Catalog — plus
+the ability to inventory every policy and test one *before* rollout.
+
+**Build:** one job, three sequenced tasks — `[<catalog>] PA-B/C/D — Security policies + inventory`.
+Masks, then filters, then the inventory that reports on both, so the inventory can never be stale
+relative to the policies.
+
+**⚠️ Everything runs on `admin_demo`.** `ALTER TABLE … SET MASK` / `SET ROW FILTER` mutate the
+**table object**, so applying either to `silver_dev` would redact and filter for all ~20 session
+participants and silently change what the Engineer pipelines read (spec §3.1 rule 4). Every
+notebook asserts the foundation stayed clean.
+
+**Prereqs:** `pa_admin_demo_setup` (the copies) and `pa_a_identity_access` (the role → group
+mapping the policies branch on).
+
+**Two syntax notes, both verified against the live warehouse** — the plan had the first one wrong:
+
+```sql
+ALTER TABLE t ALTER COLUMN c SET MASK fn;        -- correct
+ALTER TABLE t SET COLUMN MASK c = fn(c);         -- NOT valid Databricks SQL (the plan's form)
+ALTER TABLE t SET ROW FILTER fn ON (c);          -- correct
+```
+
+## PA-07 / PA-08 — Column masking and full column restriction
+
+> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the mask notebook)
+
+**What it proves:** a masked column is masked for **every** reader through **every** path —
+notebook, SQL editor, dashboard, JDBC from a laptop, even `INSERT … SELECT` into another table.
+There is no view to bypass and no client setting to change. That is the difference from
+application-layer redaction.
+
+**Three graduated treatments**, because "masked" is not one thing:
+
+| Column | Treatment | Faculty sees |
+|---|---|---|
+| `student.ssn`, `faculty.ssn` | partial | `***-**-6789` — enough to confirm identity |
+| `student.dob` | generalisation | `1995-XX-XX` — age analysis still works |
+| `financial_aid.amount` | perturbation | rounded to 1,000 — aggregates stay usable |
+
+**PA-08** is the third branch: for any role outside admin/faculty the mask returns **NULL**, not a
+`'[REDACTED]'` string. A placeholder still leaks that a value exists and breaks typed clients.
+
+**How to test:** run the job, or `pa_b_column_masking.py` interactively. The PA admin is in the
+admin group, so they see **full** values — that is correct, and the reason a naive "did the value
+change?" check proves nothing. The role contrast is in PA-D's test harness.
+
+**Expected outcome:** `PASS: PA-B — 3 mask functions, 4 columns masked on admin_demo; admin sees
+full values, faculty partial, others NULL; dob parsed across all 3 formats; foundation carries no
+policies.`
+
+> **The `dob` trap.** `dob` is a STRING in three mixed formats (`yyyy-MM-dd`, `MM/dd/yyyy`,
+> `dd.MM.yyyy`) by design for SE-15. `year(dob)` returns NULL on two of them, so the mask coalesces
+> `try_to_date` over all three. Get this wrong and ~67% of "masked" values are silently NULL — which
+> looks like a working mask and is actually data loss. An assertion fails on any NULL `dob`.
+
+<details>
+<summary><strong>Assistant prompt (generate the masking notebook)</strong> — click to expand</summary>
+
+```text
+Write a PySpark notebook that applies Unity Catalog column masks to sensitive columns and proves
+they work.
+
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.silver{suffix}", never f"silver_{suffix}". The bundle passes _dev / _test / "" (empty,
+for prod), so an underscore in the f-string breaks qa and prod while passing on dev.
+
+Target <catalog>.admin_demo ONLY — never silver or gold. SET MASK mutates the table object, so
+masking the shared foundation would redact for every other user of the workspace.
+
+Use is_member('<group>') for the role checks, NOT is_account_group_member(). The account-level
+function cannot see workspace groups and would make every branch fall through to the ELSE —
+redacting for everyone including the admin, which looks like it works and proves nothing.
+Groups: admin = dbx_demo_shared_admins, faculty = data_engineers_demo_group.
+
+1. Capture the unmasked values for a few rows first, so the after-state is a comparison.
+
+2. Create three mask functions with graduated treatments — a mask is a FUNCTION applied to a column:
+   - mask_ssn: full value for admin; concat('***-**-', right(ssn,4)) for faculty; NULL otherwise.
+     Return NULL, not a '[REDACTED]' string — a placeholder still leaks that a value exists and
+     breaks typed clients.
+   - mask_dob: full for admin; year only ('YYYY-XX-XX') for faculty; NULL otherwise. dob is a STRING
+     in three formats (yyyy-MM-dd, MM/dd/yyyy, dd.MM.yyyy) and year(dob) returns NULL for two of
+     them, so parse with coalesce over try_to_date for all three.
+   - mask_amount: full for admin; round(amount, -3) for faculty; NULL otherwise.
+
+3. Attach them with ALTER TABLE <t> ALTER COLUMN <c> SET MASK <fn> — that exact form. Do NOT use
+   "SET COLUMN MASK c = fn(c)", which is not valid Databricks SQL. DROP MASK first so the notebook
+   is re-runnable.
+   Mask: student.ssn, student.dob, faculty.ssn, financial_aid.amount.
+
+4. Re-run the same query from step 1 to show the governed result.
+
+5. Assert: the admin's view is UNCHANGED (if it changed, is_member is false and the policy is
+   redacting for everyone); every intended mask is actually attached, read back from
+   information_schema.column_masks; zero rows have NULL dob after masking; and the shared foundation
+   carries no masks or row filters at all.
+```
+
+</details>
+
+## PA-09 / PA-10 — Row-level security, static and dynamic
+
+> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the row-filter notebook)
+
+**What it proves:** the same table returns different rows to different readers, enforced at the
+table rather than in a WHERE clause someone can forget.
+
+**PA-10 is the one that matters operationally.** A policy with department numbers written into it
+needs a code change and a redeploy whenever someone moves department. This one reads a
+`department_access` mapping table keyed on `current_user()` — so a move is an `INSERT`, and it takes
+effect on the next query, for every table the filter is attached to.
+
+**How to test:** run the job, or `pa_c_row_filters.py`. It seeds the running admin to two
+departments, shows the filtered row count, then **inserts one row** and shows the visible set widen
+— with no policy edit. That INSERT is the demonstration.
+
+**Expected outcome:** `PASS: PA-C — admin unrestricted (30,000 rows); mapped identity sees ~1,000
+rows in 2 departments; one INSERT widened that with no policy change (PA-10); unmapped principals
+see 0 rows; foundation clean.`
+
+**Deny by default.** An unmapped principal sees **zero** rows, not everything — asserted, because
+"fails open" is the classic row-filter bug.
+
+**Masks and filters compose.** With PA-B and PA-C both applied, a faculty reader sees *fewer rows*
+**and** *masked columns within them*. Running them in order makes that stackable behaviour visible.
+
+<details>
+<summary><strong>Assistant prompt (generate the row-filter notebook)</strong> — click to expand</summary>
+
+```text
+Write a PySpark notebook that applies Unity Catalog row-level security with a policy driven by a
+lookup table rather than hardcoded values.
+
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix ALREADY includes its leading underscore — concatenate directly, never f"silver_{suffix}".
+
+Target <catalog>.admin_demo ONLY. SET ROW FILTER mutates the table object, so filtering the shared
+foundation would hide rows from every other user — and produce wrong results rather than an error,
+which is worse.
+
+Use is_member(), not is_account_group_member(). Admin group = dbx_demo_shared_admins.
+
+1. Create a mapping table admin_demo.department_access (principal STRING, dept_id BIGINT,
+   granted_by STRING, granted_at TIMESTAMP). This is what makes the policy dynamic — moving someone
+   between departments becomes an INSERT, not a policy rewrite. Seed the current user to TWO
+   departments, so "filtered" is visibly narrower than "all" without being a single row that could
+   be a coincidence.
+
+2. Create a row-filter function returning BOOLEAN, with three branches in precedence order:
+   admins unrestricted; anyone whose principal matches current_user() in department_access sees
+   their mapped departments; everyone else sees nothing. Deny by default — do NOT let an unmapped
+   principal see everything. A row-filter function MAY contain a subquery against a lookup table.
+   Also match on is_member(principal), so the mapping table can name a GROUP as well as a user.
+
+3. Attach it with ALTER TABLE <t> SET ROW FILTER <fn> ON (dept_id) — that exact form. DROP ROW
+   FILTER first so it is re-runnable. Apply to admin_demo.student and admin_demo.faculty.
+
+4. Show the admin's row count (unrestricted), then evaluate what a mapped non-admin would see by
+   applying the same predicate as a WHERE clause. You cannot become another user mid-notebook, so
+   evaluate the predicate rather than pretending to impersonate.
+
+5. Prove the dynamic claim: INSERT one more department into the mapping table and show the visible
+   row count grow — with the policy function untouched.
+
+6. Assert: the admin sees ALL rows; a mapped identity sees a strict subset; the department count
+   matches the mapping table; the INSERT widened access; an unmapped principal sees ZERO rows; the
+   filter is attached where intended per information_schema.row_filters; and the foundation carries
+   no policies.
+```
+
+</details>
+
+## PA-11 / PA-12 — Policy testing & inventory
+
+> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the inventory notebook)
+
+**Artifacts:** `pa_d_policy_inventory.py` (asserted) and
+[`pa_d_policy_inventory.sql`](src/pa_d_policy_inventory.sql) (reviewable — the form a DBA audits).
+
+### PA-12 — the inventory is a table, not a console screen
+
+Unity Catalog exposes `information_schema.column_masks` and `information_schema.row_filters`. That
+*is* the scenario: policy coverage is queryable, so an access review is repeatable and cannot miss a
+table nobody remembered.
+
+**Expected:** 4 masks + 2 row filters, every row in `admin_demo` and none anywhere else.
+
+**The query worth showing** is not the inventory but the **coverage gap** — sensitive columns with
+*no* policy. The usual failure in a governed estate isn't a wrong policy, it's an unprotected table
+nobody inventoried.
+
+> Read that output honestly: the `silver` rows come back `UNPROTECTED`, and that is **correct here**
+> — the shared foundation deliberately carries no policies. In a real deployment those rows would
+> be the finding, which is why the check earns its place.
+
+### PA-11 — there is no impersonation function
+
+The plan suggested `simulate_principal()` via UCX. **It does not exist** — verified, along with
+`set_session_user()` and `impersonate()`; all return `UNRESOLVED_ROUTINE`. A UC policy is evaluated
+as the **caller**, so no single session can self-test another identity.
+
+Two honest mechanisms, and the distinction matters for what you claim:
+
+1. **Evaluate the policy logic** — a `test_mask_ssn_as(ssn, role)` twin with the role
+   parameterised instead of an `is_member()` call. Same branch logic, all three treatments in one
+   query, runnable before anything is attached. **Proves the branches are right.**
+2. **Have a second real principal run the query** and confirm the audit trail records their read.
+   **Proves UC enforces it.**
+
+(1) is in the notebook and is what you can do alone. (2) is stronger, needs a colleague, and is
+documented in the SQL file as a pre-session checklist item. Claiming (1) proves enforcement would
+be overstating it — worth saying plainly in the read-out.
+
+The harness is named `test_…` and dropped at the end, so it can never be mistaken for a live policy.
+
+**Also checked:** who can *rewrite* a policy. A faculty principal with `CREATE FUNCTION` on
+`admin_demo` could replace `mask_ssn` and lift their own restriction — the policy would still show
+as "attached" while doing nothing. Expect the admin group only.
+
+**Expected outcome:** `PASS: PA-D — 4 masks + 2 row filters inventoried, all scoped to admin_demo;
+no sensitive column in the sandbox is unprotected; the three role treatments are distinct
+(full / partial / NULL); unmapped principals see 0 rows.`
+
+<details>
+<summary><strong>Assistant prompt (generate the inventory + test notebook)</strong> — click to expand</summary>
+
+```text
+Write a PySpark notebook that inventories every Unity Catalog security policy in a catalog and
+tests one before rollout.
+
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix ALREADY includes its leading underscore — concatenate directly.
+
+1. Inventory every column mask from <catalog>.information_schema.column_masks (table, column, mask
+   function) and every row filter from information_schema.row_filters (table, function,
+   target_columns). Use those two views — do NOT loop DESCRIBE EXTENDED over every table, which is
+   slow and will miss any table you forgot to list.
+
+2. Show what the policies DO, not just where they are: read routine_name, routine_definition and
+   comment from information_schema.routines for the admin_demo schema.
+
+3. The coverage-gap query, which is the one an auditor actually wants: LEFT JOIN
+   information_schema.columns to column_masks and list sensitive columns (name matching ssn, dob,
+   amount, email) where mask_name IS NULL — i.e. UNPROTECTED. Inventory says what is protected;
+   this says what is exposed.
+
+4. Pre-rollout testing. There is NO impersonation function in Databricks — simulate_principal(),
+   set_session_user() and impersonate() do not exist, and a policy is evaluated as the caller. So
+   instead create a test twin of the mask with the role as a parameter:
+   test_mask_ssn_as(ssn STRING, role STRING), same branch logic, and select all three treatments
+   side by side. Name it test_* and DROP it at the end so it cannot be mistaken for a live policy.
+   For the row filter, count rows for three cases: admin (all), a mapped identity (subset), and an
+   unmapped principal (zero).
+
+5. Check who could REWRITE a policy: query schema_privileges for ALL_PRIVILEGES / CREATE_FUNCTION /
+   MODIFY on admin_demo. A principal who can CREATE OR REPLACE the mask function can lift their own
+   restriction, and the inventory would still show the policy as attached.
+
+6. Assert: the expected masks and filters are all present; NO policy exists outside admin_demo; no
+   sensitive column in admin_demo is unprotected; the three role treatments are genuinely different
+   (full value / partial / NULL); an unmapped principal sees zero rows; and the test harness was
+   dropped.
+```
+
+</details>
+
 # PA-E — Compute & Capacity Management (PA-13 … PA-18)
 
 **What this group proves:** an administrator can size, isolate, pause, monitor, and prioritize

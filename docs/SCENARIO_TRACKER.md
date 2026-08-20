@@ -17,9 +17,9 @@ list is the full checklist.
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
 **Last updated:** 2026-08-18
 
-**Summary — pre-built objects (RFP scenario IDs):** 79 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 3 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-03 needs catalog MANAGE; PA-24 partial) · 4 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
+**Summary — pre-built objects (RFP scenario IDs):** 81 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 3 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-03 needs catalog MANAGE; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
 
-**Summary — prompt tested (the generate-from-prompt path):** **46 🟢 tested · 8 🟡 written · 32 — n/a.** Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 1 🟢 (PA-05, Genie over the audit + lineage tables), 7 🟡 written awaiting a generate-and-verify pass (PA-01/02/04, PA-07…10). — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
+**Summary — prompt tested (the generate-from-prompt path):** **46 🟢 tested · 10 🟡 written · 30 — n/a.** Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 1 🟢 (PA-05, Genie over the audit + lineage tables), 9 🟡 written awaiting a generate-and-verify pass (PA-01/02/04, PA-07…12). — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
 
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
@@ -157,8 +157,8 @@ list is the full checklist.
 | PA-08 | Column-level security — full column restriction | PA-B | ✅ built & verified (NULL for unprivileged roles, not a placeholder string) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-09 | Row-level security — attribute-based filtering | PA-C | ✅ built & verified (dept_id filter; 30,000 -> subset per identity) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-10 | Row-level security — dynamic policy by user identity | PA-C | ✅ built & verified (department_access lookup on current_user(); one INSERT widens access, no policy change) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-11 | Security policy testing & validation ("faux user") | PA-D | ⬜ | — n/a |
-| PA-12 | Security policy audit & documentation | PA-D | ⬜ | — n/a |
+| PA-11 | Security policy testing & validation ("faux user") | PA-D | ✅ built & verified (parameterised test twin — 3 role treatments distinct; no impersonation fn exists in Databricks) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-12 | Security policy audit & documentation | PA-D | ✅ built & verified (information_schema.column_masks + row_filters: 4 masks, 2 filters, all in admin_demo; plus a coverage-gap check) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 
 ### 6.3 Compute & Capacity Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
@@ -203,8 +203,8 @@ list is the full checklist.
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
 | Data Scientist (DS) | 10* | 9 (DS-01/02/04/05/06a/06b/07/08/09) | 1 (DS-03) | 0 |
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
-| Admin (PA) | 25 | 21 (PA-01/02/04…10 via PA-A/B/C, PA-13…18 via PA-E, PA-19…25 via PA-F) | 2 (PA-03, PA-24) | 2 (PA-11/12 — PA-D) |
-| **Total** | **86** | **79** | **3** | **4** |
+| Admin (PA) | 25 | 23 (PA-01/02/04…12 via PA-A/B/C/D, PA-13…18 via PA-E, PA-19…25 via PA-F) | 2 (PA-03, PA-24) | 0 |
+| **Total** | **86** | **81** | **3** | **2** |
 
 **Prompt tested? (generate-from-prompt path):**
 | Persona | 🟢 tested | 🟡 written, not tested | — n/a |
@@ -212,8 +212,8 @@ list is the full checklist.
 | Engineer (SE) | 32 (SE-03…08, SE-10, SE-11–35) | 0 | 11 (SE-01/02/09, SE-36–43) |
 | Data Scientist (DS) | 8 (DS-01/02/04/05/06b/07/08/09) | 1 (DS-03) | 1 (DS-06a) |
 | Business Analyst (BA) | 5 (BA-01/03/05/06/07) | 0 | 3 (BA-02/04/08) |
-| Admin (PA) | 1 (PA-05) | 7 (PA-01/02/04, PA-07…10) | 17 |
-| **Total** | **46** | **8** | **32** |
+| Admin (PA) | 1 (PA-05) | 9 (PA-01/02/04, PA-07…12) | 15 |
+| **Total** | **46** | **10** | **30** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).

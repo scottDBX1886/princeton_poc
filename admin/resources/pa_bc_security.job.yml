@@ -17,7 +17,7 @@
 resources:
   jobs:
     pa_bc_security_policies:
-      name: "[${var.catalog}] PA-B/PA-C — Column masking + row-level security (PA-07…10)"
+      name: "[${var.catalog}] PA-B/C/D — Security policies + inventory (PA-07…12)"
       tags:
         persona: platform_admin
       parameters:
@@ -39,6 +39,17 @@ resources:
             - task_key: column_masking
           notebook_task:
             notebook_path: ../src/pa_c_row_filters.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}
+
+        # PA-D inventories what the two tasks above created, so it must run last. Keeping it in the
+        # same job means the inventory can never be stale relative to the policies it reports.
+        - task_key: policy_inventory
+          depends_on:
+            - task_key: row_filters
+          notebook_task:
+            notebook_path: ../src/pa_d_policy_inventory.py
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
