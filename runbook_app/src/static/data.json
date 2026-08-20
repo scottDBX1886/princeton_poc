@@ -950,58 +950,66 @@
           {
             "id": "BA-01",
             "name": "No-code / low-code data browsing",
-            "object": "BA-A",
+            "object": "BA-01",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "tested",
+            "objectLabel": "BA-A"
           },
           {
             "id": "BA-02",
             "name": "Pre-built report or dataset subscription",
-            "object": "BA-B",
+            "object": "BA-02",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "BA-B"
           },
           {
             "id": "BA-03",
             "name": "Ad-hoc data extract to flat file or Excel",
-            "object": "BA-C",
+            "object": "BA-03 / BA-06 / BA-07",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "tested",
+            "objectLabel": "BA-C"
           },
           {
             "id": "BA-04",
             "name": "Upload and join a spreadsheet",
-            "object": "BA-D",
+            "object": "BA-04",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "BA-D"
           },
           {
             "id": "BA-05",
             "name": "Light transformation — rename/filter/derive",
-            "object": "BA-D",
+            "object": "BA-05",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "tested",
+            "objectLabel": "BA-D"
           },
           {
             "id": "BA-06",
             "name": "Output to Excel workbook",
-            "object": "BA-C",
+            "object": "BA-03 / BA-06 / BA-07",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "tested",
+            "objectLabel": "BA-C"
           },
           {
             "id": "BA-07",
             "name": "Output to flat file for distribution",
-            "object": "BA-C",
+            "object": "BA-03 / BA-06 / BA-07",
             "built": "done",
-            "prompt": "tested"
+            "prompt": "tested",
+            "objectLabel": "BA-C"
           },
           {
             "id": "BA-08",
             "name": "Reuse & save a self-service workflow",
-            "object": "BA-E",
+            "object": "BA-08",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "BA-E"
           }
         ]
       },
@@ -1040,9 +1048,10 @@
           {
             "id": "PA-13…18",
             "name": "Compute & capacity management",
-            "object": "PA-E",
+            "object": "PA-17",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "PA-E"
           },
           {
             "id": "PA-19…25",

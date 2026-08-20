@@ -265,7 +265,7 @@
           rows += `<tr class="${hasTab ? 'clickable' : ''}" ${hasTab ? `onclick="jumpToObject('${esc(r.object)}')"` : ''}>
             <td class="c-id">${esc(r.id)}</td>
             <td>${esc(r.name)}</td>
-            <td class="c-obj">${esc(r.object)}${hasTab ? ' <span class="go">↗</span>' : ''}</td>
+            <td class="c-obj">${esc(r.objectLabel || r.object)}${hasTab ? ' <span class="go">↗</span>' : ''}</td>
             <td class="c-built">${builtPill[r.built] || ''}</td>
             <td class="c-prompt"><span class="ppill ${promptCls[r.prompt] ?? 'p-none'}">${promptPill[r.prompt] ?? '—'}</span></td>
           </tr>`;
