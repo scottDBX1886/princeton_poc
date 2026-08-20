@@ -2,7 +2,7 @@
 
 Owner-scoped folder for the Platform Administrator RFP scenarios. Part of the single root DAB
 bundle — see the repo root `README.md` for the persona-folder structure and
-[`docs/superpowers/plans/2026-07-31-phase4-admin.md`](../docs/superpowers/plans/2026-07-31-phase4-admin.md)
+[`docs/superpowers/plans/2026-07-31-phase4-admin.md`](..//docs/superpowers/plans/2026-07-31-phase4-admin.md)
 for the build plan (PA-A … PA-F → PA-01 … PA-25): access management, column/row security,
 compute & capacity, cost & chargeback.
 
