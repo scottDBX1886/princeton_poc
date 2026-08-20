@@ -88,6 +88,12 @@ Two hard constraints — get these wrong and it fails at runtime in ways that lo
    the admin owns admin_demo but not the catalog, and catalog-scoped grants return
    PERMISSION_DENIED.
 
+GRANT is additive, so re-granting what the pre-built already applied is a harmless no-op — but do
+NOT issue any REVOKE, which would tear down the verified baseline we compare against.
+
+GRANT is additive, so re-granting what the pre-built already applied is a harmless no-op — but do
+NOT issue any REVOKE, which would tear down the verified baseline.
+
 Steps:
 1. Map three roles — admin, faculty, student — onto account-level groups. For each, print whether
    it is UC-grantable and whether is_member('<group>') is true for the caller. Use is_member(), NOT
@@ -287,6 +293,15 @@ for prod), so an underscore in the f-string breaks qa and prod while passing on 
 Target <catalog>.admin_demo ONLY — never silver or gold. SET MASK mutates the table object, so
 masking the shared foundation would redact for every other user of the workspace.
 
+IMPORTANT — do not collide with the pre-built policies. Name every function you create with a
+_prompt suffix (mask_ssn_prompt, filter_by_department_prompt, and so on) and attach nothing to a
+table that already has a policy. The pre-built PA-B/PA-C policies are live on admin_demo.student,
+admin_demo.faculty and admin_demo.financial_aid, and SET MASK / SET ROW FILTER REPLACE whatever is
+there — an unsuffixed generation would silently overwrite the verified baseline we compare against.
+If you need a table to attach to, create your own copy first:
+CREATE OR REPLACE TABLE admin_demo.student_prompt AS SELECT * FROM <catalog>.silver<suffix>.student
+
+
 Use is_member('<group>') for the role checks, NOT is_account_group_member(). The account-level
 function cannot see workspace groups and would make every branch fall through to the ELSE —
 redacting for everyone including the admin, which looks like it works and proves nothing.
@@ -357,6 +372,15 @@ suffix ALREADY includes its leading underscore — concatenate directly, never f
 Target <catalog>.admin_demo ONLY. SET ROW FILTER mutates the table object, so filtering the shared
 foundation would hide rows from every other user — and produce wrong results rather than an error,
 which is worse.
+
+IMPORTANT — do not collide with the pre-built policies. Name every function you create with a
+_prompt suffix (mask_ssn_prompt, filter_by_department_prompt, and so on) and attach nothing to a
+table that already has a policy. The pre-built PA-B/PA-C policies are live on admin_demo.student,
+admin_demo.faculty and admin_demo.financial_aid, and SET MASK / SET ROW FILTER REPLACE whatever is
+there — an unsuffixed generation would silently overwrite the verified baseline we compare against.
+If you need a table to attach to, create your own copy first:
+CREATE OR REPLACE TABLE admin_demo.student_prompt AS SELECT * FROM <catalog>.silver<suffix>.student
+
 
 Use is_member(), not is_account_group_member(). Admin group = dbx_demo_shared_admins.
 
