@@ -389,6 +389,216 @@
       ]
     },
     {
+      "id": "ds",
+      "name": "Data Scientist",
+      "blurb": "Advanced analytics (DS-01–09). SQL + Genie exploration, Python & R notebooks, bring-your-own-data, large-dataset handling, in-platform ML, scheduling, version control, and visualization. Everything reads the shared foundation read-only and writes to the analyst's own wksp_<user> schema. Serverless for all except DS-03 (needs a classic cluster with an R kernel).",
+      "objects": [
+        {
+          "id": "DS-01",
+          "title": "SQL + Genie exploration",
+          "scenarios": "DS-01",
+          "surface": "Genie space / SQL notebook",
+          "status": "tested",
+          "proves": "A data scientist explores governed data in SQL or natural language, and both paths reach the same answer.",
+          "setup": "Genie space [princeton_poc_dev] Data Foundation (created by foundation_build), grounded on gold_dev.enrollment_history + the five silver dimensions.",
+          "steps": [
+            "Open the Genie space and paste a starter question (below).",
+            "Verify the numbers against the pre-built ds_01 notebook.",
+            "Code path: run ds_01_sql_genie_exploration.py (serverless) for the SQL equivalents."
+          ],
+          "prompt": "Which departments have the most enrollments?\nShow me average student GPA by term\nWhich faculty members teach the most students, and in what department?",
+          "outcome": "Genie returns ranked/grouped results matching the notebook — e.g. Palmer Dept 256,483; 24 terms GPA 3.078–3.091; Robert Sampson 7,784 students (Valdez Dept).",
+          "notes": [
+            "The department prompt produced a WITH clause + rank() unprompted — matching the notebook's window function."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-02",
+          "title": "Python notebook (pandas)",
+          "scenarios": "DS-02",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "Platform data moves into the Python/pandas ecosystem an analyst knows, transforms, and writes back as a governed Delta table.",
+          "setup": "Pre-built ds_02_python_pandas_notebook.py is the baseline.",
+          "steps": [
+            "In the Databricks Assistant, paste the prompt below.",
+            "Substitute your wksp schema; run the generated notebook.",
+            "Compare to the pre-built output (~9,711 rows, 6,975 students)."
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\n1. Query gold<suffix>.enrollment_history for student_id, course_id, term_id, grade, gpa_points, filtering out NULL gpa_points (grade 'W'), LIMIT 10000, toPandas().\n2. Map grade to points on the FULL ten-grade scale (A 4.0, A- 3.7, B+ 3.3, B 3.0, B- 2.7, C+ 2.3, C 2.0, D 1.0, F 0.0, W null) — not a 5-grade map.\n3. Add a 3-term rolling mean of gpa_points PER STUDENT, sorted by (student_id, term_id) via groupby.transform.\n4. Write de-duplicated result to ds_02_pandas_output in my wksp_ schema.\n5. Assert: zero unmapped grades; mapped points equal the fact's gpa_points within tolerance; rolling mean in 0–4; persisted row count matches.",
+          "outcome": "~9,700 rows, zero nulls in gpa_points / gpa_rolling_3term, rolling mean within 0–4.",
+          "notes": [
+            "The notebook rebuilds the ten-grade scale and asserts its derived value equals the fact's gpa_points — a five-grade map NaNs 53% of the data."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-03",
+          "title": "R notebook (sparklyr)",
+          "scenarios": "DS-03",
+          "surface": "Databricks Assistant → R notebook",
+          "status": "walkthrough",
+          "proves": "The platform is a first-class R environment — connect, query governed tables, run native R statistics, write back as Delta.",
+          "setup": "⚠️ Needs a CLASSIC cluster with an R kernel (serverless has no R). Uses sparklyr (SparkR removed in DBR 16.0). Written, not yet executed.",
+          "steps": [
+            "Attach a classic cluster with an R kernel.",
+            "In the Assistant, paste the prompt below; run the generated R notebook.",
+            "(Pre-built: ds_03_r_analysis_notebook.r, Run All.)"
+          ],
+          "prompt": "Write an R notebook for Databricks that analyses governed platform data. Use sparklyr, NOT SparkR (removed in DBR 16.0); connect with spark_connect(method=\"databricks\"). Read widgets \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev) — suffix already has its underscore, so paste0(catalog, \".gold\", suffix), never add another \"_\". Write nothing to the foundation; derive my wksp_ schema from current_user() (gsub non-alphanumerics to \"_\").\n1. Query gold<suffix>.enrollment_history for gpa_points, grade where gpa_points IS NOT NULL, LIMIT 5000, collect() into a local R data frame.\n2. Run base-R stats and print: summary(), quantile() at quartiles, sd(), table() of grade.\n3. Build a metrics data frame (n, mean, sd, min, max, median of gpa_points) and write it as Delta ds_03_r_summary in my wksp_ schema via sdf_copy_to() + spark_write_table().\n4. stopifnot(): rows returned; mean GPA in 0–4; written table reads back with same row count and no NA.",
+          "outcome": "wksp_<user>.ds_03_r_summary (6 metric rows), mean GPA ~3.08. Not yet verified — watch for sparklyr install + three-part UC name on spark_write_table.",
+          "notes": [
+            "The one DS scenario not on serverless — R needs a classic cluster."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-04",
+          "title": "Bring your own data (upload + blend)",
+          "scenarios": "DS-04",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "An analyst brings a file the platform has never seen and joins it to governed data — no pipeline, no ETL request.",
+          "setup": "Pre-built ds_04_byo_data_blend.py stages an equivalent CSV; in a live demo drag a CSV into the Volume via Catalog Explorer.",
+          "steps": [
+            "In the Assistant, paste the prompt below; run the generated notebook.",
+            "(Live: drag a CSV into files/uploads/wksp_<user>/ via Catalog Explorer.)",
+            "Confirm 40 depts retained, stale key excluded."
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\n1. My CSV lives at /Volumes/<catalog>/landing<suffix>/files/uploads/<my wksp_ name>/ (per-user folder). Create it if missing; first write a small CSV there with dept_id (bigint), external_rank (int), benchmark_score (double), covering a few departments plus one dept_id that does NOT exist in the platform.\n2. Read that CSV with an EXPLICIT schema — not inferSchema.\n3. Aggregate the platform side: join gold<suffix>.enrollment_history to silver<suffix>.department on dept_id; count enrollments + distinct students per department. The department table is (dept_id, name, division, building) — the name column is `name`, NOT `department_name`; group by `name`.\n4. LEFT join platform (left) to my file on dept_id → write ds_04_byo_blended in my wksp_ schema.\n5. Assert: LEFT join didn't change platform row count; ≥1 department matched; stale dept_id absent; matched + unmatched covers every department.",
+          "outcome": "wksp_<user>.ds_04_byo_blended (40 rows) — 5 externally-ranked depts blended, 35 unranked retained, stale dept_id 999 correctly excluded.",
+          "notes": [
+            "The external file deliberately contains a stale dept_id that doesn't exist in the platform — the LEFT join drops it, as a real extract always has some."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-05",
+          "title": "Large-dataset handling",
+          "scenarios": "DS-05",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "A heavy analytical query over the multi-million-row fact — full scan, join, aggregate, window — and WHY it was fast (Photon + broadcast join).",
+          "setup": "Pre-built ds_05_large_dataset_query.py.",
+          "steps": [
+            "In the Assistant, paste the prompt below; run the generated notebook.",
+            "Read the physical plan (Photon + broadcast join) and the timing.",
+            "(Pre-built fallback: run ds_05_large_dataset_query.py.)"
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\n1. Report scale first: row count, distinct students/terms/departments in gold<suffix>.enrollment_history, plus DESCRIBE DETAIL (numFiles, sizeInBytes, clusteringColumns).\n2. Heavy query: join fact to silver<suffix>.department on dept_id, filter gpa_points IS NOT NULL, group by division/dept_id/term_id, compute count(*), avg(gpa_points), count(DISTINCT student_id), rank() OVER (PARTITION BY term_id ORDER BY count(*) DESC).\n3. BEFORE running, print df.explain(mode=\"formatted\") captured via io.StringIO + contextlib.redirect_stdout. Do NOT use _jdf.queryExecution().explainString().\n4. Run with .collect() and time it.\n5. Time a clustered-column filter (term_id, dept_id) vs a full scan side by side.\n6. Write one timing row to ds_05_query_metrics in my wksp_ schema.\n7. Assert: fact ≥ 1M rows; result rows = departments × terms; exactly one rank-1 dept per term; avg GPA in 0–4; plan text contains \"Photon\" and a broadcast join.\nDo NOT use \"SET spark.databricks.queryProfile.enabled\" or \"DESCRIBE QUERY PROFILE\" — not real SQL. For post-hoc metrics query system.query.history (lags ~15 min).",
+          "outcome": "5,000,000 rows aggregated to 960 groups in ~2s on Photon with a broadcast join. wksp_<user>.ds_05_query_metrics (1 timing row).",
+          "notes": [
+            "system.query.history lags ~15 min — the last cell may return nothing for the run you just did; that's expected.",
+            "The clustering win needs ~50M rows to show (at 5M the fact is one 34 MiB file); regenerate with --var row_count=50000000 for that story."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-06(a)",
+          "title": "Local connectivity (Python/R/SAS/SPSS)",
+          "scenarios": "DS-06(a)",
+          "surface": "Reference guide (walkthrough)",
+          "status": "walkthrough",
+          "proves": "Analysts work from their own machine in the tool they already use, and Unity Catalog governs the CONNECTION — row filters and column masks apply identically from a laptop.",
+          "setup": "Reference guide src/ds_06a_connectivity_guide.md (carries no hostname by design — read host + HTTP path live from SQL Warehouse → Connection details).",
+          "steps": [
+            "Read the live host + HTTP path from SQL Warehouse → Connection details.",
+            "Run the Python snippet from the connectivity guide — it should return rows.",
+            "The demo that lands: run the same snippet as admin, then as a restricted user after PA-07 masking — same file, different output."
+          ],
+          "prompt": null,
+          "outcome": "The snippet returns rows (host, HTTP path, token all correct). Governance proves it isn't a UI-layer feature — masks/filters apply from the laptop.",
+          "notes": [
+            "No run artifact by design — it's a connectivity reference for Python/R/SAS/SPSS from a local machine on VPN."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-06(b)",
+          "title": "In-platform ML training (MLflow + UC)",
+          "scenarios": "DS-06(b)",
+          "surface": "Databricks Assistant → notebook",
+          "status": "tested",
+          "proves": "The whole model lifecycle stays inside the platform — train on governed data, autolog to an experiment, register in Unity Catalog, load back for inference.",
+          "setup": "Pre-built ds_06b_mlflow_training.py; registers models_dev.grade_predictor_<user>.",
+          "steps": [
+            "In the Assistant, paste the prompt below; run the generated notebook.",
+            "Confirm a UC model is registered and 200 rows scored.",
+            "Note accuracy lands NEAR the ~20% baseline — correct for random data (see notes)."
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\n1. Training data: join gold<suffix>.enrollment_history to silver student + term. Features: course_id, term_id, dept_id, term year, term season, student status, student age. Target: grade. LIMIT 50000. Do NOT include gpa_points (it maps 1:1 to grade — label leakage). dob is a STRING in 3 formats — compute age with coalesce over try_to_date; after toPandas() cast age with pd.to_numeric, fill NaN with median, cast features to float.\n2. One-hot encode season + status; factorize grade labels FROM THE DATA (ten grades, not five).\n3. Compute + print the majority-class baseline accuracy. Expect final accuracy NEAR baseline (~0.19–0.23), possibly just under — correct on random data; do NOT tune to beat it.\n4. Train RandomForestClassifier, 80/20 stratified split, mlflow.sklearn.autolog() with input examples + signatures; also log accuracy, weighted F1, baseline.\n5. Set registry to UC (mlflow.set_registry_uri(\"databricks-uc\")); register under models<suffix> with my user in the name.\n6. Load back with mlflow.pyfunc.load_model, score 200 rows, write predicted vs actual to ds_06b_predictions in my wksp_ schema.\n7. Assert: all ten grade classes present; gpa_points NOT a feature; accuracy < 0.99 (higher = leakage); <1% ages failed to parse; accuracy ≥ baseline*0.95; model loads and scores every row.",
+          "outcome": "Registers models_dev.grade_predictor_<user> v1; wksp_<user>.ds_06b_predictions (200 rows). Accuracy ~0.20–0.22 vs ~0.20 baseline.",
+          "notes": [
+            "Accuracy near 22% is the CORRECT result — ten grade classes on random data. It demonstrates the LIFECYCLE, not model quality. gpa_points is excluded (maps 1:1 to grade); an assertion fails above 0.99 to catch leakage."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-07",
+          "title": "Schedule / operationalize a notebook",
+          "scenarios": "DS-07",
+          "surface": "Databricks Assistant → notebook + DAB job",
+          "status": "tested",
+          "proves": "An ad-hoc analysis becomes a governed, scheduled, monitored production job — same notebook, no rewrite.",
+          "setup": "Job [princeton_poc_dev] DS-07 Scheduled daily analysis (resources/ds_07_scheduled.job.yml) — the schedule is version-controlled.",
+          "steps": [
+            "In the Assistant, paste the prompt below; run the generated notebook + review the job YAML.",
+            "(Pre-built: databricks bundle run ds_07_scheduled_analysis -t dev --profile <profile>.)",
+            "In Jobs UI: Schedule shows 0 0 9 * * ?, America/New_York, PAUSED. Resume deliberately.",
+            "Re-run — it replaces today's row rather than duplicating (idempotent)."
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\nSummarise gold<suffix>.enrollment_history into ONE row — current_date() as run_date, total enrollments, distinct students, distinct courses, avg gpa_points, median via approx_percentile, a count of NULL gpa_points (withdrawals), current_timestamp(). Write to ds_07_daily_summary in my wksp_ schema. Make it idempotent: DELETE any existing row for today's run_date before appending. Do NOT call .cache() (serverless rejects PERSIST). Show the last 14 run_dates descending. Assert: summarised total equals a fresh count of the fact; avg + median GPA in 0–4; withdrawals > 0 and < all rows; no run_date has more than one row.\nJob YAML: a serverless job, daily 09:00 cron, timezone America/New_York, pause_status PAUSED, max_concurrent_runs 1, catalog + schema_suffix passed as job parameters and notebook base_parameters. Do NOT specify a new_cluster node_type_id (AWS-only instance types break on Azure/GCP).",
+          "outcome": "TERMINATED SUCCESS; summarised 5,000,000 enrollments to one row per day. wksp_<user>.ds_07_daily_summary.",
+          "notes": [
+            "The schedule lives in version-controlled YAML — a cron clicked into the Jobs UI has no history. Kept PAUSED so it doesn't fire for everyone on deploy."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-08",
+          "title": "Version control for analytical code",
+          "scenarios": "DS-08",
+          "surface": "Git panel + Genie audit (walkthrough)",
+          "status": "walkthrough",
+          "proves": "Analytical code is versioned, reviewable, and reproducible — notebooks, not just pipelines — and the audit trail is queryable in natural language.",
+          "setup": "Guide src/ds_08_version_control_guide.md; plus Genie space [princeton_poc_dev] Analytical Code Audit (DS-08) over system.access.audit.",
+          "steps": [
+            "Show the Git panel on a real notebook + this repo's actual commit history.",
+            "Point out two browser-authored commits (bugs found by running, fixed in the workspace, committed from the Git panel).",
+            "No-code path: open the DS-08 Genie space and ask an audit question (below)."
+          ],
+          "prompt": "Which notebooks did I change in the last week, and when?\nWho has modified notebooks in the last 7 days, and how many times each?\nShow notebook activity by action type over the last week\nWhich users deleted or renamed notebooks recently?",
+          "outcome": "Commit history per notebook; Genie generates correct partition-filtered SQL over system.access.audit (service_name='notebook', event_date filter) and returns real change history.",
+          "notes": [
+            "The story: a commit on a branch is not a commit in main — a fix committed to a branch after its PR merged left main carrying the bug, recoverable because it was committed.",
+            "Notebook permissions and data permissions are independent — CAN_VIEW on a notebook grants no SELECT."
+          ],
+          "media": []
+        },
+        {
+          "id": "DS-09",
+          "title": "Visualization & charting",
+          "scenarios": "DS-09",
+          "surface": "Databricks Assistant → notebook + AI/BI dashboard",
+          "status": "tested",
+          "proves": "Query → chart → shareable dashboard without leaving the platform.",
+          "setup": "Dashboard [princeton_poc_dev] Student Analytics (DS-09) (resources/ds_09_dashboard.dashboard.yml).",
+          "steps": [
+            "In the Assistant, paste the prompt below; run the generated notebook, then + → Visualization on each query cell.",
+            "(Stakeholder view: open the Student Analytics dashboard — 8 widgets.)",
+            "Confirm counters 5,000,000 / 30,000 / 3.084 / 249,652."
+          ],
+          "prompt": "Read two widgets: \"catalog\" (default princeton_poc_dev) and \"schema_suffix\" (default _dev). The suffix value ALREADY includes its leading underscore, so concatenate with no separator — f\"{catalog}.gold{suffix}\", never f\"gold_{suffix}\" (the bundle passes _dev / _test / \"\" for prod). Write nothing to bronze/silver/gold — derive my private schema from current_user(): non-alphanumerics → \"_\", prefix \"wksp_\", CREATE SCHEMA IF NOT EXISTS it. Write Delta with mode(\"overwrite\") AND .option(\"overwriteSchema\",\"true\"). Suffix every table you create with \"_prompt\" so it never collides with the pre-built baseline.\n\n1. GPA distribution for a bar chart: band gpa_points into A (>=3.7), A- (>=3.3), B+ (>=3.0), B (>=2.7), C (>=2.0), D/F (<2.0), and W for NULL. Withdrawals MUST be their own band. Add an explicit numeric band_order column and ORDER BY it (not gpa_points — not in GROUP BY; not alphabetical).\n2. Enrollments by department for a bar chart: join fact to silver department, count enrollments + distinct students, avg gpa_points, top 15. Department is (dept_id, name, division, building) — group by `name`, not `department_name`.\n3. Enrollment trend by term for a line chart: join fact to silver term, count enrollments + avg gpa_points per term; build a term_label like \"2018 Fall\" but ORDER BY term_id (seasons aren't alphabetical).\n4. Persist the trend + department queries as VIEWS in my wksp_ schema with the view text written explicitly. Not in gold_dev; not via df._jdf.sql().\n5. Assert: GPA bands sum to the full fact row count; a withdrawal band exists; band_order monotonic; department query returns exactly 15 rows; trend covers every term in order; both views return rows; no ds_09 object leaked into the foundation schema.",
+          "outcome": "7 GPA bands covering all 5,000,000 enrollments, 15 departments, 24 terms in order. wksp_<user>.ds_09_enrollment_trend (24) + ds_09_dept_summary (40).",
+          "notes": [
+            "If every dashboard widget shows \"Unable to render\": it's bound to a warehouse that doesn't exist in this workspace — deploy with --var warehouse_id=<a warehouse here>. Not a dashboard bug."
+          ],
+          "media": []
+        }
+      ]
+    },
+    {
       "id": "pa",
       "name": "Platform Administrator",
       "blurb": "Compute & capacity (PA-E, PA-13–18) and Cost & chargeback (PA-F, PA-19–25). Admin walkthroughs plus two built items: the PA-17 capacity dashboard and the PA-25 cost-optimization Genie space. Spend/attribution/forecast come from the native Usage Dashboard; PA-24 is an honest partial.",
@@ -1012,72 +1222,82 @@
           {
             "id": "DS-01",
             "name": "SQL-based data exploration",
-            "object": "DS-A",
+            "object": "DS-01",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-A"
           },
           {
             "id": "DS-02",
             "name": "Notebook environment — Python",
-            "object": "DS-B",
+            "object": "DS-02",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-B"
           },
           {
             "id": "DS-03",
             "name": "Notebook environment — R",
-            "object": "DS-B",
+            "object": "DS-03",
             "built": "partial",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "DS-B"
           },
           {
             "id": "DS-04",
             "name": "Bring your own data — file upload",
-            "object": "DS-B",
+            "object": "DS-04",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-B"
           },
           {
             "id": "DS-05",
             "name": "Large dataset handling",
-            "object": "DS-C",
+            "object": "DS-05",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-C"
           },
           {
             "id": "DS-06(a)",
             "name": "Local environment connectivity (Python/R/SAS/SPSS)",
-            "object": "DS-D",
+            "object": "DS-06(a)",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "DS-D"
           },
           {
             "id": "DS-06(b)",
             "name": "In-platform ML model training",
-            "object": "DS-E",
+            "object": "DS-06(b)",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-E"
           },
           {
             "id": "DS-07",
             "name": "Scheduling / operationalizing a notebook",
-            "object": "DS-F",
+            "object": "DS-07",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-F"
           },
           {
             "id": "DS-08",
             "name": "Version control for analytical code",
-            "object": "DS-G",
+            "object": "DS-08",
             "built": "done",
-            "prompt": "na"
+            "prompt": "na",
+            "objectLabel": "DS-G"
           },
           {
             "id": "DS-09",
             "name": "Visualization & charting",
-            "object": "DS-H",
+            "object": "DS-09",
             "built": "done",
-            "prompt": "na"
+            "prompt": "tested",
+            "objectLabel": "DS-H"
           }
         ]
       },
