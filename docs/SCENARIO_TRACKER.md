@@ -17,7 +17,7 @@ list is the full checklist.
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
 **Last updated:** 2026-08-18
 
-**Summary — pre-built objects (RFP scenario IDs):** 58 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 1 🟡 (DS-03, needs classic compute) · 27 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
+**Summary — pre-built objects (RFP scenario IDs):** 75 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 3 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-03 needs catalog MANAGE; PA-24 partial) · 8 ⬜ planned. **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
 
 **Summary — prompt tested (the generate-from-prompt path):** re-verifying on the new `princeton_poc` workspace (reset 2026-08-17) — **37 🟢 tested — prompt-test pass COMPLETE** (except parked E2). Engineer: E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34. Business Analyst: BA-01/03/05/06/07. **0 🟡 written remain.** (— n/a: SE-09, SE-10, E10, E11, BA-02/04/08, all DS + PA; parked: E2 SE-01/02.) Re-testing in E-then-BA order this week; flip each to 🟢 as its prompt is regenerated & verified against `princeton_poc`. (— n/a unchanged: SE-09, SE-10, E10, E11, all DS + PA.)
 
@@ -143,12 +143,12 @@ list is the full checklist.
 ### 6.1 User & Group Access Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-01 | User provisioning & role assignment | PA-A | ⬜ | — n/a |
-| PA-02 | Group-based access control | PA-A | ⬜ | — n/a |
-| PA-03 | Environment-level access segregation | PA-A | ⬜ | — n/a |
-| PA-04 | Source & target object-level permissions | PA-A | ⬜ | — n/a |
-| PA-05 | Permission audit trail | PA-A | ⬜ | — n/a |
-| PA-06 | Service account & API credential management | PA-A | ⬜ (grant_app_sp.sh pattern ✅ exists) | — n/a |
+| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | — n/a |
+| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | — n/a |
+| PA-03 | Environment-level access segregation | PA-A | 🟡 model demonstrated by reading catalog grants; applying them needs MANAGE on the catalog (owned by another user) | — n/a |
+| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | — n/a |
+| PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | — n/a |
+| PA-06 | Service account & API credential management | PA-A | ✅ built & verified (SP grants listed; rotation procedure documented) | — n/a |
 
 ### 6.2 Row-Level & Column-Level Security
 | ID | Scenario | Covered by | Status | Prompt tested? |
@@ -203,8 +203,8 @@ list is the full checklist.
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
 | Data Scientist (DS) | 10* | 9 (DS-01/02/04/05/06a/06b/07/08/09) | 1 (DS-03) | 0 |
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
-| Admin (PA) | 25 | 0 | 0 | 25 |
-| **Total** | **86** | **58** | **1** | **27** |
+| Admin (PA) | 25 | 17 (PA-01/02/04/05/06, PA-07…18 via PA-B/E, PA-19…25 via PA-F) | 2 (PA-03, PA-24) | 6 |
+| **Total** | **86** | **75** | **3** | **8** |
 
 **Prompt tested? (generate-from-prompt path):**
 | Persona | 🟢 tested | 🟡 written, not tested | — n/a |

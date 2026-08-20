@@ -8,6 +8,136 @@ Status: [`docs/SCENARIO_TRACKER.md`](../docs/SCENARIO_TRACKER.md).
 
 ---
 
+# PA-A — Identity & Access Management (PA-01 … PA-06)
+
+**What this group proves:** an administrator provisions people by role, grants access to groups
+rather than individuals, scopes permissions down to a single object, and can answer "who could read
+this" *and* "who actually did" in SQL.
+
+**Build status:** one build object — `admin/src/pa_a_identity_access.py`, deployed as job
+`[<catalog>] PA-A — Identity & access (PA-01…06)`. Strategy and the two procedures that are policy
+rather than code (onboarding, credential rotation) are in
+[`PA_A_IDENTITY_STRATEGY.md`](PA_A_IDENTITY_STRATEGY.md).
+
+**Prereq:** `admin_demo` must exist — run `pa_admin_demo_setup` first (PA Task 0).
+
+## ⚠️ Two environment constraints that shape this scenario
+
+Both were hit while building, and both fail in ways that look like something else:
+
+1. **Unity Catalog will not grant to a workspace-local group.** Groups created in this workspace
+   are SCIM `type=WorkspaceGroup`, and `GRANT … TO <group>` returns `PRINCIPAL_DOES_NOT_EXIST`.
+   Only **account-level** groups (`type=Group`) can hold UC privileges. With no account-admin
+   rights here, PA-A maps each RFP role onto an account group that already exists.
+2. **Grants need MANAGE on the securable.** `princeton_poc_dev` is owned by another user, so
+   catalog-scoped grants return `PERMISSION_DENIED`. PA-A therefore grants at **`admin_demo`
+   scope**, which the PA admin owns — and which is where spec §3.1 requires PA security scenarios
+   to operate anyway. The constraint and the design agree.
+
+**Policy checks use `is_member()`, not `is_account_group_member()`.** The account-level function
+cannot see workspace groups, so a mask written against it redacts for *everyone including the
+admin* while appearing to work. `is_member()` resolves both group types.
+
+## Role → group mapping
+
+| RFP role | Account group used | PA admin a member? |
+|---|---|---|
+| admin | `dbx_demo_shared_admins` | **yes** |
+| faculty | `data_engineers_demo_group` | no |
+| student | `dbx_demo_shared_dev_group` | no |
+
+**Say this mapping out loud in the demo.** The group names are inherited from the shared workspace,
+not chosen. In Princeton's own tenancy these would be `princeton_admins` / `_faculty` / `_students`,
+provisioned by SCIM from their IdP — the pattern is identical, only the names and the group-check
+function change.
+
+The membership column is what makes PA-B's masking demo real: the admin sees unmasked `ssn`, the
+other two roles demonstrably do not. Nothing is staged.
+
+## PA-01 — User provisioning & role assignment
+
+> **Built:** ✅ · **Prompt:** — n/a (admin action)
+
+**How to test:** run the job, or the notebook interactively. It reports, per role, whether the group
+is UC-grantable and whether `is_member()` resolves for the caller.
+
+Provisioning a person is then a **membership change only** — no grants are edited:
+**Settings → Identity and access → Groups** → add the user. Verify as them:
+`SELECT is_member('data_engineers_demo_group')` → `true`.
+
+**⚠️ Membership is cached.** After a group change, `is_member()` kept returning the old answer for
+30+ seconds. Make membership changes a few minutes before you need them on screen — do not remove
+someone from a group live and expect the next query to redact.
+
+## PA-02 — Group-based access control
+
+> **Built:** ✅ · **Prompt:** — n/a
+
+**What it proves:** every grant targets a group. Onboarding is a membership change; offboarding
+revokes everything at once, because nothing was ever granted to an individual.
+
+**Expected outcome:** `admin_demo` shows `ALL PRIVILEGES` for the admin group, `USE_SCHEMA` +
+`SELECT` for faculty, and `USE_SCHEMA` only for the student group.
+
+## PA-03 — Environment-level access segregation
+
+> **Built:** 🟡 model demonstrated, not applied · **Prompt:** — n/a
+
+Environments are separate **catalogs** — `princeton_poc_dev`, `_test`, `_qa`, `princeton_poc` — in
+one workspace. `USE CATALOG` gates everything beneath it, so withholding it is absolute: there is
+no schema-level way around a missing catalog grant.
+
+**Why 🟡:** applying catalog-scoped grants needs MANAGE on the catalog, which the PA admin does not
+hold here. The notebook demonstrates the model by reading the live catalog grant state; applying it
+per environment is a one-line `GRANT` for the catalog owner.
+
+## PA-04 — Object-level permissions
+
+> **Built:** ✅ · **Prompt:** — n/a
+
+**The demonstration is the student role.** It gets `USE_SCHEMA` on `admin_demo` but **no
+schema-wide `SELECT`** — just `SELECT` on `admin_demo.student`. No grant on `faculty` or
+`financial_aid` means no access to them at all. An assertion fails if schema-wide SELECT ever leaks
+in, because that would silently widen access and still look like a pass.
+
+**Expected outcome:** `information_schema.table_privileges` shows the student group with exactly one
+table grant.
+
+> Column name gotcha: `schema_privileges` uses **`schema_name`**; `table_privileges` uses
+> **`table_schema`**. Mixing them up gives `UNRESOLVED_COLUMN`.
+
+## PA-05 — Permission audit trail
+
+> **Built:** ✅ · **Prompt:** — n/a
+
+Two questions, two tables:
+
+- **Who changed a permission?** `system.access.audit`, `action_name = 'updatePermissions'` — actor,
+  securable, and the change itself.
+- **Who actually read the sensitive tables?** `system.access.table_lineage`. A grants list says who
+  *could*; lineage says who *did*. That distinction is usually the one an auditor cares about.
+
+**⚠️ Always filter on `event_date`** — it is the partition column on both, and they hold tens of
+millions of rows per week (53M over 7 days in this workspace). An unfiltered query is slow enough to
+look broken.
+
+## PA-06 — Service principals & credential rotation
+
+> **Built:** ✅ · **Prompt:** — n/a
+
+The POC already ships a working example: `engineer/src/apps/grant_app_sp.sh` grants the mock REST
+API app's service principal `SELECT` on one table — least privilege for a workload identity, no
+human credential involved.
+
+**The rotation argument in one line:** grants attach to the **principal**, not the credential. So
+rotating an SP secret is invisible to permissions — exactly what an embedded personal token cannot
+offer. Full 5-step procedure, plus the audit query to confirm it, in
+[`PA_A_IDENTITY_STRATEGY.md`](PA_A_IDENTITY_STRATEGY.md).
+
+**Expected outcome:** the notebook lists the workspace's service principals and any UC grants held
+by a UUID grantee (SP application IDs are UUIDs, so they stand out from user and group grantees).
+
+
 # PA-E — Compute & Capacity Management (PA-13 … PA-18)
 
 **What this group proves:** an administrator can size, isolate, pause, monitor, and prioritize
