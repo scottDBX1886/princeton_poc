@@ -54,9 +54,52 @@ function change.
 The membership column is what makes PA-B's masking demo real: the admin sees unmasked `ssn`, the
 other two roles demonstrably do not. Nothing is staged.
 
-## PA-01 — User provisioning & role assignment
+## PA-01 / PA-02 / PA-04 — provisioning, group-based access, object-level permissions
 
-> **Built:** ✅ · **Prompt:** — n/a (admin action)
+> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the grants notebook)
+
+<details>
+<summary><strong>Assistant prompt (generate the identity & access notebook)</strong> — click to expand</summary>
+
+```text
+Write a PySpark notebook that sets up role-based access control in Unity Catalog and proves it works.
+
+Read two widgets: "catalog" (default princeton_poc_dev) and "schema_suffix" (default _dev). The
+suffix value ALREADY includes its leading underscore, so concatenate with no separator —
+f"{catalog}.silver{suffix}", never f"silver_{suffix}". The bundle passes _dev / _test / "" (empty,
+for prod), so an underscore in the f-string breaks qa and prod while passing on dev.
+
+Two hard constraints — get these wrong and it fails at runtime in ways that look like other things:
+
+1. Unity Catalog will NOT grant to a workspace-local group. Groups created in a workspace are SCIM
+   type=WorkspaceGroup and GRANT returns PRINCIPAL_DOES_NOT_EXIST. Only ACCOUNT-level groups
+   (type=Group) can hold UC privileges. So do NOT create groups — discover the existing
+   account-level ones with the SDK (w.groups.list(), keep those where meta.resource_type == "Group")
+   and map the three RFP roles onto them.
+2. GRANT needs MANAGE on the securable. Grant at <catalog>.admin_demo scope, NOT catalog scope —
+   the admin owns admin_demo but not the catalog, and catalog-scoped grants return
+   PERMISSION_DENIED.
+
+Steps:
+1. Map three roles — admin, faculty, student — onto account-level groups. For each, print whether
+   it is UC-grantable and whether is_member('<group>') is true for the caller. Use is_member(), NOT
+   is_account_group_member(): the account-level function cannot see workspace groups and would make
+   every downstream mask redact for everyone including the admin.
+2. Grant on <catalog>.admin_demo: ALL PRIVILEGES to admin; USE SCHEMA + SELECT to faculty; and for
+   student, USE SCHEMA on the schema plus SELECT on ONLY the admin_demo.student table — no
+   schema-wide SELECT. That narrower grant IS the object-level-permissions scenario.
+3. Read the effective grants back from information_schema. Note the column names differ:
+   schema_privileges uses schema_name, table_privileges uses table_schema. Mixing them gives
+   UNRESOLVED_COLUMN.
+4. Assert: every role maps to a UC-grantable group; is_member() is true for the admin role (else the
+   masking demo has no authorised reader); is_member() is FALSE for at least one other role (else
+   there is no contrast to demonstrate); each role holds a privilege on admin_demo; and the student
+   role does NOT hold schema-wide SELECT.
+```
+
+</details>
+
+### PA-01 — provisioning
 
 **How to test:** run the job, or the notebook interactively. It reports, per role, whether the group
 is UC-grantable and whether `is_member()` resolves for the caller.
@@ -108,7 +151,30 @@ table grant.
 
 ## PA-05 — Permission audit trail
 
-> **Built:** ✅ · **Prompt:** — n/a
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: Genie space over the audit + lineage tables — both NL prompts generated correct SQL against real data)
+
+### No-code path — audit access in natural language
+
+Genie space **`[<catalog>] Access Audit (PA-05)`**, grounded on `system.access.audit` and
+`system.access.table_lineage`, created by the `genie_setup` task of `foundation_build`.
+
+| Prompt | Verified result |
+|---|---|
+| `Who changed permissions in the last 7 days, and on what object?` | correct SQL — `service_name='unityCatalog'`, `action_name='updatePermissions'`, actor + securable, `event_date` filtered |
+| `Who has read the student, faculty or financial_aid tables recently?` | queried `table_lineage`, returned 7 reader/table pairs |
+| `Which principals were granted access this week, and by whom?` | — |
+| `Show all access denials in the last 7 days` | — |
+
+Both tested prompts produced an **`event_date` partition filter**, which the space's instructions
+require — the two tables hold tens of millions of rows a week (21,214 permission changes in the last
+day alone here), so an unfiltered query looks broken.
+
+> **Why a PA-specific space rather than reusing DS-08's.** The DS-08 space is grounded on the same
+> `system.access.audit` table but instructed toward *notebook* activity. Asked the PA question it
+> generated correct SQL and answered *"no permission changes in the last 7 days"* — because it
+> filtered `service_name='notebook'`. The data was there: 21,214 rows. Same table, wrong lens.
+> Grounding instructions matter as much as table selection, and a plausible wrong answer is worse
+> than an error.
 
 Two questions, two tables:
 

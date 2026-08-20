@@ -143,11 +143,11 @@ list is the full checklist.
 ### 6.1 User & Group Access Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | — n/a |
-| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | — n/a |
+| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-03 | Environment-level access segregation | PA-A | 🟡 model demonstrated by reading catalog grants; applying them needs MANAGE on the catalog (owned by another user) | — n/a |
-| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | — n/a |
-| PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | — n/a |
+| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | 🟢 tested (Genie space: 2 NL prompts → correct SQL, event_date filtered) |
 | PA-06 | Service account & API credential management | PA-A | ✅ built & verified (SP grants listed; rotation procedure documented) | — n/a |
 
 ### 6.2 Row-Level & Column-Level Security
