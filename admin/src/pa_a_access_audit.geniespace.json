@@ -1,0 +1,61 @@
+{
+  "config": {
+    "sample_questions": [
+      {
+        "id": "f6ea63ae211d473c94490e6b433ee4c0",
+        "question": [
+          "Who changed permissions in the last 7 days, and on what object?"
+        ]
+      },
+      {
+        "id": "e6fdcc0750d34db381d7e64efd9dc1af",
+        "question": [
+          "Who has read the student, faculty or financial_aid tables recently?"
+        ]
+      },
+      {
+        "id": "5e622e6ca93342e7a5f88b839013b867",
+        "question": [
+          "Which principals were granted access this week, and by whom?"
+        ]
+      },
+      {
+        "id": "c9fc3e7e2ec4471aa189cefa7842f7da",
+        "question": [
+          "Show all access denials in the last 7 days"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "system.access.audit"
+      },
+      {
+        "identifier": "system.access.table_lineage"
+      }
+    ]
+  },
+  "instructions": {
+    "text_instructions": [
+      {
+        "content": [
+          "Access audit for the Platform Administrator (PA-05). Two tables, two different questions.",
+          "",
+          "system.access.audit \u2014 WHO CHANGED a permission. Filter service_name='unityCatalog'. Key action_name values: updatePermissions (a grant or revoke), createCatalog, createSchema, deleteTable. The actor is user_identity.email. request_params holds securable_full_name (the object) and changes (a JSON array of principal + added/removed privileges). For denials, look for response.error_message containing PERMISSION_DENIED.",
+          "",
+          "system.access.table_lineage \u2014 WHO ACTUALLY READ a table. created_by is the reader, source_table_full_name is the table. A grants list says who COULD read; this says who DID. That distinction is usually what an auditor is really asking.",
+          "",
+          "ALWAYS filter on event_date \u2014 it is the partition column on both tables and they hold tens of millions of rows per week. Use event_date >= current_date() - INTERVAL 7 DAYS or similar.",
+          "",
+          "Do NOT restrict to service_name='notebook' \u2014 that is a different scenario. Permission changes are recorded under service_name='unityCatalog'.",
+          "",
+          "Answer with grouped summaries: who, what object, how many times, and when it last happened."
+        ],
+        "id": "da0d370d907f45b09cd8a5ba8320e0de"
+      }
+    ]
+  },
+  "version": 2
+}

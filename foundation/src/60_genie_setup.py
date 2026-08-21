@@ -49,6 +49,11 @@ SPACES = [
         "description": "NL audit trail over notebook activity — who changed which notebook, when (DS-08).",
         "body": f"{REPO_ROOT}/datascientist/src/genie_code_audit.geniespace.json",
     },
+    {
+        "title": f"[{CATALOG}] Access Audit (PA-05)",
+        "description": "NL access audit — who changed a permission, and who actually read the sensitive tables (PA-05).",
+        "body": f"{REPO_ROOT}/admin/src/pa_a_access_audit.geniespace.json",
+    },
 ]
 
 # COMMAND ----------

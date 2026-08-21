@@ -1,0 +1,33 @@
+# PA-A — identity & access setup (PA-01 … PA-06).
+#
+# Creates the workspace group taxonomy and applies the UC grants every later PA scenario depends
+# on. PA-B (masking) and PA-C (row filters) branch on these groups via is_member(), so this must
+# run before either.
+#
+# Picked up automatically by the root databricks.yml `include: "*/resources/*.yml"` glob.
+# notebook_path is relative to THIS file's directory (admin/resources -> ../src/...).
+#
+# Serverless, like every other job in this bundle — no node_type_id to keep in step with a cloud
+# provider.
+#
+# Re-runnable: group creation is idempotent (skips existing) and GRANT is additive, so a second run
+# is a no-op rather than an error.
+resources:
+  jobs:
+    pa_a_identity_access:
+      name: "[${var.catalog}] PA-A — Identity & access (PA-01…06)"
+      tags:
+        persona: platform_admin
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema_suffix
+          default: ${var.schema_suffix}
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: identity_access
+          notebook_task:
+            notebook_path: ../src/pa_a_identity_access.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema_suffix: ${var.schema_suffix}

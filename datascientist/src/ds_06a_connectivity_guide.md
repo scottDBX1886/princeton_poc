@@ -220,7 +220,62 @@ through the standard SPSS database wizard.
 
 ---
 
-## 6. The point of the scenario: UC governs the connection
+## 6. Databricks Connect — run local code on remote compute
+
+The four sections above all send **SQL** to a warehouse and get rows back. Databricks Connect is a
+different and, for a data scientist, more interesting shape: you write PySpark in your own IDE and
+it executes on **remote Databricks compute**. The DataFrame code is local; the Spark job is not.
+
+That is the answer to "can my team keep using VS Code / PyCharm / Jupyter?" — yes, against real
+cluster compute and real governed data, with no cluster in the room.
+
+```bash
+pip install databricks-connect          # match the major.minor of your target DBR
+```
+
+`~/.databrickscfg`:
+
+```ini
+[princeton]
+host                = <workspace-host>
+token               = dapi...
+serverless_compute_id = auto            # serverless; or set cluster_id = <id> for classic
+```
+
+```python
+from databricks.connect import DatabricksSession
+
+spark = DatabricksSession.builder.profile("princeton").getOrCreate()
+
+df = (spark.table("princeton_poc_dev.gold_dev.enrollment_history")
+        .groupBy("dept_id")
+        .count()
+        .orderBy("count", ascending=False))
+
+df.show(10)          # runs on Databricks; only the result comes back
+print(df.count())
+```
+
+Three things worth pointing out in the demo:
+
+- **It is PySpark, not SQL.** `.groupBy()`, `.filter()`, UDFs, MLlib — the full DataFrame API, in an
+  IDE with debugging and version control.
+- **The compute is remote.** A laptop can drive a query over the 5M-row fact because nothing but
+  the result set crosses the wire.
+- **UC still governs it.** Same grants, same row filters, same column masks as §7 below. Databricks
+  Connect authenticates as *you*; it is not a back door around governance.
+
+**Version pairing is the one gotcha.** `databricks-connect` must match the target runtime's
+major.minor version, and it conflicts with a local `pyspark` install — uninstall `pyspark` first, or
+use a clean virtualenv. That is the most common reason a first attempt fails.
+
+**Also worth demonstrating:** the same environment powers the Databricks VS Code extension, which
+runs notebooks and jobs from the editor. For a team that wants to stay in their IDE rather than the
+web UI, that is the whole answer.
+
+---
+
+## 7. The point of the scenario: UC governs the connection
 
 Everything above is plumbing. **This** is what the RFP is asking about.
 
@@ -247,7 +302,7 @@ output — the strongest single demonstration that governance is not a UI-layer 
 
 ---
 
-## 7. POC vs production authentication
+## 8. POC vs production authentication
 
 | | POC / this demo | Production |
 |---|---|---|
