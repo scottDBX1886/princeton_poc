@@ -601,8 +601,242 @@
     {
       "id": "pa",
       "name": "Platform Administrator",
-      "blurb": "Compute & capacity (PA-E, PA-13–18) and Cost & chargeback (PA-F, PA-19–25). Admin walkthroughs plus two built items: the PA-17 capacity dashboard and the PA-25 cost-optimization Genie space. Spend/attribution/forecast come from the native Usage Dashboard; PA-24 is an honest partial.",
+      "blurb": "Full Platform Administrator suite (PA-01–25): identity & access (PA-A), column/row security (PA-B/C), policy testing & inventory (PA-D), compute & capacity (PA-E), and cost & chargeback (PA-F). Security scenarios run on the admin_demo schema (copies) so masking/RLS never mutate the shared foundation. Built items: PA-17 capacity dashboard, PA-25 cost Genie space, plus PA-05 audit & PA-25's assistant as Genie spaces.",
       "objects": [
+        {
+          "id": "PA-01",
+          "title": "User provisioning & role assignment",
+          "scenarios": "PA-01",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "A person is provisioned by role — access follows group membership, so onboarding never touches a grant.",
+          "setup": "admin_demo must exist (PA Task 0). Deployed as job [<catalog>] PA-A — Identity & access. Roles map to existing account groups (UC won't grant to workspace-local groups).",
+          "steps": [
+            "Run the PA-A notebook/job (or paste the shared prompt below in the Assistant).",
+            "It reports, per role, whether the group is UC-grantable and whether is_member() resolves.",
+            "Provision a user = a membership change: Settings → Identity and access → Groups → add the user; verify SELECT is_member('<group>')."
+          ],
+          "prompt": "Write a PySpark notebook that sets up role-based access control in Unity Catalog and proves it works. Read widgets \"catalog\"/\"schema_suffix\" (suffix already has its underscore — concatenate directly). Two hard constraints: (1) UC will NOT grant to a workspace-local group — discover existing ACCOUNT-level groups via the SDK (meta.resource_type=='Group') and map the three RFP roles onto them; (2) GRANT needs MANAGE — grant at <catalog>.admin_demo scope, not catalog scope. GRANT is additive (harmless re-run) but issue NO REVOKE. Steps: map admin/faculty/student to account groups (print grantable + is_member() — use is_member(), NOT is_account_group_member()); GRANT on admin_demo: ALL to admin, USE SCHEMA+SELECT to faculty, and for student USE SCHEMA + SELECT on ONLY admin_demo.student (no schema-wide SELECT — that IS object-level perms); read grants back from information_schema (schema_privileges uses schema_name, table_privileges uses table_schema); assert each role maps to a grantable group, is_member true for admin and false for ≥1 other, and student has no schema-wide SELECT.",
+          "outcome": "All three roles report grantable=True; is_member() true for admin, false for the other two — the asymmetry that makes PA-B's masking contrast real.",
+          "notes": [
+            "Membership is cached ~30s+ — make group changes a few minutes before you need them on screen.",
+            "Uses is_member() (resolves both group types), NOT is_account_group_member()."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-02",
+          "title": "Group-based access control",
+          "scenarios": "PA-02",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "Every grant targets a group, never an individual — onboarding is a membership change, offboarding revokes everything at once.",
+          "setup": "Same PA-A notebook/job; grants keyed on group.",
+          "steps": [
+            "Run the PA-A notebook, or read grants back via src/pa_a_audit_queries.sql section 1.",
+            "Confirm every grantee is a group."
+          ],
+          "prompt": "Write a PySpark notebook that sets up role-based access control in Unity Catalog and proves it works. Read widgets \"catalog\"/\"schema_suffix\" (suffix already has its underscore — concatenate directly). Two hard constraints: (1) UC will NOT grant to a workspace-local group — discover existing ACCOUNT-level groups via the SDK (meta.resource_type=='Group') and map the three RFP roles onto them; (2) GRANT needs MANAGE — grant at <catalog>.admin_demo scope, not catalog scope. GRANT is additive (harmless re-run) but issue NO REVOKE. Steps: map admin/faculty/student to account groups (print grantable + is_member() — use is_member(), NOT is_account_group_member()); GRANT on admin_demo: ALL to admin, USE SCHEMA+SELECT to faculty, and for student USE SCHEMA + SELECT on ONLY admin_demo.student (no schema-wide SELECT — that IS object-level perms); read grants back from information_schema (schema_privileges uses schema_name, table_privileges uses table_schema); assert each role maps to a grantable group, is_member true for admin and false for ≥1 other, and student has no schema-wide SELECT.",
+          "outcome": "On admin_demo: ALL_PRIVILEGES for admin group, USE_SCHEMA+SELECT for faculty, USE_SCHEMA only for student. Every grantee is a group.",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "PA-03",
+          "title": "Environment-level access segregation",
+          "scenarios": "PA-03",
+          "surface": "Catalog grants (model / walkthrough)",
+          "status": "walkthrough",
+          "proves": "Environments are separate catalogs (princeton_poc_dev/_test/_prod). USE CATALOG gates everything beneath it, so withholding it is absolute — no lower grant routes around a missing catalog grant.",
+          "setup": "Model demonstrated by reading live catalog grants; applying it needs MANAGE on the catalog (owned by another user).",
+          "steps": [
+            "Show the model by reading catalog-level grant state.",
+            "To fully close: the catalog owner runs GRANT USE CATALOG on one catalog and nothing on another.",
+            "Paired query: same SQL against two catalogs — one returns rows, the other PERMISSION_DENIED."
+          ],
+          "prompt": null,
+          "outcome": "USE CATALOG is the absolute gate; its absence denies all access beneath, proving segregation rather than a naming convention.",
+          "notes": [
+            "🟡 model-only here: needs MANAGE on the catalog + a second catalog to deny against. The prod catalog now exists (princeton_poc_prod)."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-04",
+          "title": "Source & target object-level permissions",
+          "scenarios": "PA-04",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "A privilege can sit on a single object, not just the container — the granularity 'object-level permissions' means.",
+          "setup": "Same PA-A notebook. The student role is the demonstration: USE_SCHEMA on admin_demo but SELECT on ONLY admin_demo.student.",
+          "steps": [
+            "Run the PA-A notebook, or query src/pa_a_audit_queries.sql section 1.",
+            "Confirm student has exactly one table grant and no schema-wide SELECT."
+          ],
+          "prompt": "Write a PySpark notebook that sets up role-based access control in Unity Catalog and proves it works. Read widgets \"catalog\"/\"schema_suffix\" (suffix already has its underscore — concatenate directly). Two hard constraints: (1) UC will NOT grant to a workspace-local group — discover existing ACCOUNT-level groups via the SDK (meta.resource_type=='Group') and map the three RFP roles onto them; (2) GRANT needs MANAGE — grant at <catalog>.admin_demo scope, not catalog scope. GRANT is additive (harmless re-run) but issue NO REVOKE. Steps: map admin/faculty/student to account groups (print grantable + is_member() — use is_member(), NOT is_account_group_member()); GRANT on admin_demo: ALL to admin, USE SCHEMA+SELECT to faculty, and for student USE SCHEMA + SELECT on ONLY admin_demo.student (no schema-wide SELECT — that IS object-level perms); read grants back from information_schema (schema_privileges uses schema_name, table_privileges uses table_schema); assert each role maps to a grantable group, is_member true for admin and false for ≥1 other, and student has no schema-wide SELECT.",
+          "outcome": "information_schema.table_privileges shows the student group with one table grant; schema_privileges shows it WITHOUT SELECT. An assertion fails if schema-wide SELECT ever leaks in.",
+          "notes": [
+            "Column gotcha: schema_privileges uses schema_name; table_privileges uses table_schema."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-05",
+          "title": "Permission audit trail",
+          "scenarios": "PA-05",
+          "surface": "Genie space (system.access.audit + lineage)",
+          "status": "tested",
+          "proves": "Answer both 'who could read this' (grants) and 'who actually did' (lineage) in SQL or natural language.",
+          "setup": "Genie space [<catalog>] Access Audit (PA-05), grounded on system.access.audit + system.access.table_lineage (created by foundation_build).",
+          "steps": [
+            "Open the PA-05 Genie space.",
+            "Ask an audit question (below).",
+            "Note it always filters on event_date (the partition column) — the tables hold tens of millions of rows/week."
+          ],
+          "prompt": "Who changed permissions in the last 7 days, and on what object?\nWho has read the student, faculty or financial_aid tables recently?\nWhich principals were granted access this week, and by whom?\nShow all access denials in the last 7 days",
+          "outcome": "Genie generates correct event_date-filtered SQL: permission changes via system.access.audit (action_name='updatePermissions'), actual reads via table_lineage.",
+          "notes": [
+            "A grants list says who COULD; lineage says who DID — the distinction an auditor cares about.",
+            "A PA-specific space (not DS-08's) — same audit table, different grounding lens; the wrong lens gave a plausible-but-wrong 'no changes' answer."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-06",
+          "title": "Service principals & credential rotation",
+          "scenarios": "PA-06",
+          "surface": "SP grants + rotation procedure (walkthrough)",
+          "status": "walkthrough",
+          "proves": "Grants attach to the principal, not the credential — so rotating an SP secret is invisible to permissions, which an embedded personal token can't offer.",
+          "setup": "The POC already ships engineer/src/apps/grant_app_sp.sh (least-privilege SP grant). Rotation procedure in PA_A_IDENTITY_STRATEGY.md.",
+          "steps": [
+            "Show the mock-API app's SP holding SELECT on one table (least privilege, no human credential).",
+            "Walk the 5-step rotation procedure — grants survive a secret rotation untouched.",
+            "List SPs + UC grants held by a UUID grantee."
+          ],
+          "prompt": null,
+          "outcome": "SP grants listed; rotation leaves permissions intact (grant is on the principal, not the secret).",
+          "notes": [],
+          "media": []
+        },
+        {
+          "id": "PA-07",
+          "title": "Column-level security: masking sensitive fields",
+          "scenarios": "PA-07",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "A masked column is masked for EVERY reader through EVERY path — notebook, SQL editor, dashboard, JDBC, even INSERT…SELECT. No view to bypass, no client setting.",
+          "setup": "Job [<catalog>] PA-B/C/D — Security policies + inventory, on admin_demo. Prereqs: PA Task 0 + PA-A.",
+          "steps": [
+            "Run the PA-B task/notebook (or paste the shared masking prompt below).",
+            "Three graduated treatments: ssn partial (***-**-6789), dob generalised (1995-XX-XX), amount rounded to 1,000.",
+            "Admin sees full values (correct) — the role contrast is shown in PA-11's harness."
+          ],
+          "prompt": "Write a PySpark notebook that applies Unity Catalog column masks to sensitive columns and proves they work. Read widgets \"catalog\"/\"schema_suffix\" (concatenate directly). Target <catalog>.admin_demo ONLY — never silver/gold (SET MASK mutates the table object). Name every function with a _prompt suffix and attach nothing to a table that already has a policy (pre-built masks are live; SET MASK REPLACES). Use is_member('<group>'), NOT is_account_group_member() (admin=dbx_demo_shared_admins, faculty=data_engineers_demo_group). 1. Capture unmasked values first. 2. Three graduated masks: mask_ssn (full/admin, ***-**-last4/faculty, NULL else — NULL not '[REDACTED]'), mask_dob (year-only for faculty; dob is a STRING in 3 formats so coalesce over try_to_date), mask_amount (round(amount,-3) for faculty). 3. Attach with ALTER TABLE t ALTER COLUMN c SET MASK fn (that exact form; DROP MASK first for re-runnability) on student.ssn, student.dob, faculty.ssn, financial_aid.amount. 4. Re-query. 5. Assert admin view UNCHANGED, masks attached per information_schema.column_masks, zero NULL dob, and the shared foundation carries no policies.",
+          "outcome": "3 mask functions, 4 columns masked on admin_demo; admin full, faculty partial, others NULL; dob parsed across all 3 formats; foundation carries no policies.",
+          "notes": [
+            "The dob trap: dob is a STRING in 3 formats; year(dob) is NULL on two, so the mask coalesces try_to_date over all three. An assertion fails on any NULL dob."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-08",
+          "title": "Column-level security: full column restriction",
+          "scenarios": "PA-08",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "Restriction is distinct from masking — for any role outside admin/faculty the mask returns NULL, not a '[REDACTED]' placeholder.",
+          "setup": "The third branch of each PA-B mask function.",
+          "steps": [
+            "Run the PA-B notebook.",
+            "Read a restricted column as an unprivileged role → NULL for every row."
+          ],
+          "prompt": "Write a PySpark notebook that applies Unity Catalog column masks to sensitive columns and proves they work. Read widgets \"catalog\"/\"schema_suffix\" (concatenate directly). Target <catalog>.admin_demo ONLY — never silver/gold (SET MASK mutates the table object). Name every function with a _prompt suffix and attach nothing to a table that already has a policy (pre-built masks are live; SET MASK REPLACES). Use is_member('<group>'), NOT is_account_group_member() (admin=dbx_demo_shared_admins, faculty=data_engineers_demo_group). 1. Capture unmasked values first. 2. Three graduated masks: mask_ssn (full/admin, ***-**-last4/faculty, NULL else — NULL not '[REDACTED]'), mask_dob (year-only for faculty; dob is a STRING in 3 formats so coalesce over try_to_date), mask_amount (round(amount,-3) for faculty). 3. Attach with ALTER TABLE t ALTER COLUMN c SET MASK fn (that exact form; DROP MASK first for re-runnability) on student.ssn, student.dob, faculty.ssn, financial_aid.amount. 4. Re-query. 5. Assert admin view UNCHANGED, masks attached per information_schema.column_masks, zero NULL dob, and the shared foundation carries no policies.",
+          "outcome": "An unprivileged role reads the column and gets NULL for every row — no error, no indication of what was there.",
+          "notes": [
+            "NULL, not a string: a placeholder leaks that a value exists and breaks typed clients (a DOUBLE can't return '[REDACTED]')."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-09",
+          "title": "Row-level security: attribute-based filtering",
+          "scenarios": "PA-09",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "The same table returns different rows to different readers, enforced at the table rather than in a WHERE clause someone can forget.",
+          "setup": "PA-C task on admin_demo; a dept_id row filter.",
+          "steps": [
+            "Run the PA-C notebook (or paste the shared row-filter prompt below).",
+            "Show 30,000 rows → a per-identity subset."
+          ],
+          "prompt": "Write a PySpark notebook that applies Unity Catalog row-level security with a policy driven by a lookup table rather than hardcoded values. Read widgets \"catalog\"/\"schema_suffix\" (concatenate directly). Target admin_demo only; _prompt-suffix your functions. Build a department_access mapping table keyed on current_user(); a row-filter function checks membership against it. Attach with ALTER TABLE t SET ROW FILTER fn ON (dept_id). Seed the running admin to two departments, show the filtered row count, then INSERT one row and show the visible set widen with NO policy change (that INSERT is the PA-10 demo). Assert: admin unrestricted; mapped identity sees a strict subset; unmapped principals see ZERO rows (deny by default); foundation clean.",
+          "outcome": "Admin unrestricted (30,000 rows); a mapped identity sees ~1,000 rows in 2 departments; unmapped principals see 0 rows (deny by default).",
+          "notes": [
+            "Masks + filters compose — a faculty reader sees fewer rows AND masked columns within them."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-10",
+          "title": "Row-level security: dynamic policy by user identity",
+          "scenarios": "PA-10",
+          "surface": "Databricks Assistant → notebook (job)",
+          "status": "tested",
+          "proves": "The filter reads a department_access lookup keyed on current_user() — so a move is an INSERT, not a code change and redeploy.",
+          "setup": "Same PA-C notebook.",
+          "steps": [
+            "Run the PA-C notebook.",
+            "It seeds the admin to two departments, shows the count, then INSERTs one row and shows the visible set widen — with NO policy edit.",
+            "That INSERT is the demonstration."
+          ],
+          "prompt": "Write a PySpark notebook that applies Unity Catalog row-level security with a policy driven by a lookup table rather than hardcoded values. Read widgets \"catalog\"/\"schema_suffix\" (concatenate directly). Target admin_demo only; _prompt-suffix your functions. Build a department_access mapping table keyed on current_user(); a row-filter function checks membership against it. Attach with ALTER TABLE t SET ROW FILTER fn ON (dept_id). Seed the running admin to two departments, show the filtered row count, then INSERT one row and show the visible set widen with NO policy change (that INSERT is the PA-10 demo). Assert: admin unrestricted; mapped identity sees a strict subset; unmapped principals see ZERO rows (deny by default); foundation clean.",
+          "outcome": "One INSERT into the mapping table widens access on the next query, for every table the filter is attached to — no policy change.",
+          "notes": [
+            "Deny by default: an unmapped principal sees ZERO rows, not everything — asserted, because 'fails open' is the classic row-filter bug."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-11",
+          "title": "Security policy testing & validation (\"faux user\")",
+          "scenarios": "PA-11",
+          "surface": "Test-twin harness (notebook)",
+          "status": "walkthrough",
+          "proves": "A policy can be tested before rollout. Databricks has NO impersonation function, so the honest mechanisms are a test-twin function (proves the branches) and a second real principal (proves enforcement).",
+          "setup": "PA-D task; a test_mask_ssn_as(ssn, role) twin with role as an argument.",
+          "steps": [
+            "Run the PA-D notebook.",
+            "Show the twin returns three distinct treatments of the same value (full / partial / NULL) and three row counts (all / subset / zero).",
+            "For enforcement proof: a colleague in the faculty group runs the query; the audit trail records their read."
+          ],
+          "prompt": null,
+          "outcome": "Three distinct treatments (full for admin, ***-**-6789 for faculty, NULL otherwise) + three row counts. The twin is named test_ and dropped so the inventory can't mistake it for a live policy.",
+          "notes": [
+            "No impersonation fn exists (simulate_principal/set_session_user/impersonate all UNRESOLVED_ROUTINE). The twin proves the branch logic; claiming it proves ENFORCEMENT would overstate — say so in the read-out."
+          ],
+          "media": []
+        },
+        {
+          "id": "PA-12",
+          "title": "Security policy audit & documentation",
+          "scenarios": "PA-12",
+          "surface": "information_schema inventory (notebook/SQL)",
+          "status": "walkthrough",
+          "proves": "The policy catalog is a table you can query, not a console screen you screenshot — an access review is repeatable and cannot miss a table.",
+          "setup": "PA-D task; queries over information_schema.column_masks + row_filters.",
+          "steps": [
+            "Run the PA-D notebook, or src/pa_d_policy_inventory.sql.",
+            "Show the inventory: 4 masks + 2 row filters, all in admin_demo.",
+            "Run the coverage-gap query — sensitive columns with NO policy, via a LEFT JOIN from information_schema.columns."
+          ],
+          "prompt": null,
+          "outcome": "4 masks (student.ssn/dob, faculty.ssn, financial_aid.amount) + 2 row filters (student, faculty), all scoped to admin_demo; the coverage-gap check flags unprotected columns.",
+          "notes": [
+            "The query worth showing is the coverage gap, not the inventory — the usual failure in a governed estate is an unprotected table nobody inventoried."
+          ],
+          "media": []
+        },
         {
           "id": "PA-13",
           "title": "Scale compute up / down (manual)",
@@ -1378,30 +1612,34 @@
           {
             "id": "PA-01…06",
             "name": "User/group access, roles, credentials, audit",
-            "object": "PA-A",
-            "built": "planned",
-            "prompt": ""
+            "object": "PA-01",
+            "built": "done",
+            "prompt": "na",
+            "objectLabel": "PA-A"
           },
           {
             "id": "PA-07/08",
             "name": "Column-level security — masking & restriction",
-            "object": "PA-B",
-            "built": "planned",
-            "prompt": ""
+            "object": "PA-07",
+            "built": "done",
+            "prompt": "na",
+            "objectLabel": "PA-B"
           },
           {
             "id": "PA-09/10",
             "name": "Row-level security — attribute & dynamic",
-            "object": "PA-C",
-            "built": "planned",
-            "prompt": ""
+            "object": "PA-09",
+            "built": "done",
+            "prompt": "na",
+            "objectLabel": "PA-C"
           },
           {
             "id": "PA-11/12",
             "name": "Security policy testing & audit",
-            "object": "PA-D",
-            "built": "planned",
-            "prompt": ""
+            "object": "PA-11",
+            "built": "done",
+            "prompt": "na",
+            "objectLabel": "PA-D"
           },
           {
             "id": "PA-13…18",
