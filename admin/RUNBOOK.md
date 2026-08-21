@@ -62,9 +62,14 @@ function change.
 The membership column is what makes PA-B's masking demo real: the admin sees unmasked `ssn`, the
 other two roles demonstrably do not. Nothing is staged.
 
-## PA-01 / PA-02 / PA-04 — provisioning, group-based access, object-level permissions
+## Generation prompt — PA-01, PA-02, PA-04
 
-> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook discovered the account groups, granted at admin_demo scope, and reproduced the baseline exactly — no REVOKE, no workspace-group creation)
+> **Prompt:** 🟢 tested (`princeton_poc_dev`: the generated notebook discovered the account groups,
+> granted at `admin_demo` scope, and reproduced the baseline exactly — no `REVOKE`, no
+> workspace-group creation)
+
+One notebook produces all three of these scenarios, so there is one prompt rather than three.
+Each scenario is then written up separately below, because each is graded separately in the RFP.
 
 <details>
 <summary><strong>Assistant prompt (generate the identity & access notebook)</strong> — click to expand</summary>
@@ -113,14 +118,21 @@ Steps:
 
 </details>
 
-### PA-01 — provisioning
+## PA-01 — User provisioning & role assignment
 
-**How to test:** run the job, or the notebook interactively. It reports, per role, whether the group
-is UC-grantable and whether `is_member()` resolves for the caller.
+> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
 
-Provisioning a person is then a **membership change only** — no grants are edited:
-**Settings → Identity and access → Groups** → add the user. Verify as them:
-`SELECT is_member('data_engineers_demo_group')` → `true`.
+**What it proves:** a person is provisioned by *role*. Access follows group membership, so
+onboarding never touches a grant.
+
+**How to test:** run the job, or the notebook interactively. It reports, per role, whether the
+group is UC-grantable and whether `is_member()` resolves for the caller.
+
+Provisioning is then a **membership change only** — **Settings → Identity and access → Groups**
+→ add the user. Verify as them: `SELECT is_member('data_engineers_demo_group')` → `true`.
+
+**Expected outcome:** all three roles report `grantable=True`, and `is_member()` is true for the
+admin role and false for the other two — the asymmetry that makes PA-B's masking contrast real.
 
 **⚠️ Membership is cached.** After a group change, `is_member()` kept returning the old answer for
 30+ seconds. Make membership changes a few minutes before you need them on screen — do not remove
@@ -128,40 +140,70 @@ someone from a group live and expect the next query to redact.
 
 ## PA-02 — Group-based access control
 
-> **Built:** ✅ · **Prompt:** — n/a
+> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
 
-**What it proves:** every grant targets a group. Onboarding is a membership change; offboarding
-revokes everything at once, because nothing was ever granted to an individual.
+**What it proves:** every grant targets a group, never an individual. Onboarding is a membership
+change; offboarding revokes everything at once, because nothing was granted to a person.
 
-**Expected outcome:** `admin_demo` shows `ALL PRIVILEGES` for the admin group, `USE_SCHEMA` +
-`SELECT` for faculty, and `USE_SCHEMA` only for the student group.
+**How to test:** read the grants back — the notebook does this, or run the query in
+[`src/pa_a_audit_queries.sql`](src/pa_a_audit_queries.sql) section 1.
+
+**Expected outcome:** on `admin_demo` — `ALL_PRIVILEGES` for the admin group, `USE_SCHEMA` +
+`SELECT` for faculty, `USE_SCHEMA` only for the student group. Every grantee is a group.
 
 ## PA-03 — Environment-level access segregation
 
-> **Built:** 🟡 model demonstrated, not applied · **Prompt:** — n/a
+> **Built:** 🟡 model demonstrated, not applied · **Prompt:** — n/a (a single owner-run GRANT)
 
-Environments are separate **catalogs** — `princeton_poc_dev`, `_test`, `_qa`, `princeton_poc` — in
-one workspace. `USE CATALOG` gates everything beneath it, so withholding it is absolute: there is
-no schema-level way around a missing catalog grant.
+**What it proves:** environments are separate **catalogs** — `princeton_poc_dev`, `_test`, `_qa`,
+`princeton_poc` — in one workspace. `USE CATALOG` gates everything beneath it, so withholding it is
+absolute: no schema- or table-level grant lets a principal around a missing catalog grant. That is
+what makes it segregation rather than a naming convention.
 
-**Why 🟡:** applying catalog-scoped grants needs MANAGE on the catalog, which the PA admin does not
-hold here. The notebook demonstrates the model by reading the live catalog grant state; applying it
-per environment is a one-line `GRANT` for the catalog owner.
+**Why 🟡:** applying it needs MANAGE on the catalog, which the PA admin does not hold —
+`princeton_poc_dev` is owned by another user, and catalog-scoped `GRANT` returns
+`PERMISSION_DENIED`. The notebook demonstrates the model by reading live catalog grant state
+instead of applying it.
 
-## PA-04 — Object-level permissions
+**To close it,** the catalog owner runs two statements — they are in
+[`src/pa_a_identity_setup.sql`](src/pa_a_identity_setup.sql), commented, ready to uncomment:
 
-> **Built:** ✅ · **Prompt:** — n/a
+```sql
+GRANT USE CATALOG ON CATALOG princeton_poc_dev TO `data_engineers_demo_group`;
+-- and deliberately NOTHING on princeton_poc — the absence IS the control
+```
 
-**The demonstration is the student role.** It gets `USE_SCHEMA` on `admin_demo` but **no
-schema-wide `SELECT`** — just `SELECT` on `admin_demo.student`. No grant on `faculty` or
-`financial_aid` means no access to them at all. An assertion fails if schema-wide SELECT ever leaks
-in, because that would silently widen access and still look like a pass.
+**Then the demo is a paired query** — the same SQL against two catalogs:
+
+```sql
+SELECT count(*) FROM princeton_poc_dev.gold_dev.enrollment_history;  -- returns rows
+SELECT count(*) FROM princeton_poc.gold.enrollment_history;          -- PERMISSION_DENIED
+```
+
+**Also needs a second catalog to exist.** `princeton_poc_test` / `princeton_poc` are not created in
+this workspace yet, so even with MANAGE there is nothing to be denied against.
+
+## PA-04 — Source & target object-level permissions
+
+> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
+
+**What it proves:** a privilege can sit on a single **object**, not just the container — the
+granularity an RFP means by "source and target object-level permissions."
+
+**The demonstration is the student role.** It holds `USE_SCHEMA` on `admin_demo` but **no
+schema-wide `SELECT`** — only `SELECT` on `admin_demo.student`. No grant on `faculty` or
+`financial_aid` means no access to them at all.
+
+**How to test:** the notebook asserts it, or query
+[`src/pa_a_audit_queries.sql`](src/pa_a_audit_queries.sql) section 1.
 
 **Expected outcome:** `information_schema.table_privileges` shows the student group with exactly one
-table grant.
+table grant, and `schema_privileges` shows it *without* `SELECT`. An assertion fails if schema-wide
+`SELECT` ever leaks in — that would silently widen access while still looking like a pass.
 
-> Column name gotcha: `schema_privileges` uses **`schema_name`**; `table_privileges` uses
-> **`table_schema`**. Mixing them up gives `UNRESOLVED_COLUMN`.
+> Column-name gotcha: `schema_privileges` uses **`schema_name`**; `table_privileges` uses
+> **`table_schema`**. Mixing them gives `UNRESOLVED_COLUMN`.
+
 
 ## PA-05 — Permission audit trail
 
@@ -245,7 +287,7 @@ ALTER TABLE t SET COLUMN MASK c = fn(c);         -- NOT valid Databricks SQL (th
 ALTER TABLE t SET ROW FILTER fn ON (c);          -- correct
 ```
 
-## PA-07 / PA-08 — Column masking and full column restriction
+## Generation prompt — PA-07, PA-08
 
 > **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the mask notebook)
 
@@ -333,7 +375,54 @@ Groups: admin = dbx_demo_shared_admins, faculty = data_engineers_demo_group.
 
 </details>
 
-## PA-09 / PA-10 — Row-level security, static and dynamic
+## PA-07 — Column-level security: masking sensitive fields
+
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What it proves:** a masked column is masked for **every** reader through **every** path — notebook,
+SQL editor, dashboard, JDBC from a laptop, even `INSERT … SELECT` into another table. No view to
+bypass, no client setting to change. That is the difference from application-layer redaction.
+
+**Three graduated treatments**, because "masked" is not one thing:
+
+| Column | Treatment | Faculty sees |
+|---|---|---|
+| `student.ssn`, `faculty.ssn` | partial | `***-**-6789` — enough to confirm identity |
+| `student.dob` | generalisation | `1995-XX-XX` — age analysis still works |
+| `financial_aid.amount` | perturbation | rounded to 1,000 — aggregates stay usable |
+
+**How to test:** run the job, or `pa_b_column_masking.py`. The PA admin is in the admin group, so
+they see **full** values — that is correct, and the reason a naive "did the value change?" check
+proves nothing. The role contrast is in PA-11's harness.
+
+**Expected outcome:** `PASS: PA-B — 3 mask functions, 4 columns masked on admin_demo; admin sees
+full values, faculty partial, others NULL; dob parsed across all 3 formats; foundation carries no
+policies.`
+
+> **The `dob` trap.** `dob` is a STRING in three mixed formats (`yyyy-MM-dd`, `MM/dd/yyyy`,
+> `dd.MM.yyyy`) by design for SE-15. `year(dob)` returns NULL on two of them, so the mask coalesces
+> `try_to_date` over all three. Get it wrong and ~67% of "masked" values are silently NULL — which
+> looks like a working mask and is actually data loss. An assertion fails on any NULL `dob`.
+
+## PA-08 — Column-level security: full column restriction
+
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What it proves:** restriction is distinct from masking. For any role outside admin/faculty the
+mask returns **NULL** — not a `'[REDACTED]'` placeholder.
+
+**Why NULL rather than a string:** a placeholder still leaks that a value *exists*, and it breaks
+typed clients — a `DOUBLE` column cannot return `'[REDACTED]'`, so `financial_aid.amount` would
+error rather than restrict. NULL is the only treatment that works across types.
+
+**How to test:** the third branch of each mask function. PA-11's harness shows it directly —
+`test_mask_ssn_as(ssn, 'student')` → `NULL`.
+
+**Expected outcome:** an unprivileged role reads the column and gets NULL for every row, with no
+error and no indication of what was there.
+
+
+## Generation prompt — PA-09, PA-10
 
 > **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the row-filter notebook)
 
@@ -414,56 +503,59 @@ Use is_member(), not is_account_group_member(). Admin group = dbx_demo_shared_ad
 
 </details>
 
-## PA-11 / PA-12 — Policy testing & inventory
+## PA-09 — Row-level security: attribute-based filtering
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the inventory notebook)
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What it proves:** the same table returns different rows to different readers, enforced at the
+table rather than in a `WHERE` clause someone can forget to add.
+
+The filter is a function returning BOOLEAN, evaluated per row against an attribute — here
+`dept_id`. Attached with `ALTER TABLE … SET ROW FILTER fn ON (dept_id)`; the `ON (…)` list supplies
+the function's arguments, which is how one function serves several tables.
+
+**How to test:** run the job, or `pa_c_row_filters.py`. Applied to `admin_demo.student` and
+`admin_demo.faculty`.
+
+**Expected outcome:** the admin sees all 30,000 rows (unrestricted branch); a mapped identity sees a
+strict subset — roughly 1,000 rows across 2 departments.
+
+**Deny by default.** An unmapped principal sees **zero** rows, not everything. Asserted, because
+"fails open" is the classic row-filter bug and it is invisible unless you test for it.
+
+## PA-10 — Row-level security: dynamic policy by user identity
+
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What it proves — and this is the operationally important one.** A policy with department numbers
+written into it needs a code change and a redeploy every time someone moves department. This one
+reads a `department_access` mapping table keyed on `current_user()`, so a move is an `INSERT` and it
+takes effect on the next query, across every table the filter is attached to.
+
+**How to test:** the notebook seeds the running admin to two departments, shows the filtered row
+count, then **inserts one row** and shows the visible set widen — with the policy function
+untouched. That INSERT is the demonstration; everything else is setup.
+
+**Expected outcome:** `PASS: PA-C — admin unrestricted (30,000 rows); mapped identity sees ~1,000
+rows in 2 departments; one INSERT widened that with no policy change; unmapped principals see 0
+rows; foundation clean.`
+
+**Grant the mapping table carefully.** Anyone who can write it can widen their own access. It is
+readable by the policy and writable only by admins — PA-11 checks exactly that.
+
+**Masks and filters compose.** With PA-07/08 and PA-09/10 both applied, a faculty reader sees
+*fewer rows* **and** *masked columns within them*. The job runs them in order so that stacking is
+visible rather than accidental.
+
+
+## Generation prompt — PA-11, PA-12
+
+> **Prompt:** 🟡 written (Assistant — generate the inventory + test notebook)
+
+One notebook covers both scenarios, so one prompt. Each is written up separately below.
 
 **Artifacts:** `pa_d_policy_inventory.py` (asserted) and
 [`pa_d_policy_inventory.sql`](src/pa_d_policy_inventory.sql) (reviewable — the form a DBA audits).
-
-### PA-12 — the inventory is a table, not a console screen
-
-Unity Catalog exposes `information_schema.column_masks` and `information_schema.row_filters`. That
-*is* the scenario: policy coverage is queryable, so an access review is repeatable and cannot miss a
-table nobody remembered.
-
-**Expected:** 4 masks + 2 row filters, every row in `admin_demo` and none anywhere else.
-
-**The query worth showing** is not the inventory but the **coverage gap** — sensitive columns with
-*no* policy. The usual failure in a governed estate isn't a wrong policy, it's an unprotected table
-nobody inventoried.
-
-> Read that output honestly: the `silver` rows come back `UNPROTECTED`, and that is **correct here**
-> — the shared foundation deliberately carries no policies. In a real deployment those rows would
-> be the finding, which is why the check earns its place.
-
-### PA-11 — there is no impersonation function
-
-The plan suggested `simulate_principal()` via UCX. **It does not exist** — verified, along with
-`set_session_user()` and `impersonate()`; all return `UNRESOLVED_ROUTINE`. A UC policy is evaluated
-as the **caller**, so no single session can self-test another identity.
-
-Two honest mechanisms, and the distinction matters for what you claim:
-
-1. **Evaluate the policy logic** — a `test_mask_ssn_as(ssn, role)` twin with the role
-   parameterised instead of an `is_member()` call. Same branch logic, all three treatments in one
-   query, runnable before anything is attached. **Proves the branches are right.**
-2. **Have a second real principal run the query** and confirm the audit trail records their read.
-   **Proves UC enforces it.**
-
-(1) is in the notebook and is what you can do alone. (2) is stronger, needs a colleague, and is
-documented in the SQL file as a pre-session checklist item. Claiming (1) proves enforcement would
-be overstating it — worth saying plainly in the read-out.
-
-The harness is named `test_…` and dropped at the end, so it can never be mistaken for a live policy.
-
-**Also checked:** who can *rewrite* a policy. A faculty principal with `CREATE FUNCTION` on
-`admin_demo` could replace `mask_ssn` and lift their own restriction — the policy would still show
-as "attached" while doing nothing. Expect the admin group only.
-
-**Expected outcome:** `PASS: PA-D — 4 masks + 2 row filters inventoried, all scoped to admin_demo;
-no sensitive column in the sandbox is unprotected; the three role treatments are distinct
-(full / partial / NULL); unmapped principals see 0 rows.`
 
 <details>
 <summary><strong>Assistant prompt (generate the inventory + test notebook)</strong> — click to expand</summary>
@@ -507,6 +599,71 @@ suffix ALREADY includes its leading underscore — concatenate directly.
 ```
 
 </details>
+
+## PA-11 — Security policy testing & validation ("faux user")
+
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What the RFP asks:** before rollout, simulate a Faculty user to confirm they see masked data
+correctly — the Oracle "faux user" pattern.
+
+**There is no impersonation function in Databricks.** The phase-4 plan suggested
+`simulate_principal()` via UCX. It does not exist — verified, along with `set_session_user()` and
+`impersonate()`; all return `UNRESOLVED_ROUTINE`. A UC policy is evaluated as the **caller**, so no
+single session can self-test another identity.
+
+Two honest mechanisms, and the distinction matters for what you claim:
+
+| Mechanism | Proves | Needs |
+|---|---|---|
+| A `test_mask_ssn_as(ssn, role)` twin — same branch logic, role as an argument | the **branches** are right | nothing; runs alone |
+| A second real principal runs the query, and the audit trail records their read | UC **enforces** it | a colleague in the faculty group |
+
+The first is in the notebook and is what you can do by yourself. **Claiming it proves enforcement
+would be overstating it** — worth saying plainly in the read-out. The second is documented in the
+SQL file as a pre-session checklist item.
+
+**How to test:** run the job, or `pa_d_policy_inventory.py`.
+
+**Expected outcome:** three distinct treatments of the same value — full for admin,
+`***-**-6789` for faculty, `NULL` for anyone else. And three row counts: all / a strict subset /
+zero.
+
+The harness is named `test_…` and dropped at the end, so a later inventory cannot mistake it for a
+live policy — asserted.
+
+**Also checked: who can *rewrite* a policy.** A faculty principal with `CREATE FUNCTION` on
+`admin_demo` could `CREATE OR REPLACE` `mask_ssn` and lift their own restriction — and the
+inventory would still show the policy as attached. Expect the admin group only.
+
+## PA-12 — Security policy audit & documentation
+
+> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+
+**What it proves:** the policy catalog is a **table you can query**, not a console screen you
+screenshot. Unity Catalog exposes `information_schema.column_masks` and
+`information_schema.row_filters`, so an access review is repeatable and cannot miss a table nobody
+remembered to check.
+
+**How to test:** run the job, or the queries in
+[`src/pa_d_policy_inventory.sql`](src/pa_d_policy_inventory.sql).
+
+**Expected outcome:** 4 masks (`student.ssn`, `student.dob`, `faculty.ssn`,
+`financial_aid.amount`) + 2 row filters (`student`, `faculty`), every row in `admin_demo` and none
+anywhere else. A row outside `admin_demo` means a policy has leaked onto the shared foundation.
+
+**The query worth showing is not the inventory** — it is the **coverage gap**: sensitive columns
+with *no* policy, via a LEFT JOIN from `information_schema.columns`. The usual failure in a
+governed estate is not a wrong policy, it is an unprotected table nobody inventoried.
+
+> Read that output honestly: the `silver` rows come back `UNPROTECTED`, and that is **correct**
+> here — the shared foundation deliberately carries no policies. In a real deployment those rows
+> would be the finding, which is exactly why the check earns its place.
+
+**Expected outcome:** `PASS: PA-D — 4 masks + 2 row filters inventoried, all scoped to admin_demo;
+no sensitive column in the sandbox is unprotected; the three role treatments are distinct
+(full / partial / NULL); unmapped principals see 0 rows.`
+
 
 # PA-E — Compute & Capacity Management (PA-13 … PA-18)
 
