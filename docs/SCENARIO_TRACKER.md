@@ -19,7 +19,7 @@ list is the full checklist.
 
 **Summary — pre-built objects (RFP scenario IDs):** 81 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 3 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-03 needs catalog MANAGE; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
 
-**Summary — prompt tested (the generate-from-prompt path):** **46 🟢 tested · 10 🟡 written · 30 — n/a.** Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 1 🟢 (PA-05, Genie over the audit + lineage tables), 9 🟡 written awaiting a generate-and-verify pass (PA-01/02/04, PA-07…12). — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
+**Summary — prompt tested (the generate-from-prompt path):** **49 🟢 tested · 7 🟡 written · 30 — n/a.** Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 4 🟢 (PA-01/02/04 grants generation + PA-05 Genie over the audit + lineage tables), 6 🟡 written awaiting a generate-and-verify pass (PA-07…12). — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
 
 **Total = 86 rows** = 85 RFP IDs + 1 for the split DS-06(a/b). See the per-persona tally at the bottom.
 
@@ -143,10 +143,10 @@ list is the full checklist.
 ### 6.1 User & Group Access Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | 🟢 tested (generated notebook reproduced the grants exactly) |
+| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | 🟢 tested (generated notebook reproduced the grants exactly) |
 | PA-03 | Environment-level access segregation | PA-A | 🟡 model demonstrated by reading catalog grants; applying them needs MANAGE on the catalog (owned by another user) | — n/a |
-| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | 🟢 tested (generated notebook reproduced the grants exactly) |
 | PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | 🟢 tested (Genie space: 2 NL prompts → correct SQL, event_date filtered) |
 | PA-06 | Service account & API credential management | PA-A | ✅ built & verified (SP grants listed; rotation procedure documented) | — n/a |
 
@@ -212,8 +212,8 @@ list is the full checklist.
 | Engineer (SE) | 32 (SE-03…08, SE-10, SE-11–35) | 0 | 11 (SE-01/02/09, SE-36–43) |
 | Data Scientist (DS) | 8 (DS-01/02/04/05/06b/07/08/09) | 1 (DS-03) | 1 (DS-06a) |
 | Business Analyst (BA) | 5 (BA-01/03/05/06/07) | 0 | 3 (BA-02/04/08) |
-| Admin (PA) | 1 (PA-05) | 9 (PA-01/02/04, PA-07…12) | 15 |
-| **Total** | **46** | **10** | **30** |
+| Admin (PA) | 4 (PA-01/02/04/05) | 6 (PA-07…12) | 15 |
+| **Total** | **49** | **7** | **30** |
 
 *DS counts the duplicated DS-06 as two (a/b). SE total 43, DS 10, BA 8, PA 25 = 86 rows here
 (the RFP's ~60 headline counts DS-06 once and reflects the catalogue's own numbering).

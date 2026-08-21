@@ -64,7 +64,7 @@ other two roles demonstrably do not. Nothing is staged.
 
 ## PA-01 / PA-02 / PA-04 — provisioning, group-based access, object-level permissions
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the grants notebook)
+> **Built:** ✅ · **Prompt:** 🟢 tested (`princeton_poc_dev`: generated notebook discovered the account groups, granted at admin_demo scope, and reproduced the baseline exactly — no REVOKE, no workspace-group creation)
 
 <details>
 <summary><strong>Assistant prompt (generate the identity & access notebook)</strong> — click to expand</summary>
