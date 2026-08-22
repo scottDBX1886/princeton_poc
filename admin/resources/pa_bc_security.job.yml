@@ -25,6 +25,10 @@ resources:
           default: ${var.catalog}
         - name: schema_suffix
           default: ${var.schema_suffix}
+        - name: restricted_role
+          default: ${var.restricted_role}
+        - name: admin_group
+          default: ${var.admin_group}
       max_concurrent_runs: 1
       tasks:
         - task_key: column_masking
@@ -33,6 +37,8 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
+              restricted_role: ${var.restricted_role}
+              admin_group: ${var.admin_group}
 
         - task_key: row_filters
           depends_on:
@@ -42,6 +48,8 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
+              restricted_role: ${var.restricted_role}
+              admin_group: ${var.admin_group}
 
         # PA-D inventories what the two tasks above created, so it must run last. Keeping it in the
         # same job means the inventory can never be stale relative to the policies it reports.
@@ -53,3 +61,5 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
+              restricted_role: ${var.restricted_role}
+              admin_group: ${var.admin_group}

@@ -35,32 +35,52 @@ Both were hit while building, and both fail in ways that look like something els
 
 1. **Unity Catalog will not grant to a workspace-local group.** Groups created in this workspace
    are SCIM `type=WorkspaceGroup`, and `GRANT … TO <group>` returns `PRINCIPAL_DOES_NOT_EXIST`.
-   Only **account-level** groups (`type=Group`) can hold UC privileges. With no account-admin
-   rights here, PA-A maps each RFP role onto an account group that already exists.
-2. **Grants need MANAGE on the securable.** `princeton_poc_dev` is owned by another user, so
-   catalog-scoped grants return `PERMISSION_DENIED`. PA-A therefore grants at **`admin_demo`
-   scope**, which the PA admin owns — and which is where spec §3.1 requires PA security scenarios
-   to operate anyway. The constraint and the design agree.
+   Only **account-level** groups (`type=Group`) can hold UC privileges. This workspace has exactly
+   one: `account users`.
+2. **We cannot create account-level groups.** Verified: the SCIM create *succeeds* but returns
+   `meta.resourceType = WorkspaceGroup`, so the following `GRANT` fails. Holding `ALL_PRIVILEGES`
+   on the catalog does not help — granting **to** a principal and **creating** an account-level
+   principal are separate planes of authority, and the second needs account-admin rights.
+3. **Nothing is ever revoked.** `account users` holds `ALL_PRIVILEGES` on `princeton_poc_dev`. That
+   group is every user and service principal in the account, it is the only grantable group here,
+   and the catalog owner (`account_admins`) is not us — so revoking it would lock everyone out with
+   no way back. Restriction is shown by narrow grants on `admin_demo` (which we own) and by the
+   dev/prod asymmetry that already exists.
 
-**Policy checks use `is_member()`, not `is_account_group_member()`.** The account-level function
-cannot see workspace groups, so a mask written against it redacts for *everyone including the
-admin* while appearing to work. `is_member()` resolves both group types.
+## The two identities
 
-## Role → group mapping
-
-| RFP role | Account group used | PA admin a member? |
+| RFP role | Identity here | Reached by |
 |---|---|---|
-| admin | `dbx_demo_shared_admins` | **yes** |
-| faculty | `data_engineers_demo_group` | no |
-| student | `dbx_demo_shared_dev_group` | no |
+| **admin** | your own login (member of `admins`) | normal session |
+| **faculty / student** | `account users` | **RBAC role switch** |
 
-**Say this mapping out loud in the demo.** The group names are inherited from the shared workspace,
-not chosen. In Princeton's own tenancy these would be `princeton_admins` / `_faculty` / `_students`,
-provisioned by SCIM from their IdP — the pattern is identical, only the names and the group-check
-function change.
+**RBAC role switching is the "faux user" mechanism** (and what PA-11 needs). Workspace-name menu
+→ hover the workspace → pick a role. Not a UI preview: while assumed, the role *is* the active SQL
+identity, and UC evaluates grants, masks and row filters against it. Verified live:
 
-The membership column is what makes PA-B's masking demo real: the admin sees unmasked `ssn`, the
-other two roles demonstrably do not. Nothing is staged.
+| | as you | as `account users` |
+|---|---|---|
+| `session_user()` | your email | `account users` |
+| `is_member('admins')` | `true` | **`false`** |
+
+### ⚠️ Policies branch on `session_user()`, not `is_member()`
+
+Two traps, both verified, both silent — the mask appears to work while proving nothing:
+
+1. **A group is not a member of itself.** Acting as `account users`,
+   `is_member('account users')` is **false**, so `WHEN is_member('account users') THEN …` never
+   fires.
+2. **An assumed role inherits none of the human's memberships.** `is_member('admins')` is **false**
+   while acting as the role, even though the person behind it is an admin.
+
+`session_user()` returns your email normally and the role name while a role is assumed, so it
+discriminates reliably. Every policy matches the restricted role **first**, before any
+`is_member()` check.
+
+> In Princeton's own tenancy these would be SCIM-provisioned `princeton_admins` / `_faculty` /
+> `_students`, and the policies would compare `session_user()` against those names. **The pattern is
+> identical; only the names change.** Say that out loud so the two-identity model doesn't read as a
+> platform limitation.
 
 ## Generation prompt — PA-01, PA-02, PA-04
 
@@ -82,38 +102,49 @@ suffix value ALREADY includes its leading underscore, so concatenate with no sep
 f"{catalog}.silver{suffix}", never f"silver_{suffix}". The bundle passes _dev / _test / "" (empty,
 for prod), so an underscore in the f-string breaks qa and prod while passing on dev.
 
-Two hard constraints — get these wrong and it fails at runtime in ways that look like other things:
+Also read widgets "restricted_role" (default "account users") and "admin_group" (default "admins").
+Never hardcode either name.
+
+Three hard constraints — get these wrong and it fails at runtime in ways that look like other
+things:
 
 1. Unity Catalog will NOT grant to a workspace-local group. Groups created in a workspace are SCIM
    type=WorkspaceGroup and GRANT returns PRINCIPAL_DOES_NOT_EXIST. Only ACCOUNT-level groups
-   (type=Group) can hold UC privileges. So do NOT create groups — discover the existing
-   account-level ones with the SDK (w.groups.list(), keep those where meta.resource_type == "Group")
-   and map the three RFP roles onto them.
-2. GRANT needs MANAGE on the securable. Grant at <catalog>.admin_demo scope, NOT catalog scope —
-   the admin owns admin_demo but not the catalog, and catalog-scoped grants return
-   PERMISSION_DENIED.
+   (type=Group) can hold UC privileges, and this workspace has exactly ONE: "account users". So do
+   NOT create groups — discover the existing account-level ones with the SDK (w.groups.list(), keep
+   those where meta.resource_type == "Group") and print the type of every group so the distinction
+   is visible.
+2. Do NOT issue any REVOKE. "account users" holds ALL_PRIVILEGES on the catalog; it is every user in
+   the account and the only grantable group here, so revoking it locks everyone out with no way
+   back. GRANT is additive, so re-granting what the pre-built applied is a harmless no-op.
+3. Grant at <catalog>.admin_demo scope, NOT catalog scope. The admin owns admin_demo, not the
+   catalog.
 
-GRANT is additive, so re-granting what the pre-built already applied is a harmless no-op — but do
-NOT issue any REVOKE, which would tear down the verified baseline we compare against.
-
-GRANT is additive, so re-granting what the pre-built already applied is a harmless no-op — but do
-NOT issue any REVOKE, which would tear down the verified baseline.
+The restricted identity is reached by RBAC ROLE SWITCHING (workspace menu -> role), which makes the
+role the active SQL identity. Two verified traps, both silent:
+  - a group is not a member of itself, so is_member('account users') is FALSE while acting as it
+  - an assumed role inherits none of the human's memberships, so is_member('admins') is FALSE too
+Therefore branch on session_user(), which returns the email normally and the role name while a role
+is assumed. Match the restricted role FIRST, before any is_member() check.
 
 Steps:
-1. Map three roles — admin, faculty, student — onto account-level groups. For each, print whether
-   it is UC-grantable and whether is_member('<group>') is true for the caller. Use is_member(), NOT
-   is_account_group_member(): the account-level function cannot see workspace groups and would make
-   every downstream mask redact for everyone including the admin.
-2. Grant on <catalog>.admin_demo: ALL PRIVILEGES to admin; USE SCHEMA + SELECT to faculty; and for
-   student, USE SCHEMA on the schema plus SELECT on ONLY the admin_demo.student table — no
-   schema-wide SELECT. That narrower grant IS the object-level-permissions scenario.
+1. List every group with its SCIM resource type, marking which are UC-grantable. Then print
+   session_user(), current_user(), is_member(admin_group) and is_member(restricted_role) in one
+   query, and explain in a print() why the last one is False for a real member (a group is not a
+   member of itself) — that is the trap the reader most needs to see.
+2. Grant on <catalog>.admin_demo: USE SCHEMA to restricted_role, plus SELECT on ONLY the
+   admin_demo.student table — no schema-wide SELECT, and nothing at all on faculty or
+   financial_aid. That narrowness IS the object-level-permissions scenario; the absences are the
+   control.
 3. Read the effective grants back from information_schema. Note the column names differ:
    schema_privileges uses schema_name, table_privileges uses table_schema. Mixing them gives
    UNRESOLVED_COLUMN.
-4. Assert: every role maps to a UC-grantable group; is_member() is true for the admin role (else the
-   masking demo has no authorised reader); is_member() is FALSE for at least one other role (else
-   there is no contrast to demonstrate); each role holds a privilege on admin_demo; and the student
-   role does NOT hold schema-wide SELECT.
+4. Detect whether the notebook is itself running as the restricted role (session_user() ==
+   restricted_role) and SKIP the grant cells with a clear message if so — you cannot grant while
+   acting as a role, and a hard failure mid-demo looks like a broken notebook.
+5. Assert: restricted_role is UC-grantable; it holds USE_SCHEMA but NOT schema-wide SELECT on
+   admin_demo; it holds the table-level SELECT on admin_demo.student; and it holds NOTHING on
+   faculty or financial_aid.
 ```
 
 </details>
@@ -129,10 +160,12 @@ onboarding never touches a grant.
 group is UC-grantable and whether `is_member()` resolves for the caller.
 
 Provisioning is then a **membership change only** — **Settings → Identity and access → Groups**
-→ add the user. Verify as them: `SELECT is_member('data_engineers_demo_group')` → `true`.
+→ add the user. Verify as them: `SELECT is_member('<their group>')` → `true`.
 
-**Expected outcome:** all three roles report `grantable=True`, and `is_member()` is true for the
-admin role and false for the other two — the asymmetry that makes PA-B's masking contrast real.
+**Expected outcome:** the group listing shows which groups are UC-grantable (`type=Group`) and which
+are not (`type=WorkspaceGroup`), and the identity query shows `session_user()` plus both membership
+checks. Run it, switch to the `account users` role, run it again — `session_user()` changes and
+`is_member('admins')` flips to `false`. That change is the mechanism.
 
 **⚠️ Membership is cached.** After a group change, `is_member()` kept returning the old answer for
 30+ seconds. Make membership changes a few minutes before you need them on screen — do not remove
@@ -148,40 +181,45 @@ change; offboarding revokes everything at once, because nothing was granted to a
 **How to test:** read the grants back — the notebook does this, or run the query in
 [`src/pa_a_audit_queries.sql`](src/pa_a_audit_queries.sql) section 1.
 
-**Expected outcome:** on `admin_demo` — `ALL_PRIVILEGES` for the admin group, `USE_SCHEMA` +
-`SELECT` for faculty, `USE_SCHEMA` only for the student group. Every grantee is a group.
+**Expected outcome:** on `admin_demo`, `account users` holds `USE_SCHEMA` and one table-level
+`SELECT` — and the grantee is a **group**, not a person. Contrast with the `information_schema` rows
+for the service principals (PA-06), which are the other kind of grantee that is not a human.
 
 ## PA-03 — Environment-level access segregation
 
-> **Built:** 🟡 model demonstrated, not applied · **Prompt:** — n/a (a single owner-run GRANT)
+> **Built:** ✅ · **Prompt:** — n/a (reads live grant state; nothing to generate)
 
-**What it proves:** environments are separate **catalogs** — `princeton_poc_dev`, `_test`, `_qa`,
-`princeton_poc` — in one workspace. `USE CATALOG` gates everything beneath it, so withholding it is
-absolute: no schema- or table-level grant lets a principal around a missing catalog grant. That is
-what makes it segregation rather than a naming convention.
+**What it proves:** environments are separate **catalogs** in one workspace, and this workspace
+already carries the asymmetry — it is the customer's own configuration, not something staged for the
+demo:
 
-**Why 🟡:** applying it needs MANAGE on the catalog, which the PA admin does not hold —
-`princeton_poc_dev` is owned by another user, and catalog-scoped `GRANT` returns
-`PERMISSION_DENIED`. The notebook demonstrates the model by reading live catalog grant state
-instead of applying it.
+| Catalog | `account users` holds |
+|---|---|
+| `princeton_poc_dev` | `ALL_PRIVILEGES` |
+| `princeton_poc_prod` | `BROWSE`, `USE_CATALOG`, `USE_SCHEMA` — **no `SELECT`** |
 
-**To close it,** the catalog owner runs two statements — they are in
-[`src/pa_a_identity_setup.sql`](src/pa_a_identity_setup.sql), commented, ready to uncomment:
+`USE CATALOG` gates everything beneath it and `SELECT` is what actually reads data, so the absence of
+`SELECT` on prod is absolute: no schema- or table-level grant works around it. That is segregation
+rather than a naming convention.
 
-```sql
-GRANT USE CATALOG ON CATALOG princeton_poc_dev TO `data_engineers_demo_group`;
--- and deliberately NOTHING on princeton_poc — the absence IS the control
-```
-
-**Then the demo is a paired query** — the same SQL against two catalogs:
+**Nothing needs granting or revoking to demonstrate this.** Two queries are the scenario:
 
 ```sql
-SELECT count(*) FROM princeton_poc_dev.gold_dev.enrollment_history;  -- returns rows
-SELECT count(*) FROM princeton_poc.gold.enrollment_history;          -- PERMISSION_DENIED
+SHOW SCHEMAS IN princeton_poc_prod;                          -- SUCCEEDS (BROWSE/USE_SCHEMA)
+SELECT count(*) FROM princeton_poc_prod.bronze.enrollments;   -- DENIED   (no SELECT)
 ```
 
-**Also needs a second catalog to exist.** `princeton_poc_test` / `princeton_poc` are not created in
-this workspace yet, so even with MANAGE there is nothing to be denied against.
+**The `BROWSE`-without-`SELECT` point is the sophisticated half**, and it is free: metadata is
+visible, data is not. A data catalogue stays useful for discovery while the data itself stays closed
+— a distinction Oracle FGAC handles quite differently, and worth drawing out.
+
+**How to test:** the notebook runs both halves and reports which succeeded. It reads the grant state
+from `information_schema.catalog_privileges` too, so the assertion holds whoever runs it.
+
+> **Note:** `princeton_poc_prod` is nearly empty (`bronze.enrollments` only; `silver`/`gold` have no
+> tables). So use `bronze.enrollments` for the denial — a query against `prod.silver.student` fails
+> with `TABLE_OR_VIEW_NOT_FOUND`, which proves nothing about access control and a sharp DBA will say
+> so.
 
 ## PA-04 — Source & target object-level permissions
 
@@ -190,16 +228,18 @@ this workspace yet, so even with MANAGE there is nothing to be denied against.
 **What it proves:** a privilege can sit on a single **object**, not just the container — the
 granularity an RFP means by "source and target object-level permissions."
 
-**The demonstration is the student role.** It holds `USE_SCHEMA` on `admin_demo` but **no
+**The demonstration is the restricted role.** It holds `USE_SCHEMA` on `admin_demo` but **no
 schema-wide `SELECT`** — only `SELECT` on `admin_demo.student`. No grant on `faculty` or
-`financial_aid` means no access to them at all.
+`financial_aid` means no access to them at all, with no policy needed to enforce it: the absence
+*is* the control.
 
 **How to test:** the notebook asserts it, or query
 [`src/pa_a_audit_queries.sql`](src/pa_a_audit_queries.sql) section 1.
 
-**Expected outcome:** `information_schema.table_privileges` shows the student group with exactly one
-table grant, and `schema_privileges` shows it *without* `SELECT`. An assertion fails if schema-wide
-`SELECT` ever leaks in — that would silently widen access while still looking like a pass.
+**Expected outcome:** `information_schema.table_privileges` shows `account users` with exactly one
+table grant, and `schema_privileges` shows it *without* `SELECT`. Assertions fail if schema-wide
+`SELECT` ever leaks in, or if a grant appears on `faculty`/`financial_aid` — either would silently
+widen access while still looking like a pass.
 
 > Column-name gotcha: `schema_privileges` uses **`schema_name`**; `table_privileges` uses
 > **`table_schema`**. Mixing them gives `UNRESOLVED_COLUMN`.
@@ -242,6 +282,31 @@ Two questions, two tables:
 **⚠️ Always filter on `event_date`** — it is the partition column on both, and they hold tens of
 millions of rows per week (53M over 7 days in this workspace). An unfiltered query is slow enough to
 look broken.
+
+### An assumed role does not launder your identity
+
+**The question a security reviewer will ask about role switching**, and it deserves a direct answer:
+if someone can act as a role, can they hide behind it?
+
+No. `system.access.audit.identity_metadata` is a
+`struct<run_by, run_as, acting_resource, run_by_display_name, run_as_display_name>` — `run_by` is the
+authenticated human, `run_as` is the role they assumed. Accountability survives the switch, which is
+what makes role switching acceptable as a production access pattern rather than a hole in the audit
+trail.
+
+```sql
+SELECT event_time,
+       identity_metadata.run_by  AS run_by,   -- the human
+       identity_metadata.run_as  AS run_as,   -- the assumed role
+       action_name
+FROM system.access.audit
+WHERE event_date >= current_date() - INTERVAL 7 DAYS
+  AND identity_metadata.run_as IS NOT NULL
+ORDER BY event_time DESC;
+```
+
+Returns no rows until someone has actually acted as a role in the window — switch roles, run a
+query, wait a few minutes for the audit lag, then re-run.
 
 ## PA-06 — Service principals & credential rotation
 
@@ -344,33 +409,54 @@ If you need a table to attach to, create your own copy first:
 CREATE OR REPLACE TABLE admin_demo.student_prompt AS SELECT * FROM <catalog>.silver<suffix>.student
 
 
-Use is_member('<group>') for the role checks, NOT is_account_group_member(). The account-level
-function cannot see workspace groups and would make every branch fall through to the ELSE —
-redacting for everyone including the admin, which looks like it works and proves nothing.
-Groups: admin = dbx_demo_shared_admins, faculty = data_engineers_demo_group.
+Read widgets "restricted_role" (default "account users") and "admin_group" (default "admins") —
+never hardcode either.
 
-1. Capture the unmasked values for a few rows first, so the after-state is a comparison.
+Branch on session_user(), NOT is_member(). The restricted identity is reached by RBAC role switching
+(workspace menu -> role), and two verified traps make is_member() the wrong predicate — both fail
+silently, so the mask looks like it works while proving nothing:
+  - a group is not a member of itself: acting as "account users", is_member('account users') is FALSE
+  - an assumed role inherits none of the human's memberships: is_member('admins') is FALSE too
+session_user() returns the email normally and the role name while a role is assumed. Match the
+restricted role FIRST, before any is_member() check can be reached.
 
-2. Create three mask functions with graduated treatments — a mask is a FUNCTION applied to a column:
-   - mask_ssn: full value for admin; concat('***-**-', right(ssn,4)) for faculty; NULL otherwise.
-     Return NULL, not a '[REDACTED]' string — a placeholder still leaks that a value exists and
-     breaks typed clients.
-   - mask_dob: full for admin; year only ('YYYY-XX-XX') for faculty; NULL otherwise. dob is a STRING
-     in three formats (yyyy-MM-dd, MM/dd/yyyy, dd.MM.yyyy) and year(dob) returns NULL for two of
-     them, so parse with coalesce over try_to_date for all three.
-   - mask_amount: full for admin; round(amount, -3) for faculty; NULL otherwise.
+1. Capture the unmasked values for a few rows first, so the after-state is a comparison. Read them
+   from <catalog>.silver<suffix>.student — the unpolicied foundation — so the cell shows ground truth
+   and is safe to re-run after policies are attached.
+
+2. Create three mask functions with graduated treatments — a mask is a FUNCTION applied to a column.
+   Each has the same three-branch shape: restricted role -> NULL; admin_group member -> true value;
+   everyone else -> partially masked.
+   - mask_ssn: NULL for the restricted role; full value for admins; concat('***-**-', right(ssn,4))
+     otherwise. Return NULL, not a '[REDACTED]' string — a placeholder still leaks that a value
+     exists, and breaks typed columns (financial_aid.amount is a DOUBLE and would error).
+   - mask_dob: NULL for the restricted role; full for admins; year only ('YYYY-XX-XX') otherwise.
+     dob is a STRING in three formats (yyyy-MM-dd, MM/dd/yyyy, dd.MM.yyyy) and year(dob) returns
+     NULL for two of them, so parse with coalesce over try_to_date for all three.
+   - mask_amount: NULL for the restricted role; full for admins; round(amount, -3) otherwise.
 
 3. Attach them with ALTER TABLE <t> ALTER COLUMN <c> SET MASK <fn> — that exact form. Do NOT use
    "SET COLUMN MASK c = fn(c)", which is not valid Databricks SQL. DROP MASK first so the notebook
    is re-runnable.
    Mask: student.ssn, student.dob, faculty.ssn, financial_aid.amount.
 
-4. Re-run the same query from step 1 to show the governed result.
+4. Re-run the same query from step 1 against admin_demo to show the governed result.
 
-5. Assert: the admin's view is UNCHANGED (if it changed, is_member is false and the policy is
-   redacting for everyone); every intended mask is actually attached, read back from
-   information_schema.column_masks; zero rows have NULL dob after masking; and the shared foundation
-   carries no masks or row filters at all.
+5. Detect whether the notebook is running AS the restricted role (session_user() == restricted_role)
+   and branch: skip policy creation with a clear message, and assert the RESTRICTED outcome instead
+   (ssn and dob both NULL). Running as yourself asserts the admin outcome. That makes one notebook
+   serve both halves of the demo — apply as admin, then switch roles and re-run to prove enforcement.
+
+6. Assert (admin path): the admin's view is UNCHANGED versus step 1 (if it changed, is_member is
+   false and the policy is redacting for everyone); every intended mask is attached, read back from
+   information_schema.column_masks; and no mask sits outside admin_demo.
+
+7. For the dob mask, DO NOT test it by counting NULLs in the masked table. As an admin you get the
+   unmasked branch, which returns dob untouched, so the coalesce never runs and the check passes even
+   when it is broken. Instead evaluate the parse expression directly over every row of
+   silver<suffix>.student and assert zero unparseable values:
+   sum(CASE WHEN coalesce(try_to_date(dob,'yyyy-MM-dd'), try_to_date(dob,'MM/dd/yyyy'),
+   try_to_date(dob,'dd.MM.yyyy')) IS NULL THEN 1 ELSE 0 END) = 0
 ```
 
 </details>
@@ -471,34 +557,50 @@ If you need a table to attach to, create your own copy first:
 CREATE OR REPLACE TABLE admin_demo.student_prompt AS SELECT * FROM <catalog>.silver<suffix>.student
 
 
-Use is_member(), not is_account_group_member(). Admin group = dbx_demo_shared_admins.
+Read widgets "restricted_role" (default "account users") and "admin_group" (default "admins") —
+never hardcode either.
+
+Branch on session_user(), NOT is_member(). The restricted identity is reached by RBAC role switching
+(workspace menu -> role), and two verified traps make is_member() wrong here — both fail silently:
+  - a group is not a member of itself: acting as "account users", is_member('account users') is FALSE
+  - an assumed role inherits none of the human's memberships: is_member('admins') is FALSE too
 
 1. Create a mapping table admin_demo.department_access (principal STRING, dept_id BIGINT,
    granted_by STRING, granted_at TIMESTAMP). This is what makes the policy dynamic — moving someone
-   between departments becomes an INSERT, not a policy rewrite. Seed the current user to TWO
-   departments, so "filtered" is visibly narrower than "all" without being a single row that could
-   be a coincidence.
+   between departments becomes an INSERT, not a policy rewrite.
+
+   Seed the RESTRICTED ROLE (not the current user) to TWO departments, so "filtered" is visibly
+   narrower than "all" without being a single row that could be a coincidence. The principal column
+   holds whatever session_user() returns, which for an assumed role is the ROLE NAME, not an email.
+   Get this wrong and the filter denies every row for the role — which looks like a broken demo
+   rather than a working policy.
 
 2. Create a row-filter function returning BOOLEAN, with three branches in precedence order:
-   admins unrestricted; anyone whose principal matches current_user() in department_access sees
-   their mapped departments; everyone else sees nothing. Deny by default — do NOT let an unmapped
-   principal see everything. A row-filter function MAY contain a subquery against a lookup table.
-   Also match on is_member(principal), so the mapping table can name a GROUP as well as a user.
+   FIRST the restricted role (session_user() = restricted_role) sees only its mapped departments;
+   then admin_group members unrestricted; then everyone else sees their own mapped departments, or
+   nothing if unmapped. Deny by default — do NOT let an unmapped principal see everything. The
+   restricted branch must come first, because is_member() cannot be relied on once a role is assumed.
+   A row-filter function MAY contain a subquery against a lookup table.
 
 3. Attach it with ALTER TABLE <t> SET ROW FILTER <fn> ON (dept_id) — that exact form. DROP ROW
    FILTER first so it is re-runnable. Apply to admin_demo.student and admin_demo.faculty.
 
-4. Show the admin's row count (unrestricted), then evaluate what a mapped non-admin would see by
-   applying the same predicate as a WHERE clause. You cannot become another user mid-notebook, so
-   evaluate the predicate rather than pretending to impersonate.
+4. Show what THIS identity sees (count and distinct departments), and print whether the session is
+   the admin or the restricted role. Detect the mode with session_user() == restricted_role and skip
+   the write cells when acting as the role — it cannot ALTER tables it does not own.
 
-5. Prove the dynamic claim: INSERT one more department into the mapping table and show the visible
-   row count grow — with the policy function untouched.
+5. Prove the dynamic claim: INSERT one more department into the mapping table and show the row count
+   the restricted role may see grow — with the policy function untouched. Evaluate that count as a
+   WHERE-clause predicate against the unpolicied foundation, so the number is right regardless of
+   which identity runs the cell.
 
-6. Assert: the admin sees ALL rows; a mapped identity sees a strict subset; the department count
-   matches the mapping table; the INSERT widened access; an unmapped principal sees ZERO rows; the
-   filter is attached where intended per information_schema.row_filters; and the foundation carries
-   no policies.
+6. Assert, branching on the mode from step 4.
+   Admin path: the admin sees ALL rows; the restricted role would see a strict subset (>0 and <all);
+   an unmapped principal sees ZERO rows; the INSERT widened access; the filter is attached where
+   intended per information_schema.row_filters; and the foundation carries no policies.
+   Restricted path: fewer rows than the total, more than zero, and every visible dept_id is one
+   mapped to the role. If it sees zero, say in the assertion message that the mapping table probably
+   has no row for the role name — that is the failure this design is most likely to hit.
 ```
 
 </details>
@@ -580,13 +682,21 @@ suffix ALREADY includes its leading underscore — concatenate directly.
    amount, email) where mask_name IS NULL — i.e. UNPROTECTED. Inventory says what is protected;
    this says what is exposed.
 
-4. Pre-rollout testing. There is NO impersonation function in Databricks — simulate_principal(),
-   set_session_user() and impersonate() do not exist, and a policy is evaluated as the caller. So
-   instead create a test twin of the mask with the role as a parameter:
-   test_mask_ssn_as(ssn STRING, role STRING), same branch logic, and select all three treatments
-   side by side. Name it test_* and DROP it at the end so it cannot be mistaken for a live policy.
-   For the row filter, count rows for three cases: admin (all), a mapped identity (subset), and an
-   unmapped principal (zero).
+4. Pre-rollout testing, in two mechanisms of increasing strength — label them as such, because
+   conflating them overstates what the first one proves.
+
+   (a) Branch logic. There is no impersonation FUNCTION — simulate_principal(), set_session_user()
+   and impersonate() all return UNRESOLVED_ROUTINE, and a policy evaluates as the caller. So create a
+   test twin of the mask with the identity as a parameter: test_mask_ssn_as(ssn STRING,
+   acting_as STRING), same branch logic, and select every treatment side by side. Name it test_* and
+   DROP it at the end so it cannot be mistaken for a live policy. For the row filter, count rows for
+   three cases: admin (all), the restricted role (subset), an unmapped principal (zero).
+
+   (b) Enforcement. RBAC role switching IS the faux-user mechanism: workspace-name menu -> hover the
+   workspace -> pick the role. While assumed, the role is the active SQL identity and UC evaluates
+   masks and filters against it. Print session_user() and is_member(admin_group) so the notebook
+   records which identity produced its numbers, and document the switch steps in markdown. Do NOT
+   claim (a) proves enforcement — it ran as you, with the identity passed in as a string.
 
 5. Check who could REWRITE a policy: query schema_privileges for ALL_PRIVILEGES / CREATE_FUNCTION /
    MODIFY on admin_demo. A principal who can CREATE OR REPLACE the mask function can lift their own
@@ -607,34 +717,43 @@ suffix ALREADY includes its leading underscore — concatenate directly.
 **What the RFP asks:** before rollout, simulate a Faculty user to confirm they see masked data
 correctly — the Oracle "faux user" pattern.
 
-**There is no impersonation function in Databricks.** The phase-4 plan suggested
-`simulate_principal()` via UCX. It does not exist — verified, along with `set_session_user()` and
-`impersonate()`; all return `UNRESOLVED_ROUTINE`. A UC policy is evaluated as the **caller**, so no
-single session can self-test another identity.
+**Databricks has this, and it is RBAC role switching.** There is no impersonation *function* —
+`simulate_principal()`, `set_session_user()` and `impersonate()` all return `UNRESOLVED_ROUTINE`
+(verified), and a policy evaluates as the caller, so you cannot self-test another identity by calling
+something. But you *can* **assume a role**: workspace-name menu → hover the workspace → pick the
+role. While assumed, the role is the active SQL identity and UC evaluates grants, masks and row
+filters against it.
 
-Two honest mechanisms, and the distinction matters for what you claim:
+Two mechanisms, and the distinction matters for what you claim:
 
 | Mechanism | Proves | Needs |
 |---|---|---|
-| A `test_mask_ssn_as(ssn, role)` twin — same branch logic, role as an argument | the **branches** are right | nothing; runs alone |
-| A second real principal runs the query, and the audit trail records their read | UC **enforces** it | a colleague in the faculty group |
+| A `test_mask_ssn_as(ssn, acting_as)` twin — same branch logic, identity as an argument | the **branches** are right | nothing; runs alone |
+| **Assume the role and re-run PA-B / PA-C** | UC **enforces** it | nothing — no colleague, no service principal |
 
-The first is in the notebook and is what you can do by yourself. **Claiming it proves enforcement
-would be overstating it** — worth saying plainly in the read-out. The second is documented in the
-SQL file as a pre-session checklist item.
+The first ran as *you*, with the identity passed in as a string — **claiming it proves enforcement
+would be overstating it.** The second is the real test, and in this workspace it costs one menu
+click.
 
-**How to test:** run the job, or `pa_d_policy_inventory.py`.
+**How to test:**
+1. Run `pa_d_policy_inventory.py` as yourself — mechanism (a), plus the full policy inventory.
+2. Switch to the `account users` role and re-run `pa_b_column_masking` and `pa_c_row_filters`. Both
+   detect the assumed role and swap to their restricted assertions.
+3. Switch back the same way.
 
-**Expected outcome:** three distinct treatments of the same value — full for admin,
-`***-**-6789` for faculty, `NULL` for anyone else. And three row counts: all / a strict subset /
-zero.
+**Expected outcome:** three distinct treatments of the same value — full for admin, `***-**-6789`
+partial, `NULL` for the restricted role. Three row counts: all / a strict subset / zero. And under
+the role switch, `ssn` and `dob` come back **NULL** with only the mapped departments visible —
+enforced by Unity Catalog against a real second identity, not simulated.
 
 The harness is named `test_…` and dropped at the end, so a later inventory cannot mistake it for a
 live policy — asserted.
 
-**Also checked: who can *rewrite* a policy.** A faculty principal with `CREATE FUNCTION` on
-`admin_demo` could `CREATE OR REPLACE` `mask_ssn` and lift their own restriction — and the
-inventory would still show the policy as attached. Expect the admin group only.
+**Also checked: who can *rewrite* a policy.** A restricted principal with `CREATE FUNCTION` or
+`MODIFY` on `admin_demo` could `CREATE OR REPLACE` `mask_ssn` and lift its own restriction — and the
+inventory would still report the policy as attached. The same argument applies to
+`admin_demo.department_access`: write access to the mapping table *is* write access to the row-filter
+policy. Expect the owner only.
 
 ## PA-12 — Security policy audit & documentation
 

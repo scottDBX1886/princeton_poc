@@ -23,71 +23,121 @@ policy rather than code (group onboarding and credential rotation).
 
 ---
 
-## 2. Group taxonomy
+## 2. The two identities in this workspace
 
-| Group | Reads | Purpose |
+The RFP describes Admin / Faculty / Student roles. This workspace supports **two** distinct
+identities, and the constraint is worth stating plainly because it shaped everything else:
+
+| RFP role | Identity here | Reached by |
 |---|---|---|
-| `princeton_poc_dev_admins` | bronze, silver, gold, `admin_demo` | Platform administrators; the only group that sees raw Bronze and can apply policies |
-| `princeton_poc_dev_faculty` | silver, gold | Teaching and research staff — conformed dimensions and the enrollment fact |
-| `princeton_poc_dev_students` | gold | Curated fact only, row-filtered to their own records |
+| **admin** | `mehak.juneja@databricks.com` (member of `admins`) | normal login |
+| **faculty / student** | `account users` | **RBAC role switch** |
 
-**Names are catalog-prefixed on purpose.** Bare `Admins` / `Faculty` / `Students` in a shared
-workspace would collide with another team's groups — and a column mask that resolves against
-someone else's `Admins` is a security bug, not a naming annoyance. The prefix also makes the
-environment obvious in an access review: `princeton_poc_test_faculty` is unmistakably not prod.
+### Why not three purpose-built groups
+
+Unity Catalog grants only to **account-level** groups (SCIM `type=Group`). This workspace has
+exactly one: `account users`. `admins` and `users` are `type=WorkspaceGroup`, and `GRANT` to either
+returns `PRINCIPAL_DOES_NOT_EXIST`.
+
+Creating `princeton_admins` / `_faculty` / `_students` does not work either, and it fails in a way
+worth knowing about: **the SCIM create succeeds** and returns a group — but with
+`meta.resourceType = WorkspaceGroup`, so the subsequent `GRANT` fails. Verified end to end.
+
+Holding `ALL_PRIVILEGES` on the catalog does not help. Granting **to** an existing principal and
+**creating** an account-level principal are separate planes of authority; the second needs
+account-admin rights, which a workspace admin does not have.
+
+> In Princeton's own tenancy these would be SCIM-provisioned `princeton_admins` /
+> `princeton_faculty` / `princeton_students` from their IdP, and the policy functions would compare
+> `session_user()` against those names. **The pattern is identical; only the names change.** Worth
+> saying out loud in the read-out so the two-identity model doesn't read as a limitation of the
+> platform.
 
 ---
 
-## 3. `is_member()`, not `is_account_group_member()`
+## 3. RBAC role switching — the "faux user" mechanism
 
-This is the single most important implementation detail in the PA persona, and getting it wrong
-fails silently.
+Databricks supports **assuming a role**: workspace-name menu (top right) → hover the workspace →
+pick a role. This is not a UI preview or a visibility filter. While a role is assumed it becomes the
+**active SQL identity**: the user's own permissions are replaced for the session, and Unity Catalog
+evaluates grants, row filters and column masks against the role.
+
+This is what PA-11 ("faux user" testing) asks for, and it needs no colleague, no service principal
+and no account-admin rights.
+
+Verified live in this workspace:
+
+| | as the user | as `account users` |
+|---|---|---|
+| `session_user()` | `mehak.juneja@databricks.com` | `account users` |
+| `current_user()` | `mehak.juneja@databricks.com` | `account users` |
+| `is_member('admins')` | `true` | **`false`** |
+
+### Policies branch on `session_user()`, not `is_member()`
+
+Two traps, both verified, both silent — the mask appears to work while proving nothing:
+
+1. **A group is not a member of itself.** Acting as `account users`,
+   `is_member('account users')` is **false**. A policy written as
+   `WHEN is_member('account users') THEN <restricted>` never fires.
+2. **An assumed role inherits none of the human's memberships.** `is_member('admins')` is **false**
+   while acting as the role, even though the person behind it is an admin.
+
+`session_user()` returns the email when you are yourself and the role name when you have assumed a
+role, so it discriminates reliably in both directions. Every PA-B / PA-C policy therefore matches
+the restricted role **first**, before any `is_member()` check runs:
 
 ```sql
-is_account_group_member('admins')                  -- false
-is_account_group_member('dbx_demo_shared_admins')  -- true   (account-level group)
-is_member('admins')                                -- true   (workspace-local group)
+CASE
+  WHEN session_user() = 'account users' THEN NULL        -- PA-08: full restriction
+  WHEN is_member('admins')              THEN ssn         -- unrestricted
+  ELSE concat('***-**-', right(ssn, 4))                  -- PA-07: partial
+END
 ```
 
-Groups created in this workspace are `WorkspaceGroup` objects. `is_account_group_member()` cannot
-see them, so a mask written as:
+### An assumed role does not hide who you are
 
-```sql
-CASE WHEN is_account_group_member('princeton_poc_dev_admins') THEN ssn ELSE '[REDACTED]' END
-```
+The question a security reviewer will ask. `system.access.audit.identity_metadata` carries
+`run_by` (the authenticated human) alongside `run_as` (the assumed role), so accountability survives
+the switch. That is what makes role switching acceptable as a production access pattern rather than
+a hole in the audit trail. PA-05 queries it directly.
 
-returns `[REDACTED]` **for everyone, including the admin** — the demo appears to work while proving
-nothing. Every policy in PA-B and PA-C therefore uses `is_member()`.
+### Operational caveat
 
-> If Princeton's own environment uses account-level groups provisioned by SCIM from their IdP,
-> `is_account_group_member()` becomes the right function there. The *pattern* is identical; only the
-> function name changes. Worth saying explicitly in the read-out so it doesn't look like a
-> workaround.
-
-### Two operational caveats found while building this
-
-- **Members must be supplied at group creation.** A follow-up SCIM `PATCH` to add members returns
-  `operation not permitted` for a workspace admin who is not an account admin. The notebook
-  therefore seeds the admin group at creation; faculty and students are populated in the UI
-  (**Settings → Identity and access → Groups**).
-- **Group membership is cached.** After deleting a group, `is_member()` continued returning `true`
-  for at least half a minute. For a live demo, make membership changes a few minutes before you need
-  them to take effect — do not remove someone from a group on stage and expect the next query to
-  redact.
+**Group membership is cached.** After a membership change, `is_member()` can keep returning the old
+answer for up to a minute. Make membership changes a few minutes before you need them — do not
+remove someone from a group on stage and expect the next query to redact.
 
 ---
 
 ## 4. Onboarding procedure (PA-01)
 
+In Princeton's tenancy, with SCIM-provisioned groups:
+
 1. **Settings → Identity and access → Groups** → open the target group.
 2. Add the user. Membership is the only step — no grants are edited.
-3. Verify as the user: `SELECT is_member('princeton_poc_dev_faculty')` → `true`.
-4. Confirm effective access: they can `SELECT` from `gold_dev.enrollment_history` and are denied on
-   `bronze_dev`.
+3. Verify as the user: `SELECT is_member('princeton_faculty')` → `true`.
+4. Confirm effective access: they can `SELECT` from `gold.enrollment_history` and are denied on
+   `bronze`.
 
 Offboarding is the same in reverse. Because every grant attaches to a group, removing membership
 revokes everything at once — there is no per-object cleanup, which is exactly the failure mode of
 user-level grants.
+
+**In this POC workspace**, where new account-level groups cannot be created, the equivalent
+demonstration is the role switch: assume `account users`, observe the narrowed access, switch back.
+Same conclusion — access follows the identity, not the person — reached with the identities that
+exist here.
+
+### What is never done here: `REVOKE`
+
+`account users` holds `ALL_PRIVILEGES` on `princeton_poc_dev`. That group is **every user and
+service principal in the account**, it is the only UC-grantable group in this workspace, and the
+catalog owner is `account_admins` — which we are not in. Revoking it would lock out every user with
+no second group to recover through.
+
+So no PA scenario revokes anything. Restriction is demonstrated by narrow grants on a schema we own
+(`admin_demo`) and by the dev/prod grant asymmetry that already exists (PA-03).
 
 ---
 

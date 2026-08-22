@@ -1,8 +1,11 @@
 # PA-A — identity & access setup (PA-01 … PA-06).
 #
-# Creates the workspace group taxonomy and applies the UC grants every later PA scenario depends
-# on. PA-B (masking) and PA-C (row filters) branch on these groups via is_member(), so this must
-# run before either.
+# Applies the UC grants every later PA scenario depends on. PA-B (masking) and PA-C (row filters)
+# branch on the same identities, so this must run before either.
+#
+# It does NOT create groups: this workspace has one UC-grantable group (`account users`) and we
+# hold no account-admin rights, so new groups would come out as SCIM WorkspaceGroup and UC would
+# reject them with PRINCIPAL_DOES_NOT_EXIST. The role model uses the identities that already exist.
 #
 # Picked up automatically by the root databricks.yml `include: "*/resources/*.yml"` glob.
 # notebook_path is relative to THIS file's directory (admin/resources -> ../src/...).
@@ -23,6 +26,12 @@ resources:
           default: ${var.catalog}
         - name: schema_suffix
           default: ${var.schema_suffix}
+        - name: prod_catalog
+          default: ${var.prod_catalog}
+        - name: restricted_role
+          default: ${var.restricted_role}
+        - name: admin_group
+          default: ${var.admin_group}
       max_concurrent_runs: 1
       tasks:
         - task_key: identity_access
@@ -31,3 +40,6 @@ resources:
             base_parameters:
               catalog: ${var.catalog}
               schema_suffix: ${var.schema_suffix}
+              prod_catalog: ${var.prod_catalog}
+              restricted_role: ${var.restricted_role}
+              admin_group: ${var.admin_group}

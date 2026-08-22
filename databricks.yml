@@ -20,6 +20,22 @@ variables:
   runbook_app_name:
     description: Databricks App name for the interactive runbook. App names are workspace-global, so qa/prod override this to avoid colliding with dev's app.
     default: "princeton-poc-runbook"
+  prod_catalog:
+    description: The catalog PA-03 uses as the environment a restricted identity CANNOT read. Must be a real catalog whose grants withhold SELECT from restricted_role.
+    default: "princeton_poc_prod"
+  restricted_role:
+    description: >-
+      The identity PA policies restrict, reached via RBAC role switching (workspace menu -> role).
+      Must be an ACCOUNT-level group (SCIM type=Group) — UC rejects workspace-local groups with
+      PRINCIPAL_DOES_NOT_EXIST. Policies compare it against session_user(), which returns this
+      name verbatim while the role is assumed.
+    default: "account users"
+  admin_group:
+    description: >-
+      Group whose members get the unrestricted policy branch. Checked with is_member(), which is
+      reliable for a real user but FALSE while acting as a role — hence restricted_role is always
+      matched first in every policy function.
+    default: "admins"
 
 targets:
   dev:
@@ -37,7 +53,10 @@ targets:
     variables:
       catalog: "princeton_poc_dev"
       schema_suffix: "_dev"
-      warehouse_id: "5d42098cbe21ce49"   # Serverless Starter Warehouse (princeton_poc)
+      warehouse_id: "3cd5a232762fcdc5"   # Serverless Starter Warehouse (workspace-princeton-poc)
+  # NOTE: this workspace has exactly TWO catalogs — princeton_poc_dev and princeton_poc_prod.
+  # There is no princeton_poc_test, so `qa` cannot be deployed here as-is; it is kept for the
+  # three-environment story (PA-03 segregation) and for a workspace that does have a test catalog.
   qa:
     mode: production
     workspace:
@@ -46,18 +65,21 @@ targets:
     variables:
       catalog: "princeton_poc_test"
       schema_suffix: "_test"
-      warehouse_id: "5d42098cbe21ce49"   # princeton_poc Serverless Starter Warehouse
+      warehouse_id: "3cd5a232762fcdc5"
       mock_api_name: "princeton-mock-api-test"   # app names are workspace-global; qa gets its own
       runbook_app_name: "princeton-poc-runbook-test"
+  # prod is READ-ONLY for us: princeton_poc_prod is owned by account_admins and `account users`
+  # holds BROWSE/USE_CATALOG/USE_SCHEMA but NOT SELECT. That asymmetry is what PA-03 demonstrates,
+  # so do not "fix" it with a grant — deploying writes here will fail by design.
   prod:
     mode: production
     workspace:
       profile: princeton_poc
       root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
     variables:
-      catalog: "princeton_poc"
+      catalog: "princeton_poc_prod"
       schema_suffix: ""
-      warehouse_id: "5d42098cbe21ce49"   # princeton_poc Serverless Starter Warehouse
+      warehouse_id: "3cd5a232762fcdc5"
 
 include:
   # Persona-scoped resources. Each persona owns a top-level folder with its own

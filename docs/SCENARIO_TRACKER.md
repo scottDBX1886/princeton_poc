@@ -15,9 +15,9 @@ list is the full checklist.
 
 **Prompt tested? legend** (the *NL / Designer / Assistant prompt* — does generating from it produce a working object? this is the RFP's real ask, tracked separately from the pre-built object):
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
-**Last updated:** 2026-08-18
+**Last updated:** 2026-08-22 — PA-A/B/C/D rebuilt for the customer workspace (`dbc-7ef61dd7-1b75`); see the note under Persona 4.
 
-**Summary — pre-built objects (RFP scenario IDs):** 81 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 3 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-03 needs catalog MANAGE; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
+**Summary — pre-built objects (RFP scenario IDs):** 82 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 2 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
 
 **Summary — prompt tested (the generate-from-prompt path):** **49 🟢 tested · 7 🟡 written · 30 — n/a.** Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 4 🟢 (PA-01/02/04 grants generation + PA-05 Genie over the audit + lineage tables), 6 🟡 written awaiting a generate-and-verify pass (PA-07…12). — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
 
@@ -140,12 +140,25 @@ list is the full checklist.
 
 ## Persona 4 — Platform Administrator (PA-01 … PA-25)
 
+> **⚠️ PA-A/B/C/D were rebuilt on 2026-08-22 for the customer workspace
+> (`dbc-7ef61dd7-1b75`, AWS) and have NOT been re-run there yet.** The "✅ built & verified" marks
+> below were earned in the retired Azure demo workspace against the previous three-group design, so
+> they attest to the *approach*, not to the current code in this environment.
+>
+> What changed: that workspace had three account-level groups to map roles onto. This one has exactly
+> one (`account users`), so the restricted identity is now reached by **RBAC role switching** and every
+> policy branches on **`session_user()`** instead of `is_member()` — a group is not a member of itself,
+> and an assumed role inherits no memberships, so `is_member()` returns `false` in both directions.
+> PA-03 is newly closeable here because `princeton_poc_prod` exists and already withholds `SELECT`.
+>
+> Flip these to verified only after a real run in the customer workspace.
+
 ### 6.1 User & Group Access Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
 | PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | 🟢 tested (generated notebook reproduced the grants exactly) |
 | PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | 🟢 tested (generated notebook reproduced the grants exactly) |
-| PA-03 | Environment-level access segregation | PA-A | 🟡 model demonstrated by reading catalog grants; applying them needs MANAGE on the catalog (owned by another user) | — n/a |
+| PA-03 | Environment-level access segregation | PA-A | ✅ built (dev/prod grant asymmetry already exists: `account users` has ALL_PRIVILEGES on dev, BROWSE/USE_CATALOG/USE_SCHEMA but no SELECT on prod — plus the BROWSE-without-SELECT demo) · ⬜ not yet re-run in the customer workspace | — n/a |
 | PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | 🟢 tested (generated notebook reproduced the grants exactly) |
 | PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | 🟢 tested (Genie space: 2 NL prompts → correct SQL, event_date filtered) |
 | PA-06 | Service account & API credential management | PA-A | ✅ built & verified (SP grants listed; rotation procedure documented) | — n/a |
@@ -157,7 +170,7 @@ list is the full checklist.
 | PA-08 | Column-level security — full column restriction | PA-B | ✅ built & verified (NULL for unprivileged roles, not a placeholder string) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-09 | Row-level security — attribute-based filtering | PA-C | ✅ built & verified (dept_id filter; 30,000 -> subset per identity) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-10 | Row-level security — dynamic policy by user identity | PA-C | ✅ built & verified (department_access lookup on current_user(); one INSERT widens access, no policy change) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-11 | Security policy testing & validation ("faux user") | PA-D | ✅ built & verified (parameterised test twin — 3 role treatments distinct; no impersonation fn exists in Databricks) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-11 | Security policy testing & validation ("faux user") | PA-D | ✅ built (two mechanisms: parameterised test twin for branch logic + RBAC role switching for real enforcement — assuming `account users` makes it the active SQL identity) · ⬜ not yet re-run in the customer workspace | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 | PA-12 | Security policy audit & documentation | PA-D | ✅ built & verified (information_schema.column_masks + row_filters: 4 masks, 2 filters, all in admin_demo; plus a coverage-gap check) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 
 ### 6.3 Compute & Capacity Management
@@ -203,8 +216,8 @@ list is the full checklist.
 | Engineer (SE) | 43 | 41 (SE-03…43 except SE-01/02) | 0 | 2 (SE-01/02, E2 parked) |
 | Data Scientist (DS) | 10* | 9 (DS-01/02/04/05/06a/06b/07/08/09) | 1 (DS-03) | 0 |
 | Business Analyst (BA) | 8 | 8 (BA-01…08) | 0 | 0 |
-| Admin (PA) | 25 | 23 (PA-01/02/04…12 via PA-A/B/C/D, PA-13…18 via PA-E, PA-19…25 via PA-F) | 2 (PA-03, PA-24) | 0 |
-| **Total** | **86** | **81** | **3** | **2** |
+| Admin (PA) | 25 | 24 (PA-01…12 via PA-A/B/C/D incl. PA-03, PA-13…18 via PA-E, PA-19…25 via PA-F) | 1 (PA-24) | 0 |
+| **Total** | **86** | **82** | **2** | **2** |
 
 **Prompt tested? (generate-from-prompt path):**
 | Persona | 🟢 tested | 🟡 written, not tested | — n/a |
