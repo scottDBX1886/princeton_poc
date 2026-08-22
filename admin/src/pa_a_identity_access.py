@@ -155,28 +155,71 @@ else:
         spark.sql(f"GRANT {privs} ON {kind} {securable} TO `{principal}`")
         print(f"  GRANT {privs:12s} ON {kind:6s} {securable:44s} -> {principal}")
 
-    print(f"\nDeliberately NOT granted to {RESTRICTED_ROLE}: SELECT on the schema, and any privilege")
-    print("on admin_demo.faculty or admin_demo.financial_aid. Those absences are the control.")
+    print(f"\nGranted explicitly to {RESTRICTED_ROLE}: USE_SCHEMA on the schema and SELECT on exactly")
+    print("one table. Read the next cell before concluding anything about denial, though — in THIS")
+    print("catalog those grants are redundant, and the reason is the interesting part.")
 
 # COMMAND ----------
-# MAGIC %md ## PA-04 — The effective grants, from `information_schema`
+# MAGIC %md ## PA-04 — Object-level permissions, and why `inherited_from` is the column that matters
 # MAGIC Queryable source of truth, no console clicking. Column-name gotcha: `schema_privileges` uses
 # MAGIC **`schema_name`**; `table_privileges` uses **`table_schema`**. Mixing them gives
 # MAGIC `UNRESOLVED_COLUMN`.
+# MAGIC
+# MAGIC ## ⚠️ Read `inherited_from`, not just `privilege_type`
+# MAGIC **Unity Catalog privileges cascade downward.** `account users` holds `ALL_PRIVILEGES` on this
+# MAGIC *catalog*, so it already has full access to every schema and table beneath — including any
+# MAGIC schema created later. The `inherited_from` column makes that visible: `CATALOG` means the
+# MAGIC privilege was never granted here at all, it descended.
+# MAGIC
+# MAGIC So in `princeton_poc_dev` **withholding a grant does not produce a denial** — there is nothing
+# MAGIC to withhold. This is worth showing rather than hiding: it is the single most common
+# MAGIC least-privilege mistake in a real UC estate. A team scopes a narrow grant on a table, believes
+# MAGIC access is restricted, and a catalog-level `ALL_PRIVILEGES` two levels up has been overriding it
+# MAGIC the whole time. `information_schema` is how you catch it, and the query below is the audit.
+# MAGIC
+# MAGIC The **denial** side of PA-04 is therefore demonstrated in `princeton_poc_prod`, where no such
+# MAGIC inherited grant exists — see the next section.
 # COMMAND ----------
 display(spark.sql(f"""
-    SELECT grantee, privilege_type
+    SELECT grantee, privilege_type, inherited_from
     FROM {CATALOG}.information_schema.schema_privileges
     WHERE schema_name = 'admin_demo'
     ORDER BY grantee, privilege_type
 """))
 
 display(spark.sql(f"""
-    SELECT grantee, table_name, privilege_type
+    SELECT grantee, table_name, privilege_type, inherited_from
     FROM {CATALOG}.information_schema.table_privileges
     WHERE table_schema = 'admin_demo'
     ORDER BY grantee, table_name, privilege_type
 """))
+
+# COMMAND ----------
+# MAGIC %md ### PA-04 — The over-permission audit
+# MAGIC The query a governance reviewer actually wants: **which principals hold privileges they were
+# MAGIC never explicitly granted?** Anything with `inherited_from` set is reaching this object from
+# MAGIC above, and no object-level grant can narrow it — only revoking at the source can.
+# MAGIC
+# MAGIC In a real deployment this is the finding. Here it is expected, and the fix (revoking
+# MAGIC `ALL_PRIVILEGES` from `account users`) is deliberately **not** applied: that group is every user
+# MAGIC and service principal in the account, it is the only UC-grantable group in this workspace, and
+# MAGIC the catalog owner is `account_admins` — so revoking it would lock out every user with no second
+# MAGIC group to recover through.
+# COMMAND ----------
+display(spark.sql(f"""
+    SELECT grantee,
+           table_name,
+           privilege_type,
+           inherited_from,
+           'reaches this table from above — object-level grants cannot narrow it' AS finding
+    FROM {CATALOG}.information_schema.table_privileges
+    WHERE table_schema = 'admin_demo'
+      AND inherited_from IS NOT NULL
+      AND inherited_from <> 'NONE'
+    ORDER BY grantee, table_name
+"""))
+print("Every row here is a privilege that did NOT come from this schema or table. That is why the")
+print("PA-04 denial is demonstrated against princeton_poc_prod instead, where nothing is inherited.")
 
 # COMMAND ----------
 # MAGIC %md ## PA-03 — Environment-level access segregation
@@ -191,6 +234,11 @@ display(spark.sql(f"""
 # MAGIC `USE CATALOG` gates everything beneath it and `SELECT` is what actually reads data, so the
 # MAGIC absence of `SELECT` on prod is absolute: no schema-level or table-level grant works around
 # MAGIC it. That is segregation, not a naming convention.
+# MAGIC
+# MAGIC **This also carries PA-04's denial.** Because dev grants `ALL_PRIVILEGES` at catalog level and
+# MAGIC privileges cascade, no object in dev can be made unreadable to `account users`. Prod grants no
+# MAGIC `SELECT` at any level, so it is where object-level restriction is actually observable. The demo
+# MAGIC is the same query against two catalogs, not two objects in one.
 # COMMAND ----------
 for cat in (CATALOG, PROD_CATALOG):
     print(f"\n=== {cat} ===")
@@ -204,28 +252,52 @@ for cat in (CATALOG, PROD_CATALOG):
         print(f"  cannot read {cat}.information_schema: {str(e)[:160]}")
 
 # COMMAND ----------
-# MAGIC %md ### PA-03 — `BROWSE` without `SELECT`: metadata visible, data not
-# MAGIC The subtle half of the scenario, and the one that separates UC from filesystem-style
-# MAGIC permissions. On prod, `account users` can *discover* that objects exist — schema names, table
-# MAGIC names — but cannot read a single row. A data catalogue stays useful for discovery while the
-# MAGIC data itself remains closed.
+# MAGIC %md ### PA-03 / PA-04 — The paired query: same SQL, two environments
+# MAGIC The demonstration. Identical statement shape, one returns rows and one is denied — and the
+# MAGIC only difference is which catalog it names.
+# MAGIC
+# MAGIC Plus the subtle half that separates UC from filesystem-style permissions: on prod,
+# MAGIC `account users` can *discover* that objects exist — schema and table names — while reading not
+# MAGIC one row. A data catalogue stays useful for discovery with the data itself closed.
 # COMMAND ----------
-print(f"=== metadata read on {PROD_CATALOG} (expect: SUCCEEDS via BROWSE/USE_SCHEMA) ===")
+DEV_TABLE = f"{CATALOG}.bronze{SUFFIX}.enrollments_raw"
+PROD_TABLE = f"{PROD_CATALOG}.bronze.enrollments"
+
+results = {}
+
+print(f"=== 1. metadata read on {PROD_CATALOG} (expect SUCCEEDS — BROWSE + USE_SCHEMA) ===")
 try:
     display(spark.sql(f"SHOW SCHEMAS IN {PROD_CATALOG}"))
-    print("  metadata visible")
+    results["prod_metadata"] = "visible"
+    print("  metadata visible\n")
 except Exception as e:
-    print(f"  DENIED: {str(e)[:200]}")
+    results["prod_metadata"] = "denied"
+    print(f"  DENIED: {str(e)[:200]}\n")
 
-print(f"\n=== data read on {PROD_CATALOG}.bronze.enrollments (expect: DENIED — no SELECT) ===")
+print(f"=== 2. data read in DEV — {DEV_TABLE} (expect SUCCEEDS) ===")
 try:
-    n = spark.sql(f"SELECT count(*) AS n FROM {PROD_CATALOG}.bronze.enrollments").first()["n"]
-    print(f"  returned {n:,} rows — no SELECT was granted, so this succeeding means the grant model "
-          f"is not what information_schema reports. Investigate before demoing.")
+    n = spark.sql(f"SELECT count(*) AS n FROM {DEV_TABLE}").first()["n"]
+    results["dev_data"] = n
+    print(f"  {n:,} rows\n")
+except Exception as e:
+    results["dev_data"] = None
+    print(f"  UNEXPECTEDLY DENIED: {str(e)[:200]}\n")
+
+print(f"=== 3. data read in PROD — {PROD_TABLE} (expect DENIED — no SELECT at any level) ===")
+try:
+    n = spark.sql(f"SELECT count(*) AS n FROM {PROD_TABLE}").first()["n"]
+    results["prod_data"] = n
+    print(f"  returned {n:,} rows. information_schema reports no SELECT on prod, so this succeeding "
+          f"means the grant model is not what it appears — investigate before demoing.")
 except Exception as e:
     msg = str(e)
-    kind = "PERMISSION_DENIED" if "PERMISSION_DENIED" in msg or "does not have" in msg else "other"
-    print(f"  DENIED ({kind}): {msg[:220]}")
+    denied = "PERMISSION_DENIED" in msg or "does not have" in msg
+    missing = "TABLE_OR_VIEW_NOT_FOUND" in msg or "does not exist" in msg
+    results["prod_data"] = "denied" if denied else ("missing" if missing else "error")
+    label = ("PERMISSION_DENIED — the access control is what stopped it" if denied else
+             "TABLE NOT FOUND — this proves nothing about access control; pick a table that exists"
+             if missing else "other error")
+    print(f"  {label}\n  {msg[:220]}")
 
 # COMMAND ----------
 # MAGIC %md ## PA-05 — Permission audit trail
@@ -342,34 +414,49 @@ if not acting_as_role:
         f"privileged branch, so the masking demo would redact for everyone"
     )
 
-    # PA-02/PA-04: grants landed, and landed narrowly.
-    schema_grants = {(r["grantee"], r["privilege_type"]) for r in spark.sql(f"""
-        SELECT grantee, privilege_type FROM {CATALOG}.information_schema.schema_privileges
-        WHERE schema_name = 'admin_demo'
+    # PA-02: the explicit grants landed. `inherited_from = 'NONE'` isolates what THIS notebook
+    # granted from what descends from the catalog — without that filter the assertion cannot tell
+    # the two apart, which is the mistake this whole section exists to document.
+    explicit_schema = {r["privilege_type"] for r in spark.sql(f"""
+        SELECT privilege_type FROM {CATALOG}.information_schema.schema_privileges
+        WHERE schema_name = 'admin_demo' AND grantee = '{RESTRICTED_ROLE}'
+          AND (inherited_from IS NULL OR inherited_from = 'NONE')
     """).collect()}
-    restricted_schema_privs = {p for g, p in schema_grants if g == RESTRICTED_ROLE}
-    assert "USE_SCHEMA" in restricted_schema_privs, (
-        f"{RESTRICTED_ROLE} holds no USE_SCHEMA on admin_demo; found {restricted_schema_privs}"
-    )
-    # THE least-privilege check: schema-wide SELECT would make PA-04 meaningless.
-    assert "SELECT" not in restricted_schema_privs, (
-        f"{RESTRICTED_ROLE} has schema-wide SELECT on admin_demo — PA-04 requires object-level "
-        f"scoping. Found: {restricted_schema_privs}"
+    assert "USE_SCHEMA" in explicit_schema, (
+        f"{RESTRICTED_ROLE} holds no explicitly-granted USE_SCHEMA on admin_demo; found "
+        f"{explicit_schema or 'nothing'}"
     )
 
-    table_grants = {(r["grantee"], r["table_name"]) for r in spark.sql(f"""
-        SELECT grantee, table_name FROM {CATALOG}.information_schema.table_privileges
-        WHERE table_schema = 'admin_demo'
+    explicit_tables = {r["table_name"] for r in spark.sql(f"""
+        SELECT table_name FROM {CATALOG}.information_schema.table_privileges
+        WHERE table_schema = 'admin_demo' AND grantee = '{RESTRICTED_ROLE}'
+          AND privilege_type = 'SELECT'
+          AND (inherited_from IS NULL OR inherited_from = 'NONE')
     """).collect()}
-    assert (RESTRICTED_ROLE, "student") in table_grants, (
-        f"{RESTRICTED_ROLE} is missing its table-level SELECT on admin_demo.student"
+    assert "student" in explicit_tables, (
+        f"{RESTRICTED_ROLE} is missing its explicit table-level SELECT on admin_demo.student; "
+        f"found {explicit_tables or 'nothing'}"
     )
-    # ...and must NOT reach the other two tables at all.
-    for forbidden in ("faculty", "financial_aid"):
-        assert (RESTRICTED_ROLE, forbidden) not in table_grants, (
-            f"{RESTRICTED_ROLE} was granted SELECT on admin_demo.{forbidden} — that removes the "
-            f"contrast PA-04 depends on"
-        )
+    assert explicit_tables == {"student"}, (
+        f"PA-04 grants exactly one table explicitly, but found {sorted(explicit_tables)} — a second "
+        f"explicit grant widens access beyond what the scenario claims"
+    )
+
+    # PA-04: DO NOT assert that faculty/financial_aid are unreachable in this catalog. They are
+    # reachable, and the reason is the finding: `account users` holds ALL_PRIVILEGES on the CATALOG,
+    # and UC privileges cascade downward, so no object-level grant can narrow them. Assert the
+    # inheritance is real and reported, so the notebook proves the mechanism instead of denying it.
+    inherited = {(r["table_name"], r["privilege_type"]) for r in spark.sql(f"""
+        SELECT table_name, privilege_type FROM {CATALOG}.information_schema.table_privileges
+        WHERE table_schema = 'admin_demo' AND grantee = '{RESTRICTED_ROLE}'
+          AND inherited_from IS NOT NULL AND inherited_from <> 'NONE'
+    """).collect()}
+    if inherited:
+        print(f"NOTE: {RESTRICTED_ROLE} reaches {len({t for t, _ in inherited})} admin_demo table(s) "
+              f"by INHERITANCE from the catalog: {sorted({t for t, _ in inherited})}.")
+        print("      Object-level grants cannot narrow an inherited privilege — only revoking at the")
+        print("      source can, and that is deliberately not done here (it would lock out every")
+        print(f"      user in the account). The PA-04 denial is shown against {PROD_CATALOG} instead.")
 
 # PA-03: prod must not be readable by the restricted role. Read the grant state rather than
 # trusting the earlier try/except, so this holds whoever runs the notebook.
@@ -390,6 +477,25 @@ except Exception as e:
     print(f"PA-03: could not read {PROD_CATALOG}.information_schema ({str(e)[:120]}) — "
           f"verify the prod grants manually before demoing.")
 
-print(f"\nPASS: PA-A — '{RESTRICTED_ROLE}' is UC-grantable and object-scoped on admin_demo "
-      f"(USE_SCHEMA + one table, no schema-wide SELECT, no access to faculty/financial_aid); "
-      f"identity functions distinguish the two roles; prod withholds SELECT.")
+# PA-03/PA-04: the paired query must actually have behaved as claimed — dev readable, prod denied.
+# Asserting the OBSERVED outcome, not just the grant state, is what makes this a demo rather than a
+# description.
+assert results.get("dev_data") is not None, (
+    f"the dev read failed — without a working 'allowed' side there is no pair to contrast"
+)
+assert results.get("prod_data") == "denied", (
+    f"expected PERMISSION_DENIED reading {PROD_TABLE}, got {results.get('prod_data')!r}. "
+    f"If 'missing', the table does not exist and the demo proves nothing about access control — "
+    f"point it at a table that does exist in prod."
+)
+assert results.get("prod_metadata") == "visible", (
+    f"metadata on {PROD_CATALOG} was not readable, so the BROWSE-without-SELECT contrast is lost"
+)
+
+print(f"\nPASS: PA-A — '{RESTRICTED_ROLE}' is UC-grantable, explicitly granted USE_SCHEMA + one "
+      f"table SELECT on admin_demo; identity functions distinguish the two roles; and the paired "
+      f"query behaved as claimed — {results['dev_data']:,} rows in dev, PERMISSION_DENIED in "
+      f"{PROD_CATALOG}, with prod metadata still visible (BROWSE without SELECT).")
+print("\nHonest caveat, stated in the notebook above: in dev, `account users` inherits "
+      "ALL_PRIVILEGES\nfrom the catalog, so object-level grants there cannot produce a denial. That "
+      "is why the\ndenial half of PA-03/PA-04 is demonstrated against prod.")
