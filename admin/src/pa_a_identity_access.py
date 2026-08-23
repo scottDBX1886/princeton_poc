@@ -259,6 +259,22 @@ for cat in (CATALOG, PROD_CATALOG):
 # MAGIC Plus the subtle half that separates UC from filesystem-style permissions: on prod,
 # MAGIC `account users` can *discover* that objects exist — schema and table names — while reading not
 # MAGIC one row. A data catalogue stays useful for discovery with the data itself closed.
+# MAGIC
+# MAGIC ## ⚠️ Run this as the restricted role, or the denial will not happen
+# MAGIC **A workspace admin is a metastore admin, and metastore admins bypass Unity Catalog grants
+# MAGIC entirely.** Run as an admin, step 3 below *succeeds* — `account users` holds no `SELECT` on
+# MAGIC prod at any level, but the admin identity is never subject to the grant in the first place.
+# MAGIC
+# MAGIC That is not a flaw in the demo; it is two real points worth making to a customer:
+# MAGIC
+# MAGIC 1. **An admin cannot observe the restrictions their own users experience** — which is why
+# MAGIC    day-to-day work should not happen from an admin identity.
+# MAGIC 2. **Testing a policy as an admin proves nothing**, because the admin is never subject to it.
+# MAGIC    This is the concrete reason PA-11 needs the role switch rather than a parameterised twin.
+# MAGIC
+# MAGIC So this cell reports what happened either way, and the assertions accept both outcomes —
+# MAGIC row count when run as an admin, `PERMISSION_DENIED` when run as the role. Switch to
+# MAGIC `account users` and re-run to see the enforcement.
 # COMMAND ----------
 DEV_TABLE = f"{CATALOG}.bronze{SUFFIX}.enrollments_raw"
 PROD_TABLE = f"{PROD_CATALOG}.bronze.enrollments"
@@ -477,25 +493,54 @@ except Exception as e:
     print(f"PA-03: could not read {PROD_CATALOG}.information_schema ({str(e)[:120]}) — "
           f"verify the prod grants manually before demoing.")
 
-# PA-03/PA-04: the paired query must actually have behaved as claimed — dev readable, prod denied.
-# Asserting the OBSERVED outcome, not just the grant state, is what makes this a demo rather than a
-# description.
+# PA-03/PA-04: the observed paired-query outcome. What counts as correct DEPENDS ON WHO IS ASKING,
+# and that is the whole point of the scenario rather than a caveat about it.
 assert results.get("dev_data") is not None, (
-    f"the dev read failed — without a working 'allowed' side there is no pair to contrast"
-)
-assert results.get("prod_data") == "denied", (
-    f"expected PERMISSION_DENIED reading {PROD_TABLE}, got {results.get('prod_data')!r}. "
-    f"If 'missing', the table does not exist and the demo proves nothing about access control — "
-    f"point it at a table that does exist in prod."
+    "the dev read failed — without a working 'allowed' side there is no pair to contrast"
 )
 assert results.get("prod_metadata") == "visible", (
     f"metadata on {PROD_CATALOG} was not readable, so the BROWSE-without-SELECT contrast is lost"
 )
 
-print(f"\nPASS: PA-A — '{RESTRICTED_ROLE}' is UC-grantable, explicitly granted USE_SCHEMA + one "
-      f"table SELECT on admin_demo; identity functions distinguish the two roles; and the paired "
-      f"query behaved as claimed — {results['dev_data']:,} rows in dev, PERMISSION_DENIED in "
-      f"{PROD_CATALOG}, with prod metadata still visible (BROWSE without SELECT).")
-print("\nHonest caveat, stated in the notebook above: in dev, `account users` inherits "
-      "ALL_PRIVILEGES\nfrom the catalog, so object-level grants there cannot produce a denial. That "
-      "is why the\ndenial half of PA-03/PA-04 is demonstrated against prod.")
+if acting_as_role:
+    # The real test. Acting as the restricted role, no admin bypass applies and UC evaluates the
+    # grants — prod withholds SELECT at every level, so this MUST be denied.
+    assert results.get("prod_data") == "denied", (
+        f"acting as '{RESTRICTED_ROLE}', expected PERMISSION_DENIED reading {PROD_TABLE}, got "
+        f"{results.get('prod_data')!r}. If 'missing', the table does not exist and proves nothing "
+        f"about access control — point it at a table that does exist in prod."
+    )
+    print(f"PASS: PA-A (restricted view) — acting as '{RESTRICTED_ROLE}': dev readable "
+          f"({results['dev_data']:,} rows), {PROD_TABLE} PERMISSION_DENIED, prod metadata still "
+          f"visible. Environment segregation enforced by UC against a real second identity.")
+else:
+    # Running as a workspace admin, the read SUCCEEDS — and that is correct, not a bug.
+    admin_bypassed = isinstance(results.get("prod_data"), int)
+    print("PA-03/PA-04 — admin bypass observed, and it is worth saying out loud:")
+    print(f"  Reading {PROD_TABLE} as {me} returned "
+          f"{results['prod_data'] if admin_bypassed else results.get('prod_data')!r}.")
+    print("  `account users` holds NO SELECT on prod at any level, so why did it work? Because a")
+    print("  workspace admin is a metastore admin, and metastore admins BYPASS Unity Catalog grants")
+    print("  entirely. No grant can restrict them; that is what being an admin means.")
+    print()
+    print("  Two consequences worth stating to a customer:")
+    print("   1. This is exactly why day-to-day work should not be done from an admin identity —")
+    print("      an admin cannot observe the restrictions their own users experience.")
+    print("   2. It is why PA-11 needs the role switch. Testing a policy as an admin proves nothing,")
+    print(f"      because the admin is never subject to it. Switch to '{RESTRICTED_ROLE}' and re-run.")
+    assert admin_bypassed or results.get("prod_data") == "denied", (
+        f"reading {PROD_TABLE} gave {results.get('prod_data')!r} — expected either a row count "
+        f"(admin bypass) or 'denied'. 'missing' means the table does not exist, so the demo would "
+        f"prove nothing about access control."
+    )
+    print(f"\nPASS: PA-A — '{RESTRICTED_ROLE}' is UC-grantable and explicitly granted USE_SCHEMA + "
+          f"one table SELECT on admin_demo; identity functions distinguish the two roles; prod "
+          f"withholds SELECT from the role; prod metadata is visible (BROWSE without SELECT).")
+    print(f"\nNEXT: switch to the '{RESTRICTED_ROLE}' role and re-run. The prod read then returns")
+    print("PERMISSION_DENIED, which is the enforcement proof this run cannot produce.")
+
+print("\nTwo honest caveats, both stated in the cells above:")
+print(f"  - In dev, '{RESTRICTED_ROLE}' inherits ALL_PRIVILEGES from the CATALOG, so object-level")
+print("    grants there cannot produce a denial. The denial half is demonstrated against prod.")
+print("  - A metastore admin bypasses grants, so the admin's own session is never a valid test of a")
+print("    restriction. Only the role switch is.")
