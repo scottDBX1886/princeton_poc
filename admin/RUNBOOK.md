@@ -84,9 +84,11 @@ discriminates reliably. Every policy matches the restricted role **first**, befo
 
 ## Generation prompt — PA-01, PA-02, PA-04
 
-> **Prompt:** 🟢 tested (`princeton_poc_dev`: the generated notebook discovered the account groups,
-> granted at `admin_demo` scope, and reproduced the baseline exactly — no `REVOKE`, no
-> workspace-group creation)
+> **Prompt:** 🟡 written, NOT yet tested against this text. The earlier 🟢 was earned in the retired
+> Azure workspace against the **previous three-group prompt**; the 2026-08-22 rebuild replaced the
+> role model (`session_user()` instead of `is_member()`), added the `restricted_role`/`admin_group`
+> widgets and the two membership traps, so that result no longer attests to what is written here.
+> Re-test needed.
 
 One notebook produces all three of these scenarios, so there is one prompt rather than three.
 Each scenario is then written up separately below, because each is graded separately in the RFP.
@@ -151,7 +153,7 @@ Steps:
 
 ## PA-01 — User provisioning & role assignment
 
-> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
 
 **What it proves:** a person is provisioned by *role*. Access follows group membership, so
 onboarding never touches a grant.
@@ -173,7 +175,7 @@ someone from a group live and expect the next query to redact.
 
 ## PA-02 — Group-based access control
 
-> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
 
 **What it proves:** every grant targets a group, never an individual. Onboarding is a membership
 change; offboarding revokes everything at once, because nothing was granted to a person.
@@ -223,7 +225,7 @@ from `information_schema.catalog_privileges` too, so the assertion holds whoever
 
 ## PA-04 — Source & target object-level permissions
 
-> **Built:** ✅ · **Prompt:** 🟢 tested (shared prompt above)
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
 
 **What it proves:** a privilege can sit on a single **object**, not just the container — the
 granularity an RFP means by "source and target object-level permissions."
