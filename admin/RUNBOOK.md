@@ -84,11 +84,12 @@ discriminates reliably. Every policy matches the restricted role **first**, befo
 
 ## Generation prompt — PA-01, PA-02, PA-04
 
-> **Prompt:** 🟡 written — **one generate-and-verify attempt made 2026-08-24, and it exposed a defect
-> in this prompt.** Re-test pending against the corrected text below.
+> **Prompt:** 🟢 tested (customer workspace, 2026-08-24, attempt 2 — the generated notebook branched
+> on `session_user()`, used `inherited_from` to separate explicit grants from the catalog cascade, and
+> asserted every check as a hard failure. No `REVOKE`, no group creation, no catalog-scope grant.)
 
 <details>
-<summary><strong>What the 2026-08-24 attempt found</strong> — worth reading before re-testing</summary>
+<summary><strong>Two attempts, and attempt 1 is the more instructive one</strong></summary>
 
 The generation got the hard part right: it branched on `session_user()` (5 uses), issued no `REVOKE`,
 created no groups, granted nothing at catalog scope, discovered SCIM types correctly, skipped the
@@ -111,8 +112,32 @@ impossible, requires the `inherited_from = 'NONE'` filter to separate explicit f
 requires asserting that the inherited privileges **are** present (the over-permission finding), and
 states that hard failures are required — no warn-and-continue.
 
+**Attempt 2 passed cleanly** against the corrected prompt:
+
+| Check | Attempt 1 | Attempt 2 |
+|---|---|---|
+| `inherited_from` used | **0 refs** | **15 refs** |
+| Soft-failure split | `blocking_failures` / warn-and-continue | **none — every check `raise`s** |
+| Asserts the cascade is present | no | **yes** (step 5d) |
+| Over-permission audit cell | no | **yes** |
+| Prod denial + metastore-admin bypass documented | no | **yes** |
+| `session_user()` branching | ✅ | ✅ |
+| No `REVOKE` / no group creation / no catalog-scope grant | ✅ | ✅ |
+
+Live grant state after the run — unchanged and correct, which is what makes it a pass rather than a
+green tick:
+
+```
+admin_demo.student         explicit=[SELECT]  inherited=[ALL_PRIVILEGES]
+admin_demo.faculty         explicit=None      inherited=[ALL_PRIVILEGES]
+admin_demo.financial_aid   explicit=None      inherited=[ALL_PRIVILEGES]
+```
+
 **Lesson worth keeping:** a generation that rationalises its way to green is telling you the prompt
-asked for something untrue. That is what prompt testing is for.
+asked for something untrue. Attempt 1's notebook was *fluent* about why it was fine to warn instead of
+fail — that fluency is the tell. This is exactly what prompt testing catches and a pre-built notebook
+does not: the notebook was already correct, and only the prompt-driven path would have shipped the
+weaker logic.
 
 </details>
 
@@ -220,7 +245,7 @@ Steps:
 
 ## PA-01 — User provisioning & role assignment
 
-> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟢 tested 2026-08-24 (shared prompt above)
 
 **What it proves:** a person is provisioned by *role*. Access follows group membership, so
 onboarding never touches a grant.
@@ -242,7 +267,7 @@ someone from a group live and expect the next query to redact.
 
 ## PA-02 — Group-based access control
 
-> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟢 tested 2026-08-24 (shared prompt above)
 
 **What it proves:** every grant targets a group, never an individual. Onboarding is a membership
 change; offboarding revokes everything at once, because nothing was granted to a person.
@@ -292,7 +317,7 @@ from `information_schema.catalog_privileges` too, so the assertion holds whoever
 
 ## PA-04 — Source & target object-level permissions
 
-> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟡 re-test needed — see the shared prompt above
+> **Built:** ✅ (verified in the customer wksp) · **Prompt:** 🟢 tested 2026-08-24 (shared prompt above)
 
 **What it proves:** a privilege can sit on a single **object**, not just the container — the
 granularity an RFP means by "source and target object-level permissions."
