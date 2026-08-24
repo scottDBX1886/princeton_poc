@@ -84,11 +84,37 @@ discriminates reliably. Every policy matches the restricted role **first**, befo
 
 ## Generation prompt — PA-01, PA-02, PA-04
 
-> **Prompt:** 🟡 written, NOT yet tested against this text. The earlier 🟢 was earned in the retired
-> Azure workspace against the **previous three-group prompt**; the 2026-08-22 rebuild replaced the
-> role model (`session_user()` instead of `is_member()`), added the `restricted_role`/`admin_group`
-> widgets and the two membership traps, so that result no longer attests to what is written here.
-> Re-test needed.
+> **Prompt:** 🟡 written — **one generate-and-verify attempt made 2026-08-24, and it exposed a defect
+> in this prompt.** Re-test pending against the corrected text below.
+
+<details>
+<summary><strong>What the 2026-08-24 attempt found</strong> — worth reading before re-testing</summary>
+
+The generation got the hard part right: it branched on `session_user()` (5 uses), issued no `REVOKE`,
+created no groups, granted nothing at catalog scope, discovered SCIM types correctly, skipped the
+grant cells when run as the role, and handled the `schema_name` vs `table_schema` gotcha. The identity
+model — the thing most worth testing — was correct.
+
+But it **passed by weakening two of its own assertions.** The prompt demanded the restricted role
+"holds NOTHING on faculty or financial_aid". That is impossible here: `account users` holds
+`ALL_PRIVILEGES` on the *catalog*, and UC privileges cascade, so it reaches both tables no matter what
+we withhold. The generation split its checks into `blocking_failures` (the first four) and
+`unexpected_access_failures` (those two), printed a warning for the latter, and reported
+`RBAC validation passed`.
+
+**That is a prompt defect, not a model failure.** I fixed this exact cascade problem in the notebook on
+2026-08-22 and left the stale instruction in the prompt — so the prompt and the notebook had drifted.
+The generation also never used `inherited_from`, because the prompt never mentioned it.
+
+The prompt now: names the cascade explicitly with the verified privilege rows, forbids asserting the
+impossible, requires the `inherited_from = 'NONE'` filter to separate explicit from inherited grants,
+requires asserting that the inherited privileges **are** present (the over-permission finding), and
+states that hard failures are required — no warn-and-continue.
+
+**Lesson worth keeping:** a generation that rationalises its way to green is telling you the prompt
+asked for something untrue. That is what prompt testing is for.
+
+</details>
 
 One notebook produces all three of these scenarios, so there is one prompt rather than three.
 Each scenario is then written up separately below, because each is graded separately in the RFP.
@@ -136,17 +162,58 @@ Steps:
    member of itself) — that is the trap the reader most needs to see.
 2. Grant on <catalog>.admin_demo: USE SCHEMA to restricted_role, plus SELECT on ONLY the
    admin_demo.student table — no schema-wide SELECT, and nothing at all on faculty or
-   financial_aid. That narrowness IS the object-level-permissions scenario; the absences are the
-   control.
-3. Read the effective grants back from information_schema. Note the column names differ:
+   financial_aid. That narrowness is the object-level-permissions intent.
+3. Read the effective grants back from information_schema, and SELECT THE inherited_from COLUMN.
+   This is the crux of the scenario, so do not skip it. Note the column names differ:
    schema_privileges uses schema_name, table_privileges uses table_schema. Mixing them gives
    UNRESOLVED_COLUMN.
+
+   READ THIS BEFORE WRITING ANY ASSERTION. Unity Catalog privileges CASCADE DOWNWARD, and in this
+   workspace `account users` holds ALL_PRIVILEGES on the CATALOG. So it already reaches every table in
+   every schema — including admin_demo.faculty and admin_demo.financial_aid, and including any schema
+   created later. Verified live:
+
+     admin_demo.student         SELECT          inherited_from = NONE               <- granted here
+     admin_demo.student         ALL_PRIVILEGES  inherited_from = princeton_poc_dev  <- cascaded
+     admin_demo.faculty         ALL_PRIVILEGES  inherited_from = princeton_poc_dev  <- cascaded
+     admin_demo.financial_aid   ALL_PRIVILEGES  inherited_from = princeton_poc_dev  <- cascaded
+
+   Therefore WITHHOLDING A GRANT IN THIS CATALOG CANNOT PRODUCE A DENIAL. There is nothing to
+   withhold. Do NOT assert that the restricted role "holds nothing" on faculty or financial_aid — that
+   assertion is impossible here and will fail. Do not weaken it to a warning either; assert something
+   true instead (step 5).
+
+   Do not attempt to fix this by revoking. See constraint 2.
+
 4. Detect whether the notebook is itself running as the restricted role (session_user() ==
    restricted_role) and SKIP the grant cells with a clear message if so — you cannot grant while
    acting as a role, and a hard failure mid-demo looks like a broken notebook.
-5. Assert: restricted_role is UC-grantable; it holds USE_SCHEMA but NOT schema-wide SELECT on
-   admin_demo; it holds the table-level SELECT on admin_demo.student; and it holds NOTHING on
-   faculty or financial_aid.
+
+5. Assert, and every one of these must be a hard failure — no warn-and-continue:
+   a. restricted_role is UC-grantable (an account-level SCIM Group).
+   b. Filtering on inherited_from = 'NONE' or NULL to isolate what THIS notebook granted:
+      restricted_role holds an EXPLICIT USE_SCHEMA on admin_demo, an EXPLICIT SELECT on
+      admin_demo.student, and NO explicit grant on faculty or financial_aid. Without the
+      inherited_from filter an assertion cannot tell what you granted from what cascaded — which is
+      the whole confusion this step exists to prevent.
+   c. restricted_role holds no EXPLICIT schema-wide SELECT on admin_demo.
+   d. The inherited privileges ARE present and reported — assert that at least one row on
+      faculty/financial_aid has inherited_from set. That is the over-permission finding, and asserting
+      it means the notebook proves the cascade rather than pretending it is absent.
+
+6. Add an over-permission audit cell: list every privilege reaching admin_demo where inherited_from
+   is set. In a real estate those rows are the finding — a team scopes a narrow table grant, believes
+   access is restricted, and a catalog-level ALL_PRIVILEGES two levels up has been overriding it the
+   whole time. information_schema is how you catch it.
+
+7. State in a markdown cell where the DENIAL is actually demonstrated: <prod_catalog>
+   (princeton_poc_prod), where `account users` holds BROWSE + USE_CATALOG + USE_SCHEMA but NO SELECT
+   at any level. The demo is one statement shape against two catalogs — dev returns rows, prod returns
+   PERMISSION_DENIED — not two objects in one catalog.
+
+   Also note the second reason an admin cannot self-verify this: a workspace admin is a METASTORE
+   ADMIN, and metastore admins bypass UC grants entirely. Run as an admin, the prod read SUCCEEDS. So
+   an admin's own session can never confirm a restriction — only the role switch can.
 ```
 
 </details>
