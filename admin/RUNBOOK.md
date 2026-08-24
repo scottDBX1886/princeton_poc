@@ -448,7 +448,40 @@ ALTER TABLE t SET ROW FILTER fn ON (c);          -- correct
 
 ## Generation prompt — PA-07, PA-08
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the mask notebook)
+> **Built:** ✅ · **Prompt:** 🟢 tested (customer workspace 2026-08-24, both halves — see the block below)
+
+<details>
+<summary><strong>Prompt test result — 2026-08-24, customer workspace</strong></summary>
+
+Passed on the first attempt, both halves. The guard-rail fix worked: the generation created its own
+`*_prompt` tables and `*_prompt` functions and never touched the verified baseline.
+
+| Check | Result |
+|---|---|
+| Masks target `*_prompt` tables only | ✅ live tables untouched |
+| 4 pre-built masks intact | ✅ asserted `live_masks_before == live_masks_after`, and re-verified externally |
+| Own functions, distinct names | ✅ `mask_ssn_prompt`, `mask_dob_prompt`, `mask_amount_prompt` |
+| `session_user()` matched **first**, before `is_member()` | ✅ |
+| `CAST(NULL AS STRING)`, not `'[REDACTED]'` | ✅ |
+| `dob` coalesce tested against the SOURCE, not by counting NULLs | ✅ the earlier defect is gone |
+| Hard failures only | ✅ 4 `raise`s, zero warn-and-continue |
+| Nothing written outside `admin_demo` | ✅ |
+
+**As `account users`** (re-run after a UI role switch): the masked `student_prompt` returned `NULL`
+for both `ssn` and `dob` — `Restricted-role assertions passed`. The assertion cannot pass vacuously:
+the notebook raises if `governed_rows` is empty, and it reads the masked `_prompt` table rather than
+the unpolicied source.
+
+It also did something the prompt did not ask for — captured `live_masks_before` / `live_masks_after`
+and asserted they are identical. That is a stronger guard than "the baseline masks must still be
+present", and worth folding into the other prompts.
+
+> **⚠️ Assets created while acting as a role are owned by the role.** After the role-switched run the
+> notebooks were no longer under `/Users/<you>/` — they had moved to
+> `/Users/Groups/account users/Prompt Testing - PA/`, same object IDs. Nothing was lost, but expect it:
+> a workspace-path lookup that worked before the switch will return "path doesn't exist" afterwards.
+
+</details>
 
 **What it proves:** a masked column is masked for **every** reader through **every** path —
 notebook, SQL editor, dashboard, JDBC from a laptop, even `INSERT … SELECT` into another table.
@@ -565,7 +598,7 @@ restricted role FIRST, before any is_member() check can be reached.
 
 ## PA-07 — Column-level security: masking sensitive fields
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-24 (shared prompt above)
 
 **What it proves:** a masked column is masked for **every** reader through **every** path — notebook,
 SQL editor, dashboard, JDBC from a laptop, even `INSERT … SELECT` into another table. No view to
@@ -612,7 +645,7 @@ PA-08 enforced by Unity Catalog against a real second identity.`
 
 ## PA-08 — Column-level security: full column restriction
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-24 (shared prompt above)
 
 **What it proves:** restriction is distinct from masking. For any role outside admin/faculty the
 mask returns **NULL** — not a `'[REDACTED]'` placeholder.
