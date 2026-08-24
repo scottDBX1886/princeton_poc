@@ -35,8 +35,8 @@ list is the full checklist.
 ### 3.1 Data Source Connectivity & Ingestion
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) | — (parked) |
-| SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) | — (parked) |
+| SE-01 | Relational DB ingestion — full extract | E2 | ✅ built & verified (Lakehouse Federation) | 🟢 tested |
+| SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ✅ built & verified (Lakehouse Federation) | 🟢 tested |
 | SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
 | SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
