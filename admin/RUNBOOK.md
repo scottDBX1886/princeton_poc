@@ -435,12 +435,17 @@ restricted role FIRST, before any is_member() check can be reached.
      NULL for two of them, so parse with coalesce over try_to_date for all three.
    - mask_amount: NULL for the restricted role; full for admins; round(amount, -3) otherwise.
 
-3. Attach them with ALTER TABLE <t> ALTER COLUMN <c> SET MASK <fn> — that exact form. Do NOT use
+3. Create your OWN tables to attach to, then mask those — never the live ones:
+     CREATE OR REPLACE TABLE <catalog>.admin_demo.student_prompt       AS SELECT * FROM <catalog>.silver<suffix>.student
+     CREATE OR REPLACE TABLE <catalog>.admin_demo.faculty_prompt       AS SELECT * FROM <catalog>.silver<suffix>.faculty
+     CREATE OR REPLACE TABLE <catalog>.admin_demo.financial_aid_prompt AS SELECT * FROM <catalog>.silver<suffix>.financial_aid
+   Attach with ALTER TABLE <t> ALTER COLUMN <c> SET MASK <fn> — that exact form. Do NOT use
    "SET COLUMN MASK c = fn(c)", which is not valid Databricks SQL. DROP MASK first so the notebook
    is re-runnable.
-   Mask: student.ssn, student.dob, faculty.ssn, financial_aid.amount.
+   Mask: student_prompt.ssn, student_prompt.dob, faculty_prompt.ssn, financial_aid_prompt.amount.
+   Do NOT touch admin_demo.student / faculty / financial_aid — those carry the verified baseline.
 
-4. Re-run the same query from step 1 against admin_demo to show the governed result.
+4. Re-run the same query from step 1 against admin_demo.student_prompt to show the governed result.
 
 5. Detect whether the notebook is running AS the restricted role (session_user() == restricted_role)
    and branch: skip policy creation with a clear message, and assert the RESTRICTED outcome instead
@@ -448,8 +453,11 @@ restricted role FIRST, before any is_member() check can be reached.
    serve both halves of the demo — apply as admin, then switch roles and re-run to prove enforcement.
 
 6. Assert (admin path): the admin's view is UNCHANGED versus step 1 (if it changed, is_member is
-   false and the policy is redacting for everyone); every intended mask is attached, read back from
-   information_schema.column_masks; and no mask sits outside admin_demo.
+   false and the policy is redacting for everyone); your four masks are attached to the _prompt
+   tables, read back from information_schema.column_masks; no mask sits outside admin_demo; and the
+   pre-built masks on admin_demo.student / faculty / financial_aid are STILL PRESENT and unchanged
+   (4 of them, on student.ssn, student.dob, faculty.ssn, financial_aid.amount) — if any is missing,
+   the generation overwrote the verified baseline.
 
 7. For the dob mask, DO NOT test it by counting NULLs in the masked table. As an admin you get the
    unmasked branch, which returns dob untouched, so the coalesce never runs and the check passes even
@@ -623,8 +631,12 @@ Branch on session_user(), NOT is_member(). The restricted identity is reached by
    restricted branch must come first, because is_member() cannot be relied on once a role is assumed.
    A row-filter function MAY contain a subquery against a lookup table.
 
-3. Attach it with ALTER TABLE <t> SET ROW FILTER <fn> ON (dept_id) — that exact form. DROP ROW
-   FILTER first so it is re-runnable. Apply to admin_demo.student and admin_demo.faculty.
+3. Create your OWN tables to attach to, then filter those — never the live ones:
+     CREATE OR REPLACE TABLE <catalog>.admin_demo.student_prompt AS SELECT * FROM <catalog>.silver<suffix>.student
+     CREATE OR REPLACE TABLE <catalog>.admin_demo.faculty_prompt AS SELECT * FROM <catalog>.silver<suffix>.faculty
+   Attach with ALTER TABLE <t> SET ROW FILTER <fn> ON (dept_id) — that exact form. DROP ROW FILTER
+   first so it is re-runnable. Apply to admin_demo.student_prompt and admin_demo.faculty_prompt.
+   Do NOT touch admin_demo.student / faculty — those carry the verified baseline.
 
 4. Show what THIS identity sees (count and distinct departments), and print whether the session is
    the admin or the restricted role. Detect the mode with session_user() == restricted_role and skip
