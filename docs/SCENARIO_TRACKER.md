@@ -15,7 +15,7 @@ list is the full checklist.
 
 **Prompt tested? legend** (the *NL / Designer / Assistant prompt* — does generating from it produce a working object? this is the RFP's real ask, tracked separately from the pre-built object):
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
-**Last updated:** 2026-08-22 — PA-A/B/C/D rebuilt for the customer workspace (`dbc-7ef61dd7-1b75`); see the note under Persona 4.
+**Last updated:** 2026-08-23 — PA-A/B/C/D rebuilt AND re-verified in the customer workspace (`dbc-7ef61dd7-1b75`), enforcement proven via RBAC role switch; see the note under Persona 4.
 
 **Summary — pre-built objects (RFP scenario IDs):** 82 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 2 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
 
@@ -140,38 +140,49 @@ list is the full checklist.
 
 ## Persona 4 — Platform Administrator (PA-01 … PA-25)
 
-> **⚠️ PA-A/B/C/D were rebuilt on 2026-08-22 for the customer workspace
-> (`dbc-7ef61dd7-1b75`, AWS) and have NOT been re-run there yet.** The "✅ built & verified" marks
-> below were earned in the retired Azure demo workspace against the previous three-group design, so
-> they attest to the *approach*, not to the current code in this environment.
+> **✅ PA-A/B/C/D rebuilt and re-verified in the customer workspace (`dbc-7ef61dd7-1b75`, AWS) on
+> 2026-08-23 — including the enforcement half, proven against a real second identity.**
 >
-> What changed: that workspace had three account-level groups to map roles onto. This one has exactly
-> one (`account users`), so the restricted identity is now reached by **RBAC role switching** and every
-> policy branches on **`session_user()`** instead of `is_member()` — a group is not a member of itself,
-> and an assumed role inherits no memberships, so `is_member()` returns `false` in both directions.
-> PA-03 is newly closeable here because `princeton_poc_prod` exists and already withholds `SELECT`.
+> That workspace had three account-level groups to map roles onto. This one has exactly one
+> (`account users`), so the restricted identity is reached by **RBAC role switching**, and every policy
+> branches on **`session_user()`** rather than `is_member()` — a group is not a member of itself, and an
+> assumed role inherits no memberships, so `is_member()` returns `false` in both directions.
 >
-> Flip these to verified only after a real run in the customer workspace.
+> **Verified as the admin** (job runs): 4 masks + 2 row filters attached, all scoped to `admin_demo`,
+> none on the shared foundation; admin sees full SSNs and all 30,000 rows.
+>
+> **Verified as `account users`** (interactive, after a UI role switch — the enforcement proof):
+> - PA-07/08 — `ssn` and `dob` both return **NULL**
+> - PA-09/10 — **2,963 of 30,000 rows** (9.9%), departments **[5, 12, 24]** only, exactly the mapping
+> - PA-11 — role switching *is* the faux-user mechanism; UC applied the policies to a real identity
+>
+> Two honest caveats, both surfaced in the notebooks rather than worked around:
+> 1. **UC privileges cascade.** `account users` inherits `ALL_PRIVILEGES` from the dev *catalog*, so no
+>    object-level grant in dev can produce a denial. PA-03/PA-04's denial is therefore shown against
+>    `princeton_poc_prod`, which withholds `SELECT` at every level.
+> 2. **A metastore admin bypasses grants.** Run as a workspace admin, the prod read *succeeds* — the
+>    admin is never subject to the grant. So an admin's own session can never verify a restriction,
+>    which is precisely why PA-11 needs the role switch.
 
 ### 6.1 User & Group Access Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified (role→group mapping; is_member() resolves) | 🟢 tested (generated notebook reproduced the grants exactly) |
-| PA-02 | Group-based access control | PA-A | ✅ built & verified (grants keyed on group, never a user) | 🟢 tested (generated notebook reproduced the grants exactly) |
-| PA-03 | Environment-level access segregation | PA-A | ✅ built (dev/prod grant asymmetry already exists: `account users` has ALL_PRIVILEGES on dev, BROWSE/USE_CATALOG/USE_SCHEMA but no SELECT on prod — plus the BROWSE-without-SELECT demo) · ⬜ not yet re-run in the customer workspace | — n/a |
-| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified (student role is table-scoped, no schema-wide SELECT) | 🟢 tested (generated notebook reproduced the grants exactly) |
-| PA-05 | Permission audit trail | PA-A | ✅ built & verified (system.access.audit + table_lineage — who could vs who did) | 🟢 tested (Genie space: 2 NL prompts → correct SQL, event_date filtered) |
-| PA-06 | Service account & API credential management | PA-A | ✅ built & verified (SP grants listed; rotation procedure documented) | — n/a |
+| PA-01 | User provisioning & role assignment | PA-A | ✅ built & verified in customer wksp (2026-08-23: `account users` is the one UC-grantable group; identity fns distinguish the two roles — as the role, session_user()='account users' and is_member('admins')=false) | 🟢 tested (generated notebook reproduced the grants exactly) |
+| PA-02 | Group-based access control | PA-A | ✅ built & verified in customer wksp (2026-08-23: grants keyed on a group, never a user; explicit grants isolated from inherited via inherited_from) | 🟢 tested (generated notebook reproduced the grants exactly) |
+| PA-03 | Environment-level access segregation | PA-A | ✅ built & verified in customer wksp (2026-08-23: dev/prod grant asymmetry is the customer's own config — `account users` has ALL_PRIVILEGES on dev, BROWSE/USE_CATALOG/USE_SCHEMA but no SELECT on prod; metadata visible, data denied) | — n/a |
+| PA-04 | Source & target object-level permissions | PA-A | ✅ built & verified in customer wksp (2026-08-23: object-level denial shown against prod — UC privileges cascade, so dev's catalog-level ALL_PRIVILEGES makes in-dev withholding impossible; the over-permission audit surfaces that instead) | 🟢 tested (generated notebook reproduced the grants exactly) |
+| PA-05 | Permission audit trail | PA-A | ✅ built & verified in customer wksp (2026-08-23: system.access.audit + table_lineage; identity_metadata.run_by vs run_as proves an assumed role does not launder identity) | 🟢 tested (Genie space: 2 NL prompts → correct SQL, event_date filtered) |
+| PA-06 | Service account & API credential management | PA-A | ✅ built & verified in customer wksp (2026-08-23: 3 SPs listed — runbook app, mock API, E3 ingest; rotation procedure documented) | — n/a |
 
 ### 6.2 Row-Level & Column-Level Security
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| PA-07 | Column-level security — masking sensitive fields | PA-B | ✅ built & verified (ssn partial, dob year-only, amount rounded; admin sees full) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-08 | Column-level security — full column restriction | PA-B | ✅ built & verified (NULL for unprivileged roles, not a placeholder string) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-09 | Row-level security — attribute-based filtering | PA-C | ✅ built & verified (dept_id filter; 30,000 -> subset per identity) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-10 | Row-level security — dynamic policy by user identity | PA-C | ✅ built & verified (department_access lookup on current_user(); one INSERT widens access, no policy change) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-11 | Security policy testing & validation ("faux user") | PA-D | ✅ built (two mechanisms: parameterised test twin for branch logic + RBAC role switching for real enforcement — assuming `account users` makes it the active SQL identity) · ⬜ not yet re-run in the customer workspace | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
-| PA-12 | Security policy audit & documentation | PA-D | ✅ built & verified (information_schema.column_masks + row_filters: 4 masks, 2 filters, all in admin_demo; plus a coverage-gap check) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-07 | Column-level security — masking sensitive fields | PA-B | ✅ built & verified in customer wksp (2026-08-23: 4 masks attached; admin sees full SSN 565-46-7470, all 30,000 dob values parse across the 3 formats) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-08 | Column-level security — full column restriction | PA-B | ✅ built & verified in customer wksp (2026-08-23: **enforcement proven** — as `account users`, ssn AND dob both return NULL, not a placeholder) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-09 | Row-level security — attribute-based filtering | PA-C | ✅ built & verified in customer wksp (2026-08-23: **enforcement proven** — as `account users`, 2,963 of 30,000 rows; departments [5,12,24] only) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-10 | Row-level security — dynamic policy by user identity | PA-C | ✅ built & verified in customer wksp (2026-08-23: department_access keyed on session_user() and seeded with the ROLE NAME; one INSERT widened access with no policy change) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-11 | Security policy testing & validation ("faux user") | PA-D | ✅ built & verified in customer wksp (2026-08-23: RBAC role switching IS the faux-user mechanism — both mechanisms run: parameterised twin for branch logic, real role switch for enforcement) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
+| PA-12 | Security policy audit & documentation | PA-D | ✅ built & verified in customer wksp (2026-08-23: information_schema.column_masks + row_filters — 4 masks, 2 filters, all in admin_demo, none on the shared foundation) | 🟡 written (Assistant prompt in admin/RUNBOOK.md) |
 
 ### 6.3 Compute & Capacity Management
 | ID | Scenario | Covered by | Status | Prompt tested? |

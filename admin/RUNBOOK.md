@@ -477,18 +477,36 @@ bypass, no client setting to change. That is the difference from application-lay
 | `student.dob` | generalisation | `1995-XX-XX` — age analysis still works |
 | `financial_aid.amount` | perturbation | rounded to 1,000 — aggregates stay usable |
 
-**How to test:** run the job, or `pa_b_column_masking.py`. The PA admin is in the admin group, so
-they see **full** values — that is correct, and the reason a naive "did the value change?" check
-proves nothing. The role contrast is in PA-11's harness.
+**How to test — both halves, and the second one is the real proof:**
 
-**Expected outcome:** `PASS: PA-B — 3 mask functions, 4 columns masked on admin_demo; admin sees
-full values, faculty partial, others NULL; dob parsed across all 3 formats; foundation carries no
-policies.`
+1. **As yourself (admin)** — run the job or the notebook. You see **full** values, which is correct:
+   the mask is role-dependent, not blanket redaction. A naive "did the value change?" check proves
+   nothing here.
+2. **As `account users`** — workspace-name menu → hover the workspace → pick the role, then re-run
+   the notebook interactively. It detects the assumed role and switches to its restricted assertions.
 
-> **The `dob` trap.** `dob` is a STRING in three mixed formats (`yyyy-MM-dd`, `MM/dd/yyyy`,
-> `dd.MM.yyyy`) by design for SE-15. `year(dob)` returns NULL on two of them, so the mask coalesces
-> `try_to_date` over all three. Get it wrong and ~67% of "masked" values are silently NULL — which
-> looks like a working mask and is actually data loss. An assertion fails on any NULL `dob`.
+**Verified 2026-08-23 in the customer workspace:**
+
+| Run as | `ssn` | `dob` |
+|---|---|---|
+| `mehak.juneja@databricks.com` (admin) | `565-46-7470` | `03/20/2009` |
+| `account users` (assumed role) | **`NULL`** | **`NULL`** |
+
+Admin run printed `PASS: PA-B — 3 mask functions, 4 columns masked on admin_demo; admin sees full
+values; all 30,000 dob values parse across the 3 formats; foundation carries no policies.`
+Role run printed `PASS (restricted view): acting as 'account users', ssn and dob both return NULL —
+PA-08 enforced by Unity Catalog against a real second identity.`
+
+> **The `dob` trap, and a subtler one in how you test it.** `dob` is a STRING in three mixed formats
+> (`yyyy-MM-dd`, `MM/dd/yyyy`, `dd.MM.yyyy`) by design for SE-15 — all three are visible in the admin
+> row above. `year(dob)` returns NULL on two of them, so the mask coalesces `try_to_date` over all
+> three. Get it wrong and ~67% of "masked" values are silently NULL: looks like a working mask, is
+> actually data loss.
+>
+> **Do not test it by counting NULL `dob` in the masked table.** As an admin you get the unmasked
+> branch, so the coalesce never runs and the check passes even when completely broken — this was a
+> real defect in the first build. Evaluate the parse expression directly over `silver_dev.student`
+> instead; the assertion now confirms all **30,000** values parse.
 
 ## PA-08 — Column-level security: full column restriction
 
@@ -501,11 +519,18 @@ mask returns **NULL** — not a `'[REDACTED]'` placeholder.
 typed clients — a `DOUBLE` column cannot return `'[REDACTED]'`, so `financial_aid.amount` would
 error rather than restrict. NULL is the only treatment that works across types.
 
-**How to test:** the third branch of each mask function. PA-11's harness shows it directly —
-`test_mask_ssn_as(ssn, 'student')` → `NULL`.
+**How to test:** the first branch of each mask function, and it is worth testing the real way. The
+parameterised twin (`test_mask_ssn_as(ssn, 'account users')` → `NULL`) proves the *branch*; assuming
+the role and reading the table proves **enforcement**.
 
-**Expected outcome:** an unprivileged role reads the column and gets NULL for every row, with no
-error and no indication of what was there.
+**Verified 2026-08-23 (customer workspace):** acting as `account users`, `admin_demo.student` returned
+`ssn = NULL` and `dob = NULL` for every row — no error, and nothing to indicate what was there.
+
+> **This is the assertion that would catch a broken policy.** If the restricted branch were keyed on
+> `is_member('account users')` instead of `session_user()`, it would silently never fire — a group is
+> not a member of itself, so the check is `false` while acting as the role, and the mask would fall
+> through to the *partial* branch. The reader would see `***-**-7470` and the demo would look like it
+> worked while PA-08 was not enforced at all.
 
 
 ## Generation prompt — PA-09, PA-10
@@ -517,22 +542,38 @@ table rather than in a WHERE clause someone can forget.
 
 **PA-10 is the one that matters operationally.** A policy with department numbers written into it
 needs a code change and a redeploy whenever someone moves department. This one reads a
-`department_access` mapping table keyed on `current_user()` — so a move is an `INSERT`, and it takes
-effect on the next query, for every table the filter is attached to.
+`department_access` mapping table keyed on **`session_user()`** — so a move is an `INSERT`, and it
+takes effect on the next query, for every table the filter is attached to.
 
-**How to test:** run the job, or `pa_c_row_filters.py`. It seeds the running admin to two
-departments, shows the filtered row count, then **inserts one row** and shows the visible set widen
-— with no policy edit. That INSERT is the demonstration.
+> **⚠️ Seed the mapping table with the ROLE NAME, not an email.** While a role is assumed,
+> `session_user()` returns `account users`. If the table only holds emails, the filter matches nothing
+> and the role sees **zero** rows — which reads as a broken demo rather than a working policy. The
+> assertion says so explicitly if it happens.
 
-**Expected outcome:** `PASS: PA-C — admin unrestricted (30,000 rows); mapped identity sees ~1,000
-rows in 2 departments; one INSERT widened that with no policy change (PA-10); unmapped principals
-see 0 rows; foundation clean.`
+**How to test — both halves:**
+
+1. **As yourself (admin)** — run the job. Unrestricted (branch 2), and it **inserts one row** into the
+   mapping table to show the permitted set widen with no policy edit. That INSERT is PA-10.
+2. **As `account users`** — assume the role, re-run the notebook interactively.
+
+**Verified 2026-08-23 (customer workspace):**
+
+| Run as | Rows visible | Departments |
+|---|---|---|
+| admin | **30,000** of 30,000 | all 40 |
+| `account users` | **2,963** (9.9%) | **[5, 12, 24]** only |
+
+2,963 is exactly dept 5 (1,018) + 12 (409) + 24 (1,536) — the mapping table's three rows and nothing
+else. Role run printed `PASS (restricted view): acting as 'account users' — 2,963 of 30,000 rows,
+departments [5, 12, 24] only (mapped: [5, 12, 24]). PA-09/PA-10 enforced by UC against a real second
+identity.`
 
 **Deny by default.** An unmapped principal sees **zero** rows, not everything — asserted, because
 "fails open" is the classic row-filter bug.
 
-**Masks and filters compose.** With PA-B and PA-C both applied, a faculty reader sees *fewer rows*
-**and** *masked columns within them*. Running them in order makes that stackable behaviour visible.
+**Masks and filters compose.** With PA-B and PA-C both applied, the restricted reader saw *fewer rows*
+**and** `NULL` columns within them — verified in the same session. Running them in order makes that
+stackable behaviour visible.
 
 <details>
 <summary><strong>Assistant prompt (generate the row-filter notebook)</strong> — click to expand</summary>
@@ -741,10 +782,24 @@ click.
    detect the assumed role and swap to their restricted assertions.
 3. Switch back the same way.
 
-**Expected outcome:** three distinct treatments of the same value — full for admin, `***-**-6789`
-partial, `NULL` for the restricted role. Three row counts: all / a strict subset / zero. And under
-the role switch, `ssn` and `dob` come back **NULL** with only the mapped departments visible —
-enforced by Unity Catalog against a real second identity, not simulated.
+**Verified 2026-08-23 (customer workspace) — both mechanisms:**
+
+| | admin | `account users` |
+|---|---|---|
+| `ssn` | `565-46-7470` | **`NULL`** |
+| `dob` | `03/20/2009` | **`NULL`** |
+| rows in `student` | 30,000 | **2,963** (depts 5/12/24) |
+
+Enforced by Unity Catalog against a real second identity — not simulated, not a parameterised twin.
+
+> **A third finding worth telling the customer, from the same run.** Reading a table in
+> `princeton_poc_prod` — where `account users` holds no `SELECT` at any level — **succeeded** when run
+> as the admin. A workspace admin is a metastore admin, and metastore admins **bypass UC grants
+> entirely**.
+>
+> So an admin's own session can never verify a restriction: they are never subject to it. *"I checked
+> and it looked restricted"* is not a valid verification, and this is the concrete reason PA-11 needs
+> the role switch rather than an admin running the query and eyeballing the result.
 
 The harness is named `test_…` and dropped at the end, so a later inventory cannot mistake it for a
 live policy — asserted.
