@@ -23,8 +23,10 @@
 # COMMAND ----------
 # MAGIC %md ## Context
 # COMMAND ----------
-dbutils.widgets.text("catalog", "princeton_poc")
-dbutils.widgets.text("schema_suffix", "")
+# Defaults match the dev target, the environment PA is demonstrated in. The job passes both as
+# parameters, so these only apply to interactive runs.
+dbutils.widgets.text("catalog", "princeton_poc_dev")
+dbutils.widgets.text("schema_suffix", "_dev")
 CATALOG = dbutils.widgets.get("catalog")
 SUFFIX = dbutils.widgets.get("schema_suffix")
 

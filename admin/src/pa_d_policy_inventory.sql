@@ -102,11 +102,20 @@ ORDER BY mask_status, c.table_schema, c.table_name, c.column_name;
 -- PA-11 — PRE-ROLLOUT POLICY TESTING
 --
 -- The Oracle "faux user" question: before this goes live, what will each role actually
--- see? Databricks has no session-impersonation function — there is no simulate_principal()
--- or set_session_user(), and a policy is evaluated as the CALLER, so you cannot self-test
--- another identity from one session.
+-- see?
 --
--- Two honest mechanisms instead, in increasing strength.
+-- There is no impersonation FUNCTION: simulate_principal(), set_session_user() and
+-- impersonate() all return UNRESOLVED_ROUTINE (verified). A policy is evaluated as the
+-- caller, so you cannot self-test another identity by calling something.
+--
+-- But Databricks does support ASSUMING A ROLE -- workspace-name menu -> pick a role -- and
+-- that IS the faux-user mechanism. While a role is assumed it becomes the active SQL
+-- identity, and Unity Catalog evaluates grants, row filters and column masks against it.
+-- Verified in this workspace: as `account users`, session_user() returns 'account users'
+-- and is_member('admins') is false.
+--
+-- Two mechanisms, in increasing strength. Section 4a proves the branch LOGIC in one
+-- session; 4b proves UC ENFORCES it, and needs no colleague and no service principal.
 -- =====================================================================================
 
 -- ---------------------------------------------------------------------------------------
@@ -156,16 +165,28 @@ WHERE dept_id IN (SELECT dept_id FROM <catalog>.admin_demo.department_access
 -- by default, not "see everything if unmapped."
 
 -- ---------------------------------------------------------------------------------------
--- 4b. Confirm with a second real principal (the strongest test)
+-- 4b. Assume the role and re-run (the enforcement test)
 --
--- 4a proves the branch logic; it does not prove UC enforces it. For that, a second person
--- in the faculty group runs the query below and screenshots the result. That is the
--- verification to do once before the session, not live on stage.
+-- 4a proves the branch logic; it does not prove UC enforces it -- those queries ran as you,
+-- with the identity passed in as a string. The real test is an identity switch:
+--
+--   1. Workspace-name menu (top right) -> hover the workspace -> pick `account users`
+--   2. Re-run the query below, and re-run pa_b_column_masking / pa_c_row_filters
+--   3. Switch back the same way
+--
+-- This is safe to do live: it changes nothing about the data or the policies, only which
+-- identity is asking.
 -- ---------------------------------------------------------------------------------------
 
--- Have a faculty-group member run:
---   SELECT student_id, ssn, dob FROM <catalog>.admin_demo.student LIMIT 5;
--- Expect: ssn as ***-**-NNNN, dob as YYYY-XX-XX, and only their mapped departments' rows.
+-- Acting as `account users`, run:
+SELECT student_id, ssn, dob FROM <catalog>.admin_demo.student LIMIT 5;
+-- Expect: ssn NULL, dob NULL (PA-08 full restriction), and only the departments mapped to
+-- 'account users' in admin_demo.department_access (PA-09/PA-10).
+--
+-- Then confirm the identity actually changed -- if session_user() still returns your email,
+-- the role switch did not take effect and the result above proves nothing:
+SELECT session_user() AS acting_as, is_member('admins') AS is_admin;
+-- Expect: 'account users', false.
 
 -- Then confirm the read appears in the audit trail with their identity:
 SELECT event_time,
