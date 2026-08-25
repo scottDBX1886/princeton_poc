@@ -741,15 +741,26 @@ Branch on session_user(), NOT is_member(). The restricted identity is reached by
   - a group is not a member of itself: acting as "account users", is_member('account users') is FALSE
   - an assumed role inherits none of the human's memberships: is_member('admins') is FALSE too
 
-1. Create a mapping table admin_demo.department_access (principal STRING, dept_id BIGINT,
-   granted_by STRING, granted_at TIMESTAMP). This is what makes the policy dynamic — moving someone
-   between departments becomes an INSERT, not a policy rewrite.
+1. Create your OWN mapping table admin_demo.department_access_prompt (principal STRING,
+   dept_id BIGINT, granted_by STRING, granted_at TIMESTAMP). This is what makes the policy dynamic:
+   moving someone between departments becomes an INSERT, not a policy rewrite.
+
+   *** DO NOT create, replace, insert into, or delete from admin_demo.department_access WITHOUT the
+   _prompt suffix. *** That table is SHARED. It drives the pre-built row filter already live on
+   admin_demo.student and admin_demo.faculty, and its verified contents are `account users` mapped to
+   departments 5, 12 and 24 (2,963 of 30,000 student rows). A CREATE OR REPLACE on it silently strips
+   the column comments AND discards those rows, breaking the verified baseline. Every table you write
+   must carry the _prompt suffix, the mapping table included.
 
    Seed the RESTRICTED ROLE (not the current user) to TWO departments, so "filtered" is visibly
-   narrower than "all" without being a single row that could be a coincidence. The principal column
-   holds whatever session_user() returns, which for an assumed role is the ROLE NAME, not an email.
-   Get this wrong and the filter denies every row for the role — which looks like a broken demo
-   rather than a working policy.
+   narrower than "all" without being a single row that could be a coincidence. Choose departments that
+   actually have students by reading them from the data; do NOT assume dept_id 1, 2, 3 exist. The
+   principal column holds whatever session_user() returns, which for an assumed role is the ROLE NAME,
+   not an email. Get this wrong and the filter denies every row for the role, which looks like a broken
+   demo rather than a working policy.
+
+   Before finishing, assert the shared baseline is untouched: admin_demo.department_access still holds
+   exactly `account users` on departments 5, 12, 24. Capture it before your writes and compare after.
 
 2. Create a row-filter function returning BOOLEAN, with three branches in precedence order:
    FIRST the restricted role (session_user() = restricted_role) sees only its mapped departments;
