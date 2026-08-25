@@ -670,7 +670,45 @@ the role and reading the table proves **enforcement**.
 
 ## Generation prompt — PA-09, PA-10
 
-> **Built:** ✅ · **Prompt:** 🟡 written (Assistant — generate the row-filter notebook)
+> **Built:** ✅ · **Prompt:** 🟡 admin half verified 2026-08-25 (2nd attempt) — restricted half pending
+
+<details>
+<summary><strong>Two attempts — the first one destroyed the shared baseline</strong></summary>
+
+**Attempt 1 ran `CREATE OR REPLACE TABLE` on `admin_demo.department_access`** — the *shared* table that
+drives the pre-built row filter on `admin_demo.student` and `faculty`. Damage:
+
+| | Before | After |
+|---|---|---|
+| Column comments | 4 | **0** — `CREATE OR REPLACE` does not preserve them |
+| Seed | depts **5, 12, 24** | depts 1, 2, 3 |
+| Row-filter result | **2,963** rows | 1,553 |
+
+Restored by re-applying the comments via `ALTER COLUMN` and re-inserting the seed; 2,963 confirmed to
+reproduce.
+
+**The prompt was at fault.** It said "name every function you create with a `_prompt` suffix" and used
+`student_prompt` as the example — then step 1 said *"Create a mapping table
+`admin_demo.department_access`"* by name. A generation follows the concrete instruction over the general
+warning. Same defect class as the PA-07/08 guard rail, in the neighbouring prompt, which I did not check
+at the time.
+
+**Attempt 2, against the hardened prompt, passed the admin half cleanly:**
+
+| Check | Result |
+|---|---|
+| Writes only to `_prompt` objects | ✅ zero writes to the shared table |
+| Shared `department_access` intact | ✅ still `account users` → 5, 12, 24 · 2,963 rows reproduce |
+| Own mapping table | ✅ `department_access_prompt` → depts 16, 24, 35 |
+| Read real `dept_id`s from data | ✅ did not assume 1/2/3 exist |
+| Adopted the before/after baseline guard | ✅ asserts `SHARED_BASELINE_BEFORE == AFTER` |
+| `session_user()` restricted branch **first** | ✅ then `is_member`, then unmapped |
+| Policy separation | ✅ live tables on `filter_by_department`, `_prompt` on `filter_by_department_prompt` |
+
+**Still pending:** the restricted assertions sit behind `if IS_RESTRICTED_ROLE:`, so an admin-only run
+skips them. Re-run as `account users` and expect **4,538 of 30,000** rows (depts 16+24+35).
+
+</details>
 
 **What it proves:** the same table returns different rows to different readers, enforced at the
 table rather than in a WHERE clause someone can forget.
@@ -843,7 +881,38 @@ visible rather than accidental.
 
 ## Generation prompt — PA-11, PA-12
 
-> **Prompt:** 🟡 written (Assistant — generate the inventory + test notebook)
+> **Prompt:** 🟡 verified read-only and complete 2026-08-25 (2nd attempt) — restricted half pending
+
+<details>
+<summary><strong>Two attempts — the first stopped before its own cleanup cell</strong></summary>
+
+**Attempt 1 left `test_mask_ssn_as` in the catalog**, even though the notebook asserts it was dropped.
+The drop is unguarded, so the only explanation is that the run never reached the cleanup cell — an
+incomplete run rather than wrong logic. Harmless (the harness is read-only and clearly named) but it is
+exactly the litter the scenario promises not to leave. Removed manually.
+
+**Worth noting how it was caught:** not from the notebook, which claimed success, but by listing the
+catalog's functions independently. A final assertion only proves anything if execution reaches it.
+
+**Attempt 2 ran to completion:**
+
+| Check | Result |
+|---|---|
+| `test_*` harness dropped | ✅ none left in `admin_demo` |
+| Read-only otherwise | ✅ zero writes; baseline masks and filters untouched |
+| Inventory over both policy views | ✅ `column_masks`, `row_filters`, plus `routines` for the bodies |
+| Coverage-gap check | ✅ `LEFT JOIN` to `column_masks`, flags `UNPROTECTED` |
+| Privilege-escalation check | ✅ `ALL_PRIVILEGES` / `CREATE_FUNCTION` / `MODIFY` on `admin_demo` |
+| Labels branch-logic vs enforcement | ✅ *"this proves the mask logic branches correctly, but it does **not** prove live enforcement"* |
+
+**Two prompt items it did not cover:** zero references to the metastore-admin bypass, and zero to
+`princeton_poc_prod`. Both are narrative context rather than assertions, so they do not invalidate the
+run — but the prompt asks for them and a reader of the generated notebook would miss the point that an
+admin cannot self-verify a restriction.
+
+**Still pending:** the enforcement half. Re-run as `account users` for the live confirmation.
+
+</details>
 
 One notebook covers both scenarios, so one prompt. Each is written up separately below.
 
