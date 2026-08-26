@@ -1122,8 +1122,8 @@
   ],
   "home": {
     "summary": {
-      "built": "58 of 86 RFP scenario IDs built & verified (Engineer + Business Analyst complete; Data Scientist nearly complete; Platform Administrator planned).",
-      "prompt": "37 of the generate-from-prompt scenarios verified on the live environment — the entire Engineer and Business Analyst prompt paths, 0 pending.",
+      "built": "84 of 86 RFP scenario IDs built & verified across all four personas (Engineer, Business Analyst, Data Scientist, Platform Administrator). 2 partial (R notebook needs classic compute; pre-run query cost estimate isn't native), 0 planned.",
+      "prompt": "51 of the generate-from-prompt scenarios verified — the full Engineer path, Business Analyst, most Data Scientist, and the tested Platform Admin prompts. A few PA prompts pending a role-switched re-run; the rest are walkthroughs with no object to generate.",
       "legendBuilt": "Built: ✅ built & verified · 🟡 built, needs classic compute · ⬜ planned",
       "legendPrompt": "Prompt: 🟢 generated & verified · — walkthrough / not a prompt · ⏸ parked"
     },
