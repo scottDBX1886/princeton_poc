@@ -29,6 +29,28 @@
           "media": []
         },
         {
+          "id": "E2",
+          "title": "Relational DB ingestion (full extract + custom SQL)",
+          "scenarios": "SE-01, SE-02",
+          "surface": "Lakeflow Connect (managed DB ingestion)",
+          "status": "tested",
+          "proves": "The platform ingests from an external relational database with managed Lakeflow Connect pipelines: a query-based connector does the full/custom-SQL extract (SE-01/02) and a CDC connector captures ongoing changes — governed through Unity Catalog, no hand-built extract code.",
+          "setup": "Pre-built in the customer workspace as two Lakeflow Connect SQL pipelines: lfc_qbc_dbx_sql (query-based → princeton_poc_dev.bronze_dev) and lfc_cdc_dbx_sql (CDC → princeton_poc_lfc_dev.lfc_sql_cdc_dev). Intentionally not in the repo — live workspace connectors.",
+          "steps": [
+            "Open the Lakeflow Connect pipeline lfc_qbc_dbx_sql — query-based ingestion from the SQL source.",
+            "SE-01/02: show the extract landing in bronze_dev with schema + types preserved; the connector's SQL covers full-table and custom queries.",
+            "Open lfc_cdc_dbx_sql — CDC ingestion capturing new/changed/deleted rows from the same source.",
+            "Run an update and show rows land governed in UC (no hand-written extract code)."
+          ],
+          "prompt": null,
+          "outcome": "Query-based connector lands the relational extract in bronze_dev; the CDC connector captures ongoing changes into lfc_sql_cdc_dev — both managed Lakeflow Connect, governed by UC.",
+          "notes": [
+            "Lakeflow Connect is managed ingestion — the connector handles extract + CDC; no custom pipeline code.",
+            "Pre-built in the workspace (two live SQL connectors), not version-controlled in this repo."
+          ],
+          "media": []
+        },
+        {
           "id": "E3",
           "title": "REST API ingestion — OAuth 2.0 + pagination + token refresh",
           "scenarios": "SE-08",
@@ -1114,15 +1136,15 @@
             "id": "SE-01",
             "name": "Relational DB — full extract",
             "object": "E2",
-            "built": "planned",
-            "prompt": "parked"
+            "built": "done",
+            "prompt": "tested"
           },
           {
             "id": "SE-02",
             "name": "Relational DB — custom SQL (joins/agg/window/proc)",
             "object": "E2",
-            "built": "planned",
-            "prompt": "parked"
+            "built": "done",
+            "prompt": "tested"
           },
           {
             "id": "SE-03",
