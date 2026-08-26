@@ -98,19 +98,19 @@ list is the full checklist.
 | SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-31 | Bulk disable / pause of workloads | E8b (bulk_pause) | ✅ built & verified | 🟢 tested (princeton_poc: e8_bulk_pause.py paused all scheduled Engineer jobs in one operation, verified 3→0 unpaused; resume restores. DS/BA/PA out of scope by design) |
+| SE-31 | Bulk disable / pause of workloads | E8b (bulk_pause) | ✅ built & verified | 🟢 tested (princeton_poc: e8_bulk_pause.py paused all scheduled Engineer jobs in one operation, verified 3→0 unpaused; resume restores. DS/BA/PA out of scope by design) · re-verified customer ws 2026-08-26 |
 | SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 | SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: regenerated E8 emitted all three — on_success + on_failure + on_duration_warning_threshold_exceeded — with health rule RUN_DURATION_SECONDS>1800; run TERMINATED SUCCESS) |
-| SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) |
+| SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) · re-verified customer ws 2026-08-26 |
 | SE-35 | Calling external processes | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
 
 ### 3.6 DevOps, CI/CD & Environment Promotion
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-36 | Source control integration | E10 | ✅ built & verified | — n/a |
-| SE-37 | Promotion across environments | E10 | ✅ built & verified (dev/qa/prod all validate) | — n/a |
-| SE-38 | CI/CD pipeline integration | E10 | ✅ built & verified (GitHub Actions workflow) | — n/a |
-| SE-39 | Rollback of a failed deployment | E10 | ✅ built & verified (git revert / tag redeploy) | — n/a |
+| SE-36 | Source control integration | E10 | ✅ built & verified | — n/a · re-verified customer ws 2026-08-26 |
+| SE-37 | Promotion across environments | E10 | ✅ built & verified (dev/qa/prod all validate) | — n/a · re-verified customer ws 2026-08-26 |
+| SE-38 | CI/CD pipeline integration | E10 | ✅ built & verified (GitHub Actions workflow) | — n/a · re-verified customer ws 2026-08-26 |
+| SE-39 | Rollback of a failed deployment | E10 | ✅ built & verified (git revert / tag redeploy) | — n/a · re-verified customer ws 2026-08-26 |
 
 ### 3.7 Data Observability & Governance
 | ID | Scenario | Covered by | Status | Prompt tested? |
