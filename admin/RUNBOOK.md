@@ -670,7 +670,7 @@ the role and reading the table proves **enforcement**.
 
 ## Generation prompt — PA-09, PA-10
 
-> **Built:** ✅ · **Prompt:** 🟡 admin half verified 2026-08-25 (2nd attempt) — restricted half pending
+> **Built:** ✅ · **Prompt:** 🟢 tested (customer workspace 2026-08-25, both halves — see the block below)
 
 <details>
 <summary><strong>Two attempts — the first one destroyed the shared baseline</strong></summary>
@@ -705,8 +705,14 @@ at the time.
 | `session_user()` restricted branch **first** | ✅ then `is_member`, then unmapped |
 | Policy separation | ✅ live tables on `filter_by_department`, `_prompt` on `filter_by_department_prompt` |
 
-**Still pending:** the restricted assertions sit behind `if IS_RESTRICTED_ROLE:`, so an admin-only run
-skips them. Re-run as `account users` and expect **4,538 of 30,000** rows (depts 16+24+35).
+**Enforcement half confirmed.** The restricted assertions sit behind `if IS_RESTRICTED_ROLE:`, so an
+admin-only run skips them silently — nothing on screen says the enforcement block did not execute.
+`system.access.table_lineage` is the reliable place to confirm it did: acting as `account users`, the
+session read `student_prompt` (6), `faculty_prompt` (4) and `department_access_prompt` (1).
+
+> **Tip for verifying any role-switched run.** Check `table_lineage` (`created_by = '<role>'`) rather
+> than `system.access.audit` — lineage records the role immediately, while `audit.identity_metadata`
+> can lag several minutes, long enough to read as a false negative right after a run.
 
 </details>
 
@@ -836,7 +842,7 @@ Branch on session_user(), NOT is_member(). The restricted identity is reached by
 
 ## PA-09 — Row-level security: attribute-based filtering
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-25 (shared prompt above)
 
 **What it proves:** the same table returns different rows to different readers, enforced at the
 table rather than in a `WHERE` clause someone can forget to add.
@@ -856,7 +862,7 @@ strict subset — roughly 1,000 rows across 2 departments.
 
 ## PA-10 — Row-level security: dynamic policy by user identity
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-25 (shared prompt above)
 
 **What it proves — and this is the operationally important one.** A policy with department numbers
 written into it needs a code change and a redeploy every time someone moves department. This one
@@ -881,7 +887,7 @@ visible rather than accidental.
 
 ## Generation prompt — PA-11, PA-12
 
-> **Prompt:** 🟡 verified read-only and complete 2026-08-25 (2nd attempt) — restricted half pending
+> **Prompt:** 🟢 tested (customer workspace 2026-08-25, both halves — see the block below)
 
 <details>
 <summary><strong>Two attempts — the first stopped before its own cleanup cell</strong></summary>
@@ -910,7 +916,11 @@ catalog's functions independently. A final assertion only proves anything if exe
 run — but the prompt asks for them and a reader of the generated notebook would miss the point that an
 admin cannot self-verify a restriction.
 
-**Still pending:** the enforcement half. Re-run as `account users` for the live confirmation.
+**Enforcement half confirmed.** Acting as `account users`, the session read
+`information_schema.column_masks` (11), `row_filters` (3), `routines` (2), `columns` (2),
+`schema_privileges` (1) and `tables` (1) — the inventory, coverage-gap and privilege-escalation queries
+running against a restricted identity. Same 23-second role session that carried PA-09/10, confirmed via
+`table_lineage`.
 
 </details>
 
@@ -972,7 +982,7 @@ suffix ALREADY includes its leading underscore — concatenate directly.
 
 ## PA-11 — Security policy testing & validation ("faux user")
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-25 (shared prompt above)
 
 **What the RFP asks:** before rollout, simulate a Faculty user to confirm they see masked data
 correctly — the Oracle "faux user" pattern.
@@ -1031,7 +1041,7 @@ policy. Expect the owner only.
 
 ## PA-12 — Security policy audit & documentation
 
-> **Built:** ✅ · **Prompt:** 🟡 written (shared prompt above)
+> **Built:** ✅ · **Prompt:** 🟢 tested 2026-08-25 (shared prompt above)
 
 **What it proves:** the policy catalog is a **table you can query**, not a console screen you
 screenshot. Unity Catalog exposes `information_schema.column_masks` and
