@@ -87,10 +87,10 @@ list is the full checklist.
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-25 | Flat-file output — CSV / delimited | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-26 | Excel workbook output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-27 | JSON file output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
+| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-25 | Flat-file output — CSV / delimited | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-26 | Excel workbook output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-27 | JSON file output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
 
 ### 3.5 Orchestration & Job Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
