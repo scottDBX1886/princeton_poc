@@ -655,26 +655,35 @@ SELECT source_table_full_name, target_table_full_name
 FROM system.access.table_lineage
 WHERE target_table_full_name LIKE 'princeton_poc_dev.%' AND source_table_full_name IS NOT NULL
 ORDER BY target_table_full_name;
-
--- SE-41 schema drift (automatic, isolation-safe — writes only your wksp)
-CREATE TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo AS
-  SELECT student_id, dept_id, status FROM princeton_poc_dev.silver_dev.student LIMIT 100;
-ALTER TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo ADD COLUMN citizenship STRING;
-DESCRIBE HISTORY princeton_poc_dev.wksp_<you>.e11_drift_demo;   -- shows version 1 = ADD COLUMNS
 ```
-- **SE-42 (data drift):** Catalog Explorer → `gold_dev.enrollment_history` (5M rows) →
-  **Monitoring** → create a Snapshot monitor on `gpa_points` + `grade` → **Refresh metrics**.
+
+- **SE-41 (schema drift):** Auto Loader detects source file changes as they land. Deploy E1 in your
+  `wksp_<you>` schema, then drop a students CSV with an extra column into
+  `/Volumes/princeton_poc_dev/landing_dev/files/students_csv/`, re-run the pipeline, and observe
+  one of three outcomes based on `cloudFiles.schemaEvolutionMode`:
+  - `addNewColumns` (default): stream fails with an exception (drift detected + surfaced).
+  - `rescue`: new column routes to `_rescued_data` JSON (stream continues, drift visible in rescued data).
+  - `failOnNewColumns`: stream halts, requires manual schema update or file removal (strict contract).
+  See the full walkthrough in [`docs/runbook/E11_governance_walkthrough.md`](../docs/runbook/E11_governance_walkthrough.md) for exact steps.
+
+- **SE-42 (data drift):** Catalog Explorer → `gold_dev.enrollment_history` (5M rows) → **Monitoring**
+  → create a Snapshot monitor on `gpa_points` + `grade` → **Refresh metrics** (baseline profile).
+  Then create a drifted copy in your `wksp_<you>` (e.g., set all grades to 'A'), create a monitor on it,
+  refresh, and query `system.lakehouse_monitoring.drift_metrics` to see the anomaly flagged (metric name + severity).
+
 - **SE-43 (discovery + AI docs):** Catalog Explorer → open `silver_dev.student` → **AI suggest**
   a description + column comments (or seed via `COMMENT ON`), then search to discover them.
 
-**Expected outcome:** the lineage query returns real Bronze→Silver→Gold→wksp chains; the drift
-demo's `DESCRIBE HISTORY` shows `ADD COLUMNS` at version 1; a monitor produces profile/drift
-metrics on the fact; AI-suggested comments appear on the table and in `information_schema`.
+**Expected outcome:** the lineage query returns real Bronze→Silver→Gold→wksp chains; the SE-41
+Auto Loader demo shows drift detection/surfacing per configured mode; SE-42 monitors produce
+profile/drift metrics and flag anomalies; AI-suggested comments appear on the table and in
+`information_schema`.
 
-**Notes:** (1) SE-41 drifts a **wksp copy**, not the shared `silver_dev` (isolation model — the
-foundation is read-only for the group; ~20 people run it concurrently). (2) POC tables ship
-without comments (verified all `NULL`), so SE-43 is demonstrated by the live **AI suggest** action
-or a `COMMENT ON` seed. (3) Lakehouse Monitoring is created per-table via UI/API (no pre-populated
-system schema here) — the measure columns are confirmed present on the fact table.
+**Notes:** (1) SE-41 uses E1's Auto Loader stream to detect **source-driven** schema drift (files
+arriving with new columns), not SQL mutations — this is production-realistic. (2) SE-42 requires
+creating two monitors and comparing profiles; the drift metrics table surfaces which metric moved.
+(3) Both SE-41 and SE-42 are demonstrated in isolation-safe per-person schemas (`wksp_<you>`).
+(4) Lakehouse Monitoring is created per-table via UI/API (no pre-populated system schema) — the
+measure columns are confirmed present on the fact table.
 
 ---
