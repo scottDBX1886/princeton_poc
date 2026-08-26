@@ -53,21 +53,15 @@ SELECT COUNT(*) FROM princeton_poc_dev.wksp_<you>.e1_students_raw;
 -- Expected: 2000
 ```
 
-### Step 2: Create a drifted students file (extra column)
-Drop a new CSV into the landing directory with an **extra column** (`citizenship`) that the schema
-doesn't expect. The file should have the same first 8 columns + the new one:
+### Step 2: Drop the drifted students file (extra column)
+A ready-made drift file lives at **`engineer/src/e11/drifted_students.csv`** — the real 8 columns
+plus an unexpected `citizenship` column. Upload it into the landing directory the E1 stream watches:
 ```bash
-# On your local machine, create drifted_students.csv:
-"student_id","first_name","last_name","ssn","dob","dept_id","status","email","citizenship"
-"5001","Alice","Chen","999-12-3456","01/15/1998","10","active","alice@example.com","US"
-"5002","Bob","Kumar","999-87-6543","03/20/1999","20","active","bob@example.com","IN"
-```
-
-Then upload it to the landing directory:
-```bash
-databricks fs cp drifted_students.csv \
+databricks fs cp engineer/src/e11/drifted_students.csv \
   "dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/" --profile princeton_poc
 ```
+(Its `student_id`s start at 900001 so it never collides with the real data; delete it from the
+landing dir after the demo to reset.)
 
 ### Step 3: Trigger the pipeline and observe the outcome (depends on schemaEvolutionMode)
 
@@ -123,72 +117,55 @@ Whichever mode you test, the **platform detects the drift**:
 
 ## SE-42 — Data-drift detection (Lakehouse Monitoring)
 
-Lakehouse Monitoring profiles a table's data distribution and detects anomalies (changes in
-mean/stddev/null rates/distinct counts) between snapshots or over time. Drift is flagged with the
-specific metric that moved.
+Lakehouse Monitoring profiles a table's data distribution over time and flags anomalies (changes in
+mean / stddev / null rate / distinct counts / category proportions). **Drift is temporal within one
+monitor** — it is computed between *successive refreshes* of the same monitored table — so to show
+drift you apply a change **between** two refreshes, not by comparing two separate monitors.
 
-**Create a baseline monitor (UI):** Catalog Explorer → `princeton_poc_dev.gold_dev.enrollment_history`
-(the 5,000,000-row fact) → **Quality**/**Monitoring** → **Create monitor**:
-- **Profile type:** Snapshot (for a full-table profile across all rows).
-- **Measure columns:** `gpa_points` (numeric — verified DOUBLE) and `grade` (categorical — verified STRING).
-- **Schedule:** on-demand for the demo.
+Each monitor writes **its own** output tables — a profile-metrics table and a drift-metrics table —
+as Delta tables in the **output schema you choose when you create the monitor**. There is **no**
+global `system.lakehouse_monitoring` schema; find the exact output-table names on the monitor's own
+page (Catalog Explorer → the table → Quality tab → the monitor links to them).
 
-Click **Refresh metrics** to capture the baseline profile. Monitoring creates two Delta tables in
-`system.lakehouse_monitoring`:
-- `_profile_metrics` — row count, mean, stddev, null%, distinct counts per column, per refresh.
-- `_drift_metrics` — detected anomalies (metric + direction + severity) when a measure drifts
-  beyond configured thresholds from the baseline.
+**Isolation-safe demo** (mutate a copy you own, never the shared fact):
 
-Query the baseline:
 ```sql
-SELECT table_name, col_name, metric_name, value
-FROM system.lakehouse_monitoring.profile_metrics
-WHERE table_name LIKE '%enrollment_history%'
-ORDER BY metric_timestamp DESC, col_name, metric_name
-LIMIT 20;
-```
-This shows the baseline mean GPA, grade distribution, null counts, etc.
-
-**Simulate + detect drift:** In your own `wksp_<you>` schema, create a copy of the fact and skew it:
-```sql
--- 1. Create a copy of enrollment_history in your schema
-CREATE TABLE princeton_poc_dev.wksp_<you>.enrollment_history_v2 AS
+-- 1. Make a copy you can mutate, in your own schema
+CREATE TABLE princeton_poc_dev.wksp_<you>.enrollment_drift_demo AS
 SELECT * FROM princeton_poc_dev.gold_dev.enrollment_history;
-
--- 2. Skew the data: set all grades to 'A' (originally ~15% A, now 100%)
-UPDATE princeton_poc_dev.wksp_<you>.enrollment_history_v2
-SET grade = 'A' WHERE grade IS NOT NULL;
-
--- 3. Create a Lakehouse Monitor on your skewed copy (same UI steps as above):
--- Catalog Explorer → your schema → enrollment_history_v2 → Quality → Create monitor
--- Profile type: Snapshot, measure columns: gpa_points, grade, refresh now.
-
--- 4. Query the drifted profile and compare to the baseline:
-SELECT col_name, metric_name, value
-FROM system.lakehouse_monitoring.profile_metrics
-WHERE table_name LIKE '%enrollment_history_v2%'
-ORDER BY metric_timestamp DESC, col_name, metric_name
-LIMIT 20;
-
--- The grade column's distinct_values and proportions will show 100% 'A' (vs baseline ~15%).
--- This is the DRIFT DETECTED.
-
--- 5. View drift anomalies flagged by the monitor:
-SELECT col_name, metric_name, direction, severity
-FROM system.lakehouse_monitoring.drift_metrics
-WHERE table_name LIKE '%enrollment_history_v2%'
-ORDER BY metric_timestamp DESC;
-
--- Example: anomaly on grade's distinct_values with severity="medium" (far from baseline).
 ```
 
-**Verified capability:** baseline profile establishes the expected distribution; the drifted copy
-shows the metric move (grade diversity from ~5 categories to 1). The drift metrics table surfaces
-the anomaly with the column and metric name, allowing the operator to investigate "what changed?"
+**2. Create a monitor on that copy (UI):** Catalog Explorer →
+`princeton_poc_dev.wksp_<you>.enrollment_drift_demo` → **Quality** / **Monitoring** →
+**Create monitor**:
+- **Profile type:** Snapshot.
+- **Measure columns:** `gpa_points` (DOUBLE) and `grade` (STRING).
+- Pick an **output schema** (your `wksp_<you>` is fine).
+- Click **Refresh metrics** — this is the **baseline** window.
 
-> **Note:** monitors are created per-table via the UI/API. The `system.lakehouse_monitoring` schema
-> is automatically provisioned when you create the first monitor. Profile metrics update on each
-> refresh; drift anomalies are computed relative to the baseline profile.
+**3. Introduce drift, then refresh again:**
+```sql
+-- shift the grade distribution: originally ~10 grades, now 100% 'A'
+UPDATE princeton_poc_dev.wksp_<you>.enrollment_drift_demo
+SET grade = 'A' WHERE grade IS NOT NULL;
+```
+Back on the monitor → **Refresh metrics** a **second** time. Now there are two windows to compare.
+
+**4. See the drift flagged:** open the monitor's **Quality dashboard**, or query its **drift-metrics
+output table** (the name is shown on the monitor page — typically the monitored table name plus a
+`_drift_metrics` suffix, in the output schema you chose). The row for `grade` between the two windows
+shows the distribution shift — a categorical drift metric (e.g. a large chi-squared / JS-distance)
+identifying `grade` as the column that moved.
+
+**Verified capability:** the baseline refresh establishes the expected distribution; the post-skew
+refresh is flagged as drift, naming the column (`grade`) and the metric that moved — which is exactly
+SE-42's "anomaly flagged with the metric that triggered it," with the two windows as the historical
+trend.
+
+> **Two things confirmed on this workspace:** there is no pre-provisioned `system.lakehouse_monitoring`
+> schema (a monitor's metrics live in the output schema you pick), and drift needs the change applied
+> **between two refreshes of one monitor** — a single snapshot, or two separate monitors, will not
+> populate drift metrics.
 
 ## SE-43 — Catalog discovery + AI-generated documentation
 

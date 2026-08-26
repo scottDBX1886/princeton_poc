@@ -1,0 +1,6 @@
+"student_id","first_name","last_name","ssn","dob","dept_id","status","email","citizenship"
+"900001","Alice","Chen","999-12-3456","01/15/1998","10","active","alice.chen@example.com","US"
+"900002","Bob","Kumar","999-87-6543","03/20/1999","20","active","bob.kumar@example.com","IN"
+"900003","Carla","Nguyen","999-55-1212","11/02/2000","30","active","carla.nguyen@example.com","VN"
+"900004","David","Okafor","999-33-7788","07/09/1997","40","active","david.okafor@example.com","NG"
+"900005","Emma","Rossi","999-44-9900","05/28/2001","10","active","emma.rossi@example.com","IT"
