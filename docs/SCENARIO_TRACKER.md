@@ -66,16 +66,16 @@ list is the full checklist.
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SDP, all 10 patterns; re-gen emitted e5_student_dates_parsed with tz conversion — UTC→Eastern/Pacific via from_utc_timestamp, DST-aware, zones differ 3h) |
-| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SDP, all 10 patterns; re-gen emitted e5_student_dates_parsed with tz conversion — UTC→Eastern/Pacific via from_utc_timestamp, DST-aware, zones differ 3h) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
 
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
