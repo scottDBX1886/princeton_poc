@@ -1,7 +1,7 @@
 # E11 — Governance Walkthrough (SE-40, SE-41, SE-42, SE-43)
 
 Proves Databricks' native data-governance surface across the POC data: **lineage** (automatic),
-**schema-drift history** (automatic, Delta), **data-drift monitoring** (Lakehouse Monitoring), and
+**schema-drift detection** (Auto Loader, source-driven), **data-drift monitoring** (UC data profiling, formerly Lakehouse Monitoring), and
 **catalog discovery + AI-generated documentation**. Two of the four are captured by the platform
 with zero setup; the other two are one-click/one-command actions shown here.
 
@@ -115,17 +115,21 @@ Whichever mode you test, the **platform detects the drift**:
 > themselves. Auto Loader detects file changes automatically as data lands. This is source-driven drift
 > detection, which is the production reality for ingestion pipelines.
 
-## SE-42 — Data-drift detection (Lakehouse Monitoring)
+## SE-42 — Data-drift detection (UC data profiling)
 
-Lakehouse Monitoring profiles a table's data distribution over time and flags anomalies (changes in
+> **Naming:** what was "Lakehouse Monitoring" is now **Data profiling**, under Unity Catalog
+> **data quality monitoring**. You **create a profile** on a table (Catalog Explorer → the table →
+> **Quality** tab); older docs/UI may still say "monitor." Same feature.
+
+A **data profile** captures a table's distribution over time and flags anomalies (changes in
 mean / stddev / null rate / distinct counts / category proportions). **Drift is temporal within one
-monitor** — it is computed between *successive refreshes* of the same monitored table — so to show
-drift you apply a change **between** two refreshes, not by comparing two separate monitors.
+profile** — computed between *successive refreshes* of the same table — so to show drift you apply a
+change **between** two refreshes, not by comparing two separate profiles.
 
-Each monitor writes **its own** output tables — a profile-metrics table and a drift-metrics table —
-as Delta tables in the **output schema you choose when you create the monitor**. There is **no**
-global `system.lakehouse_monitoring` schema; find the exact output-table names on the monitor's own
-page (Catalog Explorer → the table → Quality tab → the monitor links to them).
+Each profile writes **its own** two output tables — a **profile metrics table** and a **drift
+metrics table** — as Delta tables in the **Unity Catalog schema you specify when you create the
+profile**. There is **no** global `system.lakehouse_monitoring` schema (confirmed on this workspace);
+the exact output-table names are shown on the table's Quality tab.
 
 **Isolation-safe demo** (mutate a copy you own, never the shared fact):
 
@@ -135,13 +139,13 @@ CREATE TABLE princeton_poc_dev.wksp_<you>.enrollment_drift_demo AS
 SELECT * FROM princeton_poc_dev.gold_dev.enrollment_history;
 ```
 
-**2. Create a monitor on that copy (UI):** Catalog Explorer →
-`princeton_poc_dev.wksp_<you>.enrollment_drift_demo` → **Quality** / **Monitoring** →
-**Create monitor**:
+**2. Create a profile on that copy (UI):** Catalog Explorer →
+`princeton_poc_dev.wksp_<you>.enrollment_drift_demo` → **Quality** tab → **Create profile** (a.k.a.
+create monitor in older UI):
 - **Profile type:** Snapshot.
-- **Measure columns:** `gpa_points` (DOUBLE) and `grade` (STRING).
-- Pick an **output schema** (your `wksp_<you>` is fine).
-- Click **Refresh metrics** — this is the **baseline** window.
+- **Metric columns:** `gpa_points` (DOUBLE) and `grade` (STRING).
+- Pick an **output schema** for the metrics tables (your `wksp_<you>` is fine).
+- **Refresh metrics** — this is the **baseline** window.
 
 **3. Introduce drift, then refresh again:**
 ```sql
@@ -149,23 +153,21 @@ SELECT * FROM princeton_poc_dev.gold_dev.enrollment_history;
 UPDATE princeton_poc_dev.wksp_<you>.enrollment_drift_demo
 SET grade = 'A' WHERE grade IS NOT NULL;
 ```
-Back on the monitor → **Refresh metrics** a **second** time. Now there are two windows to compare.
+Back on the Quality tab → **Refresh metrics** a **second** time. Now there are two windows to compare.
 
-**4. See the drift flagged:** open the monitor's **Quality dashboard**, or query its **drift-metrics
-output table** (the name is shown on the monitor page — typically the monitored table name plus a
-`_drift_metrics` suffix, in the output schema you chose). The row for `grade` between the two windows
-shows the distribution shift — a categorical drift metric (e.g. a large chi-squared / JS-distance)
+**4. See the drift flagged:** open the profile's **dashboard** (the Quality tab links it), or query
+its **drift metrics table** (the name is shown on the Quality tab, in the output schema you chose).
+The row for `grade` between the two windows shows the distribution shift — a categorical drift metric
 identifying `grade` as the column that moved.
 
 **Verified capability:** the baseline refresh establishes the expected distribution; the post-skew
-refresh is flagged as drift, naming the column (`grade`) and the metric that moved — which is exactly
-SE-42's "anomaly flagged with the metric that triggered it," with the two windows as the historical
-trend.
+refresh is flagged as drift, naming the column (`grade`) and the metric that moved — exactly SE-42's
+"anomaly flagged with the metric that triggered it," with the two windows as the historical trend.
 
 > **Two things confirmed on this workspace:** there is no pre-provisioned `system.lakehouse_monitoring`
-> schema (a monitor's metrics live in the output schema you pick), and drift needs the change applied
-> **between two refreshes of one monitor** — a single snapshot, or two separate monitors, will not
-> populate drift metrics.
+> schema (metrics live in the output schema you pick), and drift needs the change applied **between
+> two refreshes of one profile** — a single snapshot, or two separate profiles, will not populate
+> drift metrics.
 
 ## SE-43 — Catalog discovery + AI-generated documentation
 

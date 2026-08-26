@@ -680,10 +680,13 @@ profile/drift metrics and flag anomalies; AI-suggested comments appear on the ta
 `information_schema`.
 
 **Notes:** (1) SE-41 uses E1's Auto Loader stream to detect **source-driven** schema drift (files
-arriving with new columns), not SQL mutations — this is production-realistic. (2) SE-42 requires
-creating two monitors and comparing profiles; the drift metrics table surfaces which metric moved.
-(3) Both SE-41 and SE-42 are demonstrated in isolation-safe per-person schemas (`wksp_<you>`).
-(4) Lakehouse Monitoring is created per-table via UI/API (no pre-populated system schema) — the
-measure columns are confirmed present on the fact table.
+arriving with new columns), not SQL mutations — this is production-realistic. (2) SE-42 uses **UC
+data profiling** (renamed from Lakehouse Monitoring — you "create a profile" on the Quality tab).
+Drift is temporal within ONE profile: baseline refresh → apply the skew → second refresh → the drift
+metrics table surfaces which column/metric moved. Do NOT create two separate profiles and compare —
+that won't populate drift. (3) Both SE-41 and SE-42 are demonstrated in isolation-safe per-person
+schemas (`wksp_<you>`). (4) A profile is created per-table via the Quality tab / API and writes its
+own profile- + drift-metrics tables into an output schema you pick (no global
+system.lakehouse_monitoring schema) — the metric columns are confirmed present on the fact table.
 
 ---
