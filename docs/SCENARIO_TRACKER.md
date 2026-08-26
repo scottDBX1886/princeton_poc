@@ -55,10 +55,10 @@ list is the full checklist.
 | SE-01 | Relational DB ingestion — full extract | E2 | ✅ built & verified (Lakeflow Connect query-based ingestion, pre-built in workspace) | 🟢 tested |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ✅ built & verified (Lakeflow Connect query-based + CDC connectors, pre-built in workspace) | 🟢 tested |
 | SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
+| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
 | SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) |
