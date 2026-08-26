@@ -17,7 +17,7 @@ list is the full checklist.
 🟢 tested — generated a working object from the prompt · 🟡 written — prompt exists in the runbook, not yet verified by generating from it · — n/a — no generation prompt (SA-deployed job / walkthrough / parked)
 **Last updated:** 2026-08-26 — **Platform Admin prompt pass COMPLETE** (10 🟢) in the customer workspace (`dbc-7ef61dd7-1b75`), both halves for every scenario. DS-07 build re-verified in the same workspace. See the notes under Persona 4.
 
-**Summary — pre-built objects (RFP scenario IDs):** 82 ✅ built-and-verified (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09) · 2 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-24 partial) · 2 ⬜ planned (SE-01/02 — E2 BYO-DB, parked). **Entire Engineer persona (except parked E2) + entire Business Analyst persona built; Data Scientist in progress (DS-A/B/C/D: DS-01/02/03/04/05/06a).**
+**Summary — pre-built objects (RFP scenario IDs):** 84 ✅ built-and-verified (E1 SE-04/05/06/07 · E2 SE-01/02 (Lakeflow Connect, pre-built in workspace) · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34 · E10 SE-36/37/38/39 · E11 SE-40/41/42/43 · SE-09 · BA-01…08 · DS-01/02/04/05/06a/06b/07/08/09 · PA-01…23/25) · 2 🟡 (DS-03 code-review-only — no classic compute in the POC; PA-24 partial) · 0 ⬜. **All four personas built; GitHub board 34/34 Done. E2 is pre-built in the customer workspace and intentionally not in the repo.**
 
 **Summary — prompt tested (the generate-from-prompt path):** **55 🟢 tested · 1 🟡 written · 30 — n/a.** The single 🟡 is DS-03 (code-review-only, no classic compute in the POC). Engineer 32 🟢 (E1 SE-04/05/06/07 · E3 SE-08 · E4 SE-10 · E5 SE-11–20 · E6 SE-03/21/22/23 · E7 SE-24/25/26/27 · E8 SE-28/29/30/31/32/33/35 · E9 SE-34) — pass complete except parked E2. Business Analyst 5 🟢 (BA-01/03/05/06/07). Data Scientist 8 🟢 (DS-01/02/04/05/06b/07/08/09), 1 🟡 (DS-03 — code-review-only, no classic compute), 1 — n/a (DS-06a, a reference guide with no object to generate). Platform Admin 6 🟢, all in the customer workspace 2026-08-24: PA-01/02/04 (attempt 1 exposed a stale instruction and passed only by weakening its own assertions; attempt 2 passed cleanly with hard failures throughout) · PA-05 Genie over the audit + lineage tables · PA-07/08 (both halves — the generation made its own _prompt tables so the verified baseline was untouched, and a re-run while acting as `account users` returned NULL for ssn and dob). **PA-09/10 and PA-11/12 closed 2026-08-25, both halves** — the restricted runs were confirmed from `system.access.table_lineage`, which recorded `account users` reading `student_prompt`/`faculty_prompt`/`department_access_prompt` (PA-09/10) and `column_masks`/`row_filters`/`routines` (PA-11/12) inside one 23-second role session. **The Platform Admin prompt pass is complete: 10 🟢, 0 🟡.** — n/a means there is no object for a prompt to produce: SA-deployed jobs, UI walkthroughs, and reference guides.
 
@@ -52,65 +52,65 @@ list is the full checklist.
 ### 3.1 Data Source Connectivity & Ingestion
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-01 | Relational DB ingestion — full extract | E2 | ⬜ (BYO-DB parked) | — (parked) |
-| SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ⬜ (BYO-DB parked) | — (parked) |
-| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) |
-| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) |
+| SE-01 | Relational DB ingestion — full extract | E2 | ✅ built & verified (Lakeflow Connect query-based ingestion, pre-built in workspace) | 🟢 tested |
+| SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ✅ built & verified (Lakeflow Connect query-based + CDC connectors, pre-built in workspace) | 🟢 tested |
+| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
+| SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
+| SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) · re-verified customer ws 2026-08-26 (E3: 60000 rows, 60000 distinct enrollment_id — no pagination dupes, token refresh clean) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
-| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) |
+| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) · re-verified customer ws 2026-08-26 (E4: 63986 rows; source_system tags file+db+api 3860 / db+api 56140 / db 3694 / file+db 292 — all 3 sources cross-tagged) |
 
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SDP, all 10 patterns; re-gen emitted e5_student_dates_parsed with tz conversion — UTC→Eastern/Pacific via from_utc_timestamp, DST-aware, zones differ 3h) |
-| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
-| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) |
+| SE-11 | Lookup / reference data enrichment | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-12 | Join — multiple dataset merge (inner/left/full) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-13 | String manipulation functions | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-14 | Null detection & conditional logic | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-15 | Date & time handling | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SDP, all 10 patterns; re-gen emitted e5_student_dates_parsed with tz conversion — UTC→Eastern/Pacific via from_utc_timestamp, DST-aware, zones differ 3h) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-16 | Data type casting & validation (reject path) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-17 | Aggregation & running totals (control-break) | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-18 | Pivot — rows↔columns | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-19 | Last-record-in-group identification | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
+| SE-20 | Record loop / iteration over grouped records | E5 | ✅ built & verified | 🟢 tested (princeton_poc: E5 Genie→SQL SDP, 14 gold_* MVs, all 10 patterns) · re-verified customer ws 2026-08-26 (E5: 14 MVs, all 10 patterns; reject split 57006 valid/2994 rejected; enriched 30000 + standing; tz UTC→ET/PT real) |
 
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
+| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
+| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
+| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
 
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-25 | Flat-file output — CSV / delimited | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-26 | Excel workbook output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
-| SE-27 | JSON file output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) |
+| SE-24 | Insert/update/delete to a DB target (UPSERT) | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-25 | Flat-file output — CSV / delimited | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-26 | Excel workbook output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
+| SE-27 | JSON file output | E7 | ✅ built & verified | 🟢 tested (princeton_poc: E7 prompt→notebook, wksp_scott_johnson; target 23999, 0 alumni after UPSERT+hard-delete; CSV/pipe/JSON/xlsx all wrote — matches baseline) · re-verified customer ws 2026-08-26 (E7: target 23999, 0 alumni after UPSERT+hard-delete; csv/pipe/json/xlsx all wrote) |
 
 ### 3.5 Orchestration & Job Management
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-31 | Bulk disable / pause of workloads | E8b (bulk_pause) | ✅ built & verified | 🟢 tested (princeton_poc: e8_bulk_pause.py paused all scheduled Engineer jobs in one operation, verified 3→0 unpaused; resume restores. DS/BA/PA out of scope by design) |
-| SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
-| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: regenerated E8 emitted all three — on_success + on_failure + on_duration_warning_threshold_exceeded — with health rule RUN_DURATION_SECONDS>1800; run TERMINATED SUCCESS) |
-| SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) |
-| SE-35 | Calling external processes | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) |
+| SE-28 | Sequential job chaining (+ variable passing) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
+| SE-29 | Parallel job execution | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
+| SE-30 | Scheduled execution (daily/weekly/cron) | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
+| SE-31 | Bulk disable / pause of workloads | E8b (bulk_pause) | ✅ built & verified | 🟢 tested (princeton_poc: e8_bulk_pause.py paused all scheduled Engineer jobs in one operation, verified 3→0 unpaused; resume restores. DS/BA/PA out of scope by design) · re-verified customer ws 2026-08-26 |
+| SE-32 | Automated retry on failure | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
+| SE-33 | Failure & completion alerting | E8 | ✅ built & verified | 🟢 tested (princeton_poc: regenerated E8 emitted all three — on_success + on_failure + on_duration_warning_threshold_exceeded — with health rule RUN_DURATION_SECONDS>1800; run TERMINATED SUCCESS) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
+| SE-34 | Job monitoring dashboard | E9 | ✅ built & verified | 🟢 tested (princeton_poc: E9 Genie→AI/BI dashboard; generated w/ minor SQL errors that Genie fixed in-loop → working dashboard across jobs/pipelines/notebooks) · re-verified customer ws 2026-08-26 |
+| SE-35 | Calling external processes | E8 | ✅ built & verified | 🟢 tested (princeton_poc: E8 Genie→live 7-task Lakeflow Job w/ serverless notebooks; parallel legs, retry on stage, paused cron, email — runs green) · re-verified customer ws 2026-08-26 (E8: 7-task job TERMINATED SUCCESS; parallel legs, retry_task fail→recover, paused cron, 3-way email incl. SLA health rule) |
 
 ### 3.6 DevOps, CI/CD & Environment Promotion
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-36 | Source control integration | E10 | ✅ built & verified | — n/a |
-| SE-37 | Promotion across environments | E10 | ✅ built & verified (dev/qa/prod all validate) | — n/a |
-| SE-38 | CI/CD pipeline integration | E10 | ✅ built & verified (GitHub Actions workflow) | — n/a |
-| SE-39 | Rollback of a failed deployment | E10 | ✅ built & verified (git revert / tag redeploy) | — n/a |
+| SE-36 | Source control integration | E10 | ✅ built & verified | — n/a · re-verified customer ws 2026-08-26 |
+| SE-37 | Promotion across environments | E10 | ✅ built & verified (dev/qa/prod all validate) | — n/a · re-verified customer ws 2026-08-26 |
+| SE-38 | CI/CD pipeline integration | E10 | ✅ built & verified (GitHub Actions workflow) | — n/a · re-verified customer ws 2026-08-26 |
+| SE-39 | Rollback of a failed deployment | E10 | ✅ built & verified (git revert / tag redeploy) | — n/a · re-verified customer ws 2026-08-26 |
 
 ### 3.7 Data Observability & Governance
 | ID | Scenario | Covered by | Status | Prompt tested? |

@@ -29,6 +29,28 @@
           "media": []
         },
         {
+          "id": "E2",
+          "title": "Relational DB ingestion (full extract + custom SQL)",
+          "scenarios": "SE-01, SE-02",
+          "surface": "Lakeflow Connect (managed DB ingestion)",
+          "status": "tested",
+          "proves": "The platform ingests from an external relational database with managed Lakeflow Connect pipelines: a query-based connector does the full/custom-SQL extract (SE-01/02) and a CDC connector captures ongoing changes — governed through Unity Catalog, no hand-built extract code.",
+          "setup": "Pre-built in the customer workspace as two Lakeflow Connect SQL pipelines: lfc_qbc_dbx_sql (query-based → princeton_poc_dev.bronze_dev) and lfc_cdc_dbx_sql (CDC → princeton_poc_lfc_dev.lfc_sql_cdc_dev). Intentionally not in the repo — live workspace connectors.",
+          "steps": [
+            "Open the Lakeflow Connect pipeline lfc_qbc_dbx_sql — query-based ingestion from the SQL source.",
+            "SE-01/02: show the extract landing in bronze_dev with schema + types preserved; the connector's SQL covers full-table and custom queries.",
+            "Open lfc_cdc_dbx_sql — CDC ingestion capturing new/changed/deleted rows from the same source.",
+            "Run an update and show rows land governed in UC (no hand-written extract code)."
+          ],
+          "prompt": null,
+          "outcome": "Query-based connector lands the relational extract in bronze_dev; the CDC connector captures ongoing changes into lfc_sql_cdc_dev — both managed Lakeflow Connect, governed by UC.",
+          "notes": [
+            "Lakeflow Connect is managed ingestion — the connector handles extract + CDC; no custom pipeline code.",
+            "Pre-built in the workspace (two live SQL connectors), not version-controlled in this repo."
+          ],
+          "media": []
+        },
+        {
           "id": "E3",
           "title": "REST API ingestion — OAuth 2.0 + pagination + token refresh",
           "scenarios": "SE-08",
@@ -244,18 +266,20 @@
           "scenarios": "SE-40, SE-41, SE-42, SE-43",
           "surface": "UI + SQL walkthrough",
           "status": "walkthrough",
-          "proves": "Databricks' native governance surface over the POC data — lineage and schema-drift history are captured automatically (zero setup), while data-drift monitoring and AI-generated documentation are one-click actions. Nothing custom is built.",
+          "proves": "Databricks' native governance surface: lineage is captured automatically (zero setup); Auto Loader DETECTS source schema drift as files land and halts-or-handles it per config; Lakehouse Monitoring flags data drift with the metric that moved; and AI generates catalog docs.",
           "setup": "No build needed — lineage and Delta history are already populated by the POC's own pipeline/job runs.",
           "steps": [
-            "SE-40 lineage: run the table_lineage query below — returns real Bronze→Silver→Gold→wksp chains.",
-            "SE-41 schema drift: create a small copy in your wksp, ALTER TABLE ADD COLUMN, then DESCRIBE HISTORY shows ADD COLUMNS at version 1.",
-            "SE-42 data drift: Catalog Explorer → gold_dev.enrollment_history → Monitoring → create a Snapshot monitor on gpa_points + grade → Refresh metrics.",
+            "SE-40 lineage: run the system.access.table_lineage query — returns real Bronze→Silver→Gold→wksp chains (and the graphical Lineage tab shows the same).",
+            "SE-41 schema drift (Auto Loader, source-driven): drop a students CSV with an extra 'citizenship' column into the E1 landing dir, re-run the E1 pipeline, and watch Auto Loader DETECT it — default addNewColumns fails with UnknownFieldException (restart widens schema); 'rescue' routes the extra data to _rescued_data and keeps running; 'failOnNewColumns' halts with a clear message. The mode is the halts-or-handles-per-config knob.",
+            "SE-42 data drift: baseline a Lakehouse Monitor on gold_dev.enrollment_history, then create a skewed copy in your wksp (e.g. set all grades to 'A'), monitor it, and compare — the drift metric moves, flagging the anomaly with its metric.",
             "SE-43 AI docs: Catalog Explorer → silver_dev.student → AI suggest a description + column comments, then search to discover them."
           ],
           "prompt": "-- SE-40 lineage (automatic): full medallion + downstream wksp chains\nSELECT source_table_full_name, target_table_full_name\nFROM system.access.table_lineage\nWHERE target_table_full_name LIKE 'princeton_poc_dev.%' AND source_table_full_name IS NOT NULL\nORDER BY target_table_full_name;\n\n-- SE-41 schema drift (automatic, isolation-safe — writes only your wksp)\nCREATE TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo AS\n  SELECT student_id, dept_id, status FROM princeton_poc_dev.silver_dev.student LIMIT 100;\nALTER TABLE princeton_poc_dev.wksp_<you>.e11_drift_demo ADD COLUMN citizenship STRING;\nDESCRIBE HISTORY princeton_poc_dev.wksp_<you>.e11_drift_demo;   -- shows version 1 = ADD COLUMNS",
           "outcome": "The lineage query returns real Bronze→Silver→Gold→wksp chains; the drift demo's DESCRIBE HISTORY shows ADD COLUMNS at version 1; a monitor produces profile/drift metrics on the fact; AI-suggested comments appear on the table.",
           "notes": [
-            "SE-41 drifts a wksp copy, not the shared silver_dev (isolation model — the foundation is read-only for the group)."
+            "SE-41 is source-driven detection via Auto Loader (E1's cloudFiles stream) — not an operator-made ALTER. That's the RFP's 'detected and surfaced; halts with a clear message or handles per config'.",
+            "SE-42: Lakehouse Monitoring writes per-monitor output tables (<table>_profile_metrics / _drift_metrics in the monitor's output schema) — confirm the exact name when you create the monitor.",
+            "SE-40 lineage + SE-43 AI docs are automatic / one-click; nothing custom is built."
           ],
           "media": []
         }
@@ -1100,8 +1124,8 @@
   ],
   "home": {
     "summary": {
-      "built": "58 of 86 RFP scenario IDs built & verified (Engineer + Business Analyst complete; Data Scientist nearly complete; Platform Administrator planned).",
-      "prompt": "37 of the generate-from-prompt scenarios verified on the live environment — the entire Engineer and Business Analyst prompt paths, 0 pending.",
+      "built": "84 of 86 RFP scenario IDs built & verified across all four personas (Engineer, Business Analyst, Data Scientist, Platform Administrator). 2 partial (R notebook needs classic compute; pre-run query cost estimate isn't native), 0 planned.",
+      "prompt": "51 of the generate-from-prompt scenarios verified — the full Engineer path, Business Analyst, most Data Scientist, and the tested Platform Admin prompts. A few PA prompts pending a role-switched re-run; the rest are walkthroughs with no object to generate.",
       "legendBuilt": "Built: ✅ built & verified · 🟡 built, needs classic compute · ⬜ planned",
       "legendPrompt": "Prompt: 🟢 generated & verified · — walkthrough / not a prompt · ⏸ parked"
     },
@@ -1114,15 +1138,15 @@
             "id": "SE-01",
             "name": "Relational DB — full extract",
             "object": "E2",
-            "built": "planned",
-            "prompt": "parked"
+            "built": "done",
+            "prompt": "tested"
           },
           {
             "id": "SE-02",
             "name": "Relational DB — custom SQL (joins/agg/window/proc)",
             "object": "E2",
-            "built": "planned",
-            "prompt": "parked"
+            "built": "done",
+            "prompt": "tested"
           },
           {
             "id": "SE-03",
