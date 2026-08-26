@@ -610,6 +610,24 @@ one row for <date>`. Output: `wksp_<user>.ds_07_daily_summary`, one row **per da
 **Re-run it.** The job deletes the current `run_date` before appending, so re-running replaces
 rather than duplicates — an assertion proves one row per date. A demo will always re-run.
 
+**Re-verified in the customer workspace (`dbc-7ef61dd7-1b75`) 2026-08-26** — job `TERMINATED SUCCESS`
+in ~50s, and the output checked rather than the exit code trusted:
+
+| Metric | Value |
+|---|---|
+| enrollments | **5,000,000** |
+| students / courses | 30,000 / 5,000 |
+| avg / median GPA | 3.0841 / 3.3 |
+| withdrawals | **249,652** |
+
+Every figure matches the retired-workspace baseline, which confirms the synthetic data here is the same
+generation — so DS baselines carry across the move. Idempotency held: 2 rows for 2 distinct `run_date`s
+after a second run, not 2 rows for one date.
+
+> **The serverless `.cache()` trap is still guarded** (`ds_07_scheduled_analysis.py:62`). That failure —
+> `[NOT_SUPPORTED_WITH_SERVERLESS] PERSIST TABLE` — only appears when the notebook runs as a **job**,
+> never interactively, so a job run is the only test that exercises it. This one is clean.
+
 ---
 
 ## DS-08 — Version control for analytical code
