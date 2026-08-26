@@ -61,7 +61,7 @@ list is the full checklist.
 | SE-07 | Semi-structured — XML (repeating/optional nodes) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
 | SE-08 | REST API ingestion — authenticated + paginated | E3 | ✅ built & verified (60k rows, SP-M2M + API OAuth + refresh) | 🟢 tested (princeton_poc: E3 prompt→notebook, output identical to baseline, 60k) · re-verified customer ws 2026-08-26 (E3: 60000 rows, 60000 distinct enrollment_id — no pagination dupes, token refresh clean) |
 | SE-09 | SFTP file retrieval and ingestion | (own job) | ✅ built & verified (600 rows) | — n/a |
-| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) |
+| SE-10 | Multi-source pipeline on a single canvas | E4 | ✅ built & verified | 🟢 tested (princeton_poc: E4 Genie→SDP; 60k, 3962 file+db+api — matches baseline) · re-verified customer ws 2026-08-26 (E4: 63986 rows; source_system tags file+db+api 3860 / db+api 56140 / db 3694 / file+db 292 — all 3 sources cross-tagged) |
 
 ### 3.2 Data Transformation
 | ID | Scenario | Covered by | Status | Prompt tested? |
