@@ -35,85 +35,47 @@ with no extra work — it's a property of running on the platform.
 
 ## SE-41 — Schema-drift detection (Auto Loader, source-driven)
 
-Auto Loader **detects structural changes in source files** (new/renamed/retyped columns) when they
-land, and either evolves the schema, routes unexpected data to `_rescued_data`, or halts the
-pipeline — all configurable via `cloudFiles.schemaEvolutionMode`.
+**The idea:** E1 ingests student CSVs with Auto Loader. Drop a new file that has an **extra column**
+the pipeline has never seen, re-run E1, and Auto Loader **detects** the change and **stops the run
+with a clear message** naming the new column — real source-driven drift detection, not a schema
+change you made yourself.
 
-**Context:** E1's Auto Loader pipeline (`e1_students_raw` stream) monitors
-`/Volumes/princeton_poc_dev/landing_dev/files/students_csv/` for incoming student CSV files with
-the schema: `student_id, first_name, last_name, ssn, dob, dept_id, status, email`.
+**Prerequisite:** you've already run **E1** (SE-04) in this session, so `e1_students_raw` exists in
+your schema. (Substitute your schema for `<you>` — e.g. `wksp_scott_johnson`.)
 
-**Isolation-safe live demo** (your per-person schema, no foundation mutation):
-
-### Step 1: Set up your pipeline baseline
-Deploy + run **E1** in your `wksp_<you>` schema if not already done. This ingests students.csv
-into your `e1_students_raw` streaming table. Verify it succeeded:
-```sql
-SELECT COUNT(*) FROM princeton_poc_dev.wksp_<you>.e1_students_raw;
--- Expected: 2000
-```
-
-### Step 2: Drop the drifted students file (extra column)
-A ready-made drift file lives at **`engineer/src/e11/drifted_students.csv`** — the real 8 columns
-plus an unexpected `citizenship` column. Upload it into the landing directory the E1 stream watches:
+**Step 1 — drop the drift file into E1's landing folder.** A ready-made file ships in the repo: the
+real 8 student columns **plus** an unexpected `citizenship` column, with `student_id`s from 900001 so
+it never collides with real data. From the repo root:
 ```bash
 databricks fs cp engineer/src/e11/drifted_students.csv \
   "dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/" --profile princeton_poc
 ```
-(Its `student_id`s start at 900001 so it never collides with the real data; delete it from the
-landing dir after the demo to reset.)
 
-### Step 3: Trigger the pipeline and observe the outcome (depends on schemaEvolutionMode)
+**Step 2 — re-run your E1 pipeline.** Open the E1 pipeline and click **Run**.
 
-Re-run the E1 pipeline in your schema. The outcome depends on the configured `cloudFiles.schemaEvolutionMode`:
+**Step 3 — observe the detection.** With Auto Loader's default (`addNewColumns`), the run **stops
+with `UnknownFieldException`**, and the pipeline's **error / event log names the new column**
+(`citizenship`). That is the RFP's "detected and surfaced; pipeline halts with a clear message."
+Auto Loader has also recorded the new column in its schema, so simply **clicking Run again** resumes
+with the widened schema (the new column now flows through) — "handles the change gracefully" once
+you've acknowledged it.
 
-**Outcome 1 — `addNewColumns` (current E1 default):**
-- Auto Loader detects the new `citizenship` column and adds it to the schema.
-- The pipeline **fails with an exception** (stream halts with "UnknownFieldException").
-- **Why?** The exception forces you to acknowledge the schema change; restart the pipeline to proceed
-  with the widened schema.
-- **Surfacing:** The error appears in the pipeline's **Execution Details** (UI) with the column name.
-- This is the **safe-by-default** mode — drift is detected and surfaced before silent data corruption.
-
-**Outcome 2 — `rescue` (route to `_rescued_data`):**
-Edit your pipeline's `e1_file_ingestion_sdp.py` to add `.option("cloudFiles.schemaEvolutionMode", "rescue")`
-to the `e1_students_raw` definition:
-```python
-return (spark.readStream.format("cloudFiles")
-        .option("cloudFiles.format", "csv")
-        # ... header, quote, escape ...
-        .option("cloudFiles.schemaEvolutionMode", "rescue")  # ADD THIS
-        .load(f"{LANDING}/students_csv"))
+**Step 4 — reset when done:**
+```bash
+databricks fs rm "dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/drifted_students.csv" --profile princeton_poc
 ```
-- Re-run the pipeline with `rescue` mode.
-- The stream **does not fail**. Rows with the extra column are captured in the schema's built-in
-  `_rescued_data` column (a JSON string of unexpected fields).
-- **Surfacing:** Query the `_rescued_data` column to see which rows had unexpected data and what was rescued.
-- This mode is used when you want **resilience over strictness** (e.g., third-party feeds evolving independently).
 
-**Outcome 3 — `failOnNewColumns` (halt and require manual resolution):**
-Edit your pipeline to use `"failOnNewColumns"`:
-```python
-.option("cloudFiles.schemaEvolutionMode", "failOnNewColumns")
-```
-- Re-run the pipeline with this mode.
-- The stream **fails immediately** and does not restart without manual intervention.
-- The schema is NOT automatically updated. You must either:
-  - Remove the drifted file from the landing directory, or
-  - Update the provided schema definition (the SDP's table definition) to include the new column.
-- **Surfacing:** The pipeline halts with a clear error message naming the unexpected column(s).
-- This mode is used when you want **strict schema contracts** (e.g., production pipelines with formal data agreements).
+> **The behaviour is configurable** via `cloudFiles.schemaEvolutionMode` on the stream — this is the
+> "or handles the change gracefully per configuration" half of the RFP ask. You do not need to change
+> anything for the demo above (the default already detects + halts), but the three modes are:
+> - **`addNewColumns` (default)** — halts with `UnknownFieldException`, adds the column, resumes on re-run.
+> - **`rescue`** — never fails; unexpected fields land in the built-in `_rescued_data` column (query it to see what drifted).
+> - **`failOnNewColumns`** — halts and will **not** resume until you update the schema or remove the file (strict contract).
 
-### Step 4: Verify the detection + surface
-Whichever mode you test, the **platform detects the drift**:
-- The pipeline error or `_rescued_data` JSON surface what columns changed.
-- Catalog Explorer → `e1_students_raw` → **History** tab shows the moment the schema changed (if evolved).
-- The data engineer is notified immediately — no silent corruption.
-
-> **Why this demo uses E1's Auto Loader, not SQL mutations:** the RFP asks for "detection of
-> structural changes to a source" — that's file-level drift, not schema changes the operator makes
-> themselves. Auto Loader detects file changes automatically as data lands. This is source-driven drift
-> detection, which is the production reality for ingestion pipelines.
+> **Why Auto Loader, not `ALTER TABLE` + `DESCRIBE HISTORY`:** the RFP asks the platform to *detect*
+> a structural change in a **source**. `DESCRIBE HISTORY` only records a change *you* made — it's an
+> audit log, not detection. Auto Loader noticing an unexpected column in an arriving file is genuine
+> source-driven detection, which is the production reality for ingestion.
 
 ## SE-42 — Data-drift detection (UC data profiling)
 
@@ -121,53 +83,52 @@ Whichever mode you test, the **platform detects the drift**:
 > **data quality monitoring**. You **create a profile** on a table (Catalog Explorer → the table →
 > **Quality** tab); older docs/UI may still say "monitor." Same feature.
 
-A **data profile** captures a table's distribution over time and flags anomalies (changes in
-mean / stddev / null rate / distinct counts / category proportions). **Drift is temporal within one
-profile** — computed between *successive refreshes* of the same table — so to show drift you apply a
-change **between** two refreshes, not by comparing two separate profiles.
+**The idea:** a data profile snapshots a table's distribution each time it refreshes. Take a
+baseline, change the data, refresh again — the profile **flags the drift and names the column/metric
+that moved.** Drift is measured **between successive refreshes of the same profile**, so you apply
+the change *between* two refreshes (not by comparing two tables).
 
-Each profile writes **its own** two output tables — a **profile metrics table** and a **drift
-metrics table** — as Delta tables in the **Unity Catalog schema you specify when you create the
-profile**. There is **no** global `system.lakehouse_monitoring` schema (confirmed on this workspace);
-the exact output-table names are shown on the table's Quality tab.
+You'll run this on **your own copy** of `e5_student_enriched` (from E5), so nothing shared is touched.
+Substitute your schema for `<you>` throughout — e.g. `wksp_scott_johnson`.
 
-**Isolation-safe demo** (mutate a copy you own, never the shared fact):
-
+**Step 1 — make a copy you can mutate:**
 ```sql
--- 1. Make a copy you can mutate, in your own schema
-CREATE TABLE princeton_poc_dev.wksp_<you>.enrollment_drift_demo AS
-SELECT * FROM princeton_poc_dev.gold_dev.enrollment_history;
+CREATE OR REPLACE TABLE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift AS
+SELECT * FROM princeton_poc_dev.wksp_<you>.e5_student_enriched;
 ```
 
-**2. Create a profile on that copy (UI):** Catalog Explorer →
-`princeton_poc_dev.wksp_<you>.enrollment_drift_demo` → **Quality** tab → **Create profile** (a.k.a.
-create monitor in older UI):
-- **Profile type:** Snapshot.
-- **Metric columns:** `gpa_points` (DOUBLE) and `grade` (STRING).
-- Pick an **output schema** for the metrics tables (your `wksp_<you>` is fine).
-- **Refresh metrics** — this is the **baseline** window.
+**Step 2 — create the profile (UI).** Catalog Explorer → open
+`princeton_poc_dev.wksp_<you>.e5_student_enriched_drift` → **Quality** tab → **Create data profile**
+(older UI: "Create monitor"):
+- **Profile type:** *Snapshot*
+- **Metrics for these columns:** `cumulative_gpa` (numeric) and `standing` (categorical)
+- Leave the **output/metrics schema** as your own schema (`wksp_<you>`)
+- **Create**, then click **Refresh metrics**. This first refresh is the **baseline**.
 
-**3. Introduce drift, then refresh again:**
+**Step 3 — introduce drift, then refresh again:**
 ```sql
--- shift the grade distribution: originally ~10 grades, now 100% 'A'
-UPDATE princeton_poc_dev.wksp_<you>.enrollment_drift_demo
-SET grade = 'A' WHERE grade IS NOT NULL;
+-- shift both a numeric and a categorical column so drift is obvious
+UPDATE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift
+SET standing = 'Alumnus', cumulative_gpa = 4.0;
 ```
-Back on the Quality tab → **Refresh metrics** a **second** time. Now there are two windows to compare.
+Back on the **Quality** tab → **Refresh metrics** a **second** time. There are now two refresh
+windows for the profile to compare.
 
-**4. See the drift flagged:** open the profile's **dashboard** (the Quality tab links it), or query
-its **drift metrics table** (the name is shown on the Quality tab, in the output schema you chose).
-The row for `grade` between the two windows shows the distribution shift — a categorical drift metric
-identifying `grade` as the column that moved.
+**Step 4 — see the drift flagged.** On the **Quality** tab, open the profile's **dashboard**, or
+query its **drift metrics table** (its name is shown on the Quality tab, in your schema). Between the
+two windows: `standing` collapses to one value and `cumulative_gpa`'s mean jumps to 4.0 — the drift
+metrics row **names those columns and the metric that moved**, which is exactly SE-42's "anomaly
+flagged with the metric that triggered it," with the two windows as the historical trend.
 
-**Verified capability:** the baseline refresh establishes the expected distribution; the post-skew
-refresh is flagged as drift, naming the column (`grade`) and the metric that moved — exactly SE-42's
-"anomaly flagged with the metric that triggered it," with the two windows as the historical trend.
+**Reset when done:**
+```sql
+DROP TABLE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift;
+```
 
-> **Two things confirmed on this workspace:** there is no pre-provisioned `system.lakehouse_monitoring`
-> schema (metrics live in the output schema you pick), and drift needs the change applied **between
-> two refreshes of one profile** — a single snapshot, or two separate profiles, will not populate
-> drift metrics.
+> **Confirmed on this workspace:** a profile writes its own **profile-metrics** and **drift-metrics**
+> Delta tables into the schema you choose — there is **no** global `system.lakehouse_monitoring`
+> schema. Drift needs the change applied **between two refreshes of one profile**; a single snapshot,
+> or two separate profiles, will not populate drift metrics.
 
 ## SE-43 — Catalog discovery + AI-generated documentation
 
