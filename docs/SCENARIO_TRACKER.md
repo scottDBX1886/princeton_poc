@@ -54,7 +54,7 @@ list is the full checklist.
 |----|----------|-----------|--------|--------|
 | SE-01 | Relational DB ingestion — full extract | E2 | ✅ built & verified (Lakeflow Connect query-based ingestion, pre-built in workspace) | 🟢 tested |
 | SE-02 | Relational DB ingestion — custom SQL (joins/agg/window/proc) | E2 | ✅ built & verified (Lakeflow Connect query-based + CDC connectors, pre-built in workspace) | 🟢 tested |
-| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
+| SE-03 | Incremental / CDC ingestion from a DB source | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
 | SE-04 | Flat-file ingestion — CSV & delimited text | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
 | SE-05 | Excel workbook ingestion (named sheet) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
 | SE-06 | Semi-structured — JSON (nested) | E1 | ✅ built & verified | 🟢 tested (princeton_poc: E1 Genie→SDP, matches baseline) · re-verified customer ws 2026-08-26 (E1: 5 tables 2000/2000/1000/10/200; _rescued_data null on all 2000; tenure 67/133 null) |
@@ -80,9 +80,9 @@ list is the full checklist.
 ### 3.3 Slowly Changing Dimensions & Change Capture
 | ID | Scenario | Covered by | Status | Prompt tested? |
 |----|----------|-----------|--------|--------|
-| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
-| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) |
+| SE-21 | Type 1 SCD — overwrite | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
+| SE-22 | Type 2 SCD — history preservation | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
+| SE-23 | Change capture — new/changed/deleted detection | E6 | ✅ built & verified | 🟢 tested (princeton_poc: E6 Genie→Python SDP; scd1 1005, scd2 1005+21 — matches baseline) · re-verified customer ws 2026-08-26 (E6: scd1 1005, scd2 1026=1005 current+21 end-dated — matches baseline) |
 
 ### 3.4 Target Loading
 | ID | Scenario | Covered by | Status | Prompt tested? |
