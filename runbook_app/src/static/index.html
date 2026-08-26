@@ -425,6 +425,34 @@
       border-left: 3px solid var(--accent-success);
     }
 
+    /* Outcome checklist */
+    ul.outcome-list {
+      list-style: none;
+      margin: 0;
+      padding: 14px 16px;
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-left: 3px solid var(--accent-success);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    ul.outcome-list li {
+      position: relative;
+      padding-left: 26px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    ul.outcome-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: var(--accent-success);
+      font-weight: 700;
+    }
+
     /* Notes */
     ul.notes {
       margin: 0;
@@ -811,6 +839,23 @@
       return { prose, codeBlocks };
     }
 
+    function renderOutcome(text) {
+      if (!text) return "";
+      // Split a multi-part outcome into a checklist: prefer " · " separators, else "SE-nn:" markers.
+      let parts;
+      if (text.includes(" · ")) {
+        parts = text.split(" · ");
+      } else {
+        const m = text.match(/(SE-\d+:[^]*?)(?=(?:SE-\d+:)|$)/g);
+        parts = m && m.length > 1 ? m : [text];
+      }
+      parts = parts.map(s => s.trim().replace(/\.$/, "")).filter(Boolean);
+      if (parts.length <= 1) {
+        return `<div class="outcome">${esc(text)}</div>`;
+      }
+      return `<ul class="outcome-list">${parts.map(pp => `<li>${esc(pp)}</li>`).join("")}</ul>`;
+    }
+
     function renderDetail(o) {
       const badgeLabel = o.status === "tested" ? "Prompt verified" : "Guided walkthrough";
       let html = `
@@ -862,7 +907,7 @@
           </section>`;
       }
 
-      html += `<section class="block"><h3>Expected outcome</h3><div class="outcome">${esc(o.outcome)}</div></section>`;
+      html += `<section class="block"><h3>Expected outcome</h3>${renderOutcome(o.outcome)}</section>`;
 
       if (o.notes && o.notes.length) {
         html += `<section class="block"><h3>Notes</h3><ul class="notes">${o.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul></section>`;

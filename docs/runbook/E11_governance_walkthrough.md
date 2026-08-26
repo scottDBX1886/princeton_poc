@@ -43,15 +43,14 @@ change you made yourself.
 **Prerequisite:** you've already run **E1** (SE-04) in this session, so `e1_students_raw` exists in
 your schema. (Substitute your schema for `<you>` — e.g. `wksp_scott_johnson`.)
 
-**Step 1 — drop the drift file into E1's landing folder.** A ready-made file ships in the repo: the
-real 8 student columns **plus** an unexpected `citizenship` column, with `student_id`s from 900001 so
-it never collides with real data. From the repo root:
-```bash
-databricks fs cp engineer/src/e11/drifted_students.csv \
-  "dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/" --profile princeton_poc
-```
+**Step 1 — get the drift file (no CLI needed).** In Catalog Explorer, open the Volume
+`princeton_poc_dev.landing_dev.files` → folder **`e11_drift_demo`** → **download**
+`drifted_students.csv` (the real 8 student columns **plus** an unexpected `citizenship` column;
+`student_id`s from 900001 so it never collides with real data).
 
-**Step 2 — re-run your E1 pipeline.** Open the E1 pipeline and click **Run**.
+**Step 2 — upload it into E1's landing folder + re-run.** In Catalog Explorer, open the same Volume
+→ the **`students_csv`** folder → **Upload to this volume** → drop `drifted_students.csv` in. Then open
+your E1 pipeline and click **Run**.
 
 **Step 3 — observe the detection.** With Auto Loader's default (`addNewColumns`), the run **stops
 with `UnknownFieldException`**, and the pipeline's **error / event log names the new column**
@@ -60,10 +59,8 @@ Auto Loader has also recorded the new column in its schema, so simply **clicking
 with the widened schema (the new column now flows through) — "handles the change gracefully" once
 you've acknowledged it.
 
-**Step 4 — reset when done:**
-```bash
-databricks fs rm "dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/drifted_students.csv" --profile princeton_poc
-```
+**Step 4 — reset when done:** in Catalog Explorer, open the `students_csv` folder and delete the
+uploaded `drifted_students.csv`.
 
 > **The behaviour is configurable** via `cloudFiles.schemaEvolutionMode` on the stream — this is the
 > "or handles the change gracefully per configuration" half of the RFP ask. You do not need to change
@@ -88,42 +85,36 @@ baseline, change the data, refresh again — the profile **flags the drift and n
 that moved.** Drift is measured **between successive refreshes of the same profile**, so you apply
 the change *between* two refreshes (not by comparing two tables).
 
-You'll run this on **your own copy** of `e5_student_enriched` (from E5), so nothing shared is touched.
-Substitute your schema for `<you>` throughout — e.g. `wksp_scott_johnson`.
+You'll profile the **`e5_student_enriched` table you already built in E5** — it lives in your own
+`wksp_<you>` schema, so nothing shared is touched. Substitute your schema for `<you>` throughout
+(e.g. `wksp_scott_johnson`).
 
-**Step 1 — make a copy you can mutate:**
-```sql
-CREATE OR REPLACE TABLE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift AS
-SELECT * FROM princeton_poc_dev.wksp_<you>.e5_student_enriched;
-```
-
-**Step 2 — create the profile (UI).** Catalog Explorer → open
-`princeton_poc_dev.wksp_<you>.e5_student_enriched_drift` → **Quality** tab → **Create data profile**
+**Step 1 — create the profile (UI).** Catalog Explorer → open
+`princeton_poc_dev.wksp_<you>.e5_student_enriched` → **Quality** tab → **Create data profile**
 (older UI: "Create monitor"):
 - **Profile type:** *Snapshot*
 - **Metrics for these columns:** `cumulative_gpa` (numeric) and `standing` (categorical)
 - Leave the **output/metrics schema** as your own schema (`wksp_<you>`)
 - **Create**, then click **Refresh metrics**. This first refresh is the **baseline**.
 
-**Step 3 — introduce drift, then refresh again:**
+**Step 2 — introduce drift, then refresh again:**
 ```sql
--- shift both a numeric and a categorical column so drift is obvious
-UPDATE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift
-SET standing = 'Alumnus', cumulative_gpa = 4.0;
+-- shift a numeric and a categorical column on a third of the rows so drift is obvious
+UPDATE princeton_poc_dev.wksp_<you>.e5_student_enriched
+SET standing = 'Alumnus', cumulative_gpa = 4.0
+WHERE student_id % 3 = 0;
 ```
 Back on the **Quality** tab → **Refresh metrics** a **second** time. There are now two refresh
 windows for the profile to compare.
 
-**Step 4 — see the drift flagged.** On the **Quality** tab, open the profile's **dashboard**, or
+**Step 3 — see the drift flagged.** On the **Quality** tab, open the profile's **dashboard**, or
 query its **drift metrics table** (its name is shown on the Quality tab, in your schema). Between the
-two windows: `standing` collapses to one value and `cumulative_gpa`'s mean jumps to 4.0 — the drift
-metrics row **names those columns and the metric that moved**, which is exactly SE-42's "anomaly
-flagged with the metric that triggered it," with the two windows as the historical trend.
+two windows, `standing` and `cumulative_gpa` shift — the drift metrics row **names those columns and
+the metric that moved**, which is exactly SE-42's "anomaly flagged with the metric that triggered it,"
+with the two windows as the historical trend.
 
-**Reset when done:**
-```sql
-DROP TABLE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift;
-```
+**Reset when done:** re-run your **E5 pipeline** — it rebuilds `e5_student_enriched` back to its
+baseline values. (Or just leave it; it's your own sandbox copy.)
 
 > **Confirmed on this workspace:** a profile writes its own **profile-metrics** and **drift-metrics**
 > Delta tables into the schema you choose — there is **no** global `system.lakehouse_monitoring`

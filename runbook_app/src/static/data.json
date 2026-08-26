@@ -237,15 +237,18 @@
           "proves": "The POC is engineered the way a production data platform is — versioned in Git, promoted across environments from one codebase, deployed by CI, and rollback-able. The repo + bundle + workflow are the deliverable; there's no notebook to run.",
           "setup": "The repo, three bundle targets (dev/qa/prod, all validating), the CI workflow (.github/workflows/deploy.yml), and a known-good release tag.",
           "steps": [
-            "git log --oneline | head   — SE-36: versioned history, one commit per object",
-            "databricks bundle validate -t dev  --profile princeton_poc   — SE-37: same code…",
-            "databricks bundle validate -t qa   --profile princeton_poc   — …three catalogs",
+            "SE-36 source control: show the versioned build history — one commit per object.",
+            "git log --oneline",
+            "SE-37 promotion: the same code validates against all three environments (dev/qa/prod) — only the catalog + schema names change.",
+            "databricks bundle validate -t dev --profile princeton_poc",
+            "databricks bundle validate -t qa --profile princeton_poc",
             "databricks bundle validate -t prod --profile princeton_poc",
-            "git tag   — SE-39: a known-good tag to roll back to",
-            "Open the repo's Actions tab — SE-38: the validate job runs on every push/PR; deploy is a manual dispatch."
+            "SE-38 CI/CD: open the repo's Actions tab — the validate job runs on every push/PR; deploy is a manual dispatch that promotes to a chosen target.",
+            "SE-39 rollback: a release tag marks a known-good version to revert to (git revert or deploy a prior tag, then bundle deploy).",
+            "git tag"
           ],
           "prompt": null,
-          "outcome": "git log shows the versioned build history; all three bundle validate calls return Validation OK! (same code, princeton_poc_dev / _test / princeton_poc); git tag lists the release tag; the Actions tab shows the CI runs. Rollback = git revert or deploy a prior tag, then bundle deploy.",
+          "outcome": "git log shows the versioned build history · all three bundle validate calls return \"Validation OK!\" (same code → princeton_poc_dev / princeton_poc_test / princeton_poc_prod) · the Actions tab shows the CI runs · git tag lists the release tag for rollback.",
           "notes": [
             "Catalogs use UC default storage, so no storage_root / external location is needed per target (serverless workspaces).",
             "The validate CI job catches configuration regressions before they reach an environment."
@@ -261,13 +264,15 @@
           "proves": "Databricks' native governance surface: lineage is captured automatically (zero setup); Auto Loader DETECTS source schema drift as files land and halts-or-handles it per config; UC data profiling (formerly Lakehouse Monitoring) flags data drift with the metric that moved; and AI generates catalog docs.",
           "setup": "No build needed — lineage and Delta history are already populated by the POC's own pipeline/job runs.",
           "steps": [
-            "SE-40 lineage — Catalog Explorer → princeton_poc_dev.silver_dev.student → Lineage tab for the graph, or query system.access.table_lineage (target_table_full_name LIKE 'princeton_poc_dev.%') for the same as a report. Shows the full Bronze→Silver→Gold→wksp chains.",
-            "SE-41 schema drift (Auto Loader detects a new source column) — Prereq: you've run E1 this session. 1) Drop the ready-made drift file (real 8 cols + an extra 'citizenship' col) into E1's landing folder: databricks fs cp engineer/src/e11/drifted_students.csv dbfs:/Volumes/princeton_poc_dev/landing_dev/files/students_csv/ --profile princeton_poc . 2) Re-run your E1 pipeline. 3) The run STOPS with UnknownFieldException and the event log NAMES the new column (citizenship) — detected + surfaced. Clicking Run again resumes with the widened schema (handled). 4) Reset: databricks fs rm .../students_csv/drifted_students.csv. (Behavior is configurable via cloudFiles.schemaEvolutionMode: default addNewColumns halts+resumes; rescue routes extras to _rescued_data; failOnNewColumns halts until you fix the schema.)",
-            "SE-42 data drift (UC data profiling, formerly Lakehouse Monitoring) — runs on your own copy of e5_student_enriched; substitute your schema for <you>. 1) CREATE OR REPLACE TABLE princeton_poc_dev.wksp_<you>.e5_student_enriched_drift AS SELECT * FROM princeton_poc_dev.wksp_<you>.e5_student_enriched. 2) Catalog Explorer → that table → Quality tab → Create data profile (Snapshot; metric columns cumulative_gpa + standing; output schema = your wksp) → Refresh metrics (baseline). 3) Drift it: UPDATE ...e5_student_enriched_drift SET standing='Alumnus', cumulative_gpa=4.0. 4) Quality tab → Refresh metrics again. 5) Open the profile dashboard (or its drift-metrics table, named on the Quality tab) — standing + cumulative_gpa are flagged as drifted with the metric that moved. Reset: DROP TABLE ...e5_student_enriched_drift.",
-            "SE-43 AI docs — Catalog Explorer → silver_dev.student → in the description field click AI suggest for a table + column comments, accept, then use the catalog search to discover the table with its field-level detail."
+            "SE-40 lineage — Catalog Explorer → princeton_poc_dev.silver_dev.student → the Lineage tab shows the full Bronze → Silver → Gold → wksp graph (or query system.access.table_lineage for the same as a report). Captured automatically, no setup.",
+            "SE-41 schema drift (Auto Loader detects a new source column) — Prereq: you've run E1 this session. (1) In Catalog Explorer, open the Volume princeton_poc_dev.landing_dev.files, folder e11_drift_demo, and download drifted_students.csv (the real 8 columns + an extra 'citizenship' column). (2) In your E1 pipeline's landing folder — the students_csv folder under the same Volume — use Upload to this volume and drop the file in. (3) Re-run your E1 pipeline: it STOPS with UnknownFieldException and the event log names the new column ('citizenship') — drift detected and surfaced. Clicking Run again resumes with the widened schema. (4) To reset, delete the uploaded file from students_csv in Catalog Explorer. (Behavior is configurable via cloudFiles.schemaEvolutionMode — default detects+halts; 'rescue' routes extras to _rescued_data; 'failOnNewColumns' halts until you fix the schema.)",
+            "SE-42 data drift (UC data profiling, formerly Lakehouse Monitoring) — use the e5_student_enriched table you already built in E5 (in your own wksp schema). (1) Catalog Explorer → your princeton_poc_dev.wksp_<you>.e5_student_enriched → Quality tab → Create data profile (type: Snapshot; metric columns: cumulative_gpa + standing; output schema: your wksp) → Refresh metrics — this is the baseline. (2) Introduce a change, then refresh again to compare:",
+            "UPDATE princeton_poc_dev.wksp_<you>.e5_student_enriched SET standing = 'Alumnus', cumulative_gpa = 4.0 WHERE student_id % 3 = 0",
+            "Back on the Quality tab → Refresh metrics a second time. Open the profile dashboard (or its drift-metrics table, named on the Quality tab): standing and cumulative_gpa are flagged as drifted, naming the metric that moved. To restore the table, re-run your E5 pipeline (it rebuilds e5_student_enriched).",
+            "SE-43 AI docs — Catalog Explorer → silver_dev.student → in the description field click AI suggest for a table + column comments, accept them, then use catalog search to discover the table with its field-level detail."
           ],
           "prompt": null,
-          "outcome": "The lineage query returns real Bronze→Silver→Gold→wksp chains; the drift demo's DESCRIBE HISTORY shows ADD COLUMNS at version 1; a monitor produces profile/drift metrics on the fact; AI-suggested comments appear on the table.",
+          "outcome": "SE-40: the Lineage tab / table_lineage query returns real Bronze→Silver→Gold→wksp chains. SE-41: the E1 run halts with UnknownFieldException naming 'citizenship' — drift detected and surfaced; re-running resumes with the new column. SE-42: the data profile flags standing + cumulative_gpa as drifted between the two refreshes, with the metric that moved. SE-43: AI-suggested comments appear on the table and are discoverable via catalog search.",
           "notes": [
             "SE-41 is source-driven detection via Auto Loader (E1's cloudFiles stream reading students_csv) — not an operator-made ALTER. That's the RFP's 'detected and surfaced; halts with a clear message or handles per config'. The drop file is engineer/src/e11/drifted_students.csv (the 8 real columns + citizenship).",
             "SE-42 uses UC data profiling (renamed from Lakehouse Monitoring; you \"create a profile\" on the Quality tab). Each profile writes its own profile-metrics + drift-metrics Delta tables into the output schema you choose — no global system.lakehouse_monitoring schema. Drift is between successive refreshes of one profile, so apply the change BETWEEN two refreshes (baseline → skew → refresh).",
